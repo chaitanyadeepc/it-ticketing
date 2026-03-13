@@ -4,197 +4,284 @@ import PageWrapper from '../components/layout/PageWrapper';
 import Button from '../components/ui/Button';
 import api from '../api/api';
 
-const features = [
-  {
-    icon: (
-      <svg className="w-5 h-5 text-[#3b82f6]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-      </svg>
-    ),
-    title: 'Instant Ticket Creation',
-    desc: 'Submit tickets in under 30 seconds via a guided AI chat.',
-  },
-  {
-    icon: (
-      <svg className="w-5 h-5 text-[#6366f1]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2h-2" />
-      </svg>
-    ),
-    title: 'AI-Powered Routing',
-    desc: 'Auto-categorise and assign tickets to the right team instantly.',
-  },
-  {
-    icon: (
-      <svg className="w-5 h-5 text-[#06b6d4]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-      </svg>
-    ),
-    title: 'Real-Time Dashboard',
-    desc: 'Track all open tickets and agent activity in a live dashboard.',
-  },
-  {
-    icon: (
-      <svg className="w-5 h-5 text-[#f59e0b]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-      </svg>
-    ),
-    title: 'Smart Notifications',
-    desc: 'Get notified on every status change — email, push, or in-app.',
-  },
-  {
-    icon: (
-      <svg className="w-5 h-5 text-[#22c55e]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-      </svg>
-    ),
-    title: 'Team Collaboration',
-    desc: 'Assign, comment, and resolve tickets together as a team.',
-  },
-  {
-    icon: (
-      <svg className="w-5 h-5 text-[#ec4899]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
-      </svg>
-    ),
-    title: 'Analytics & Reports',
-    desc: 'Weekly summaries and resolution metrics for your IT team.',
-  },
-];
-
 const avatarColors = ['#3b82f6', '#6366f1', '#22c55e', '#f59e0b'];
 const avatarInitials = ['JD', 'MP', 'AR', 'SK'];
+
+const features = [
+  { icon: 'M13 10V3L4 14h7v7l9-11h-7z', color: '#3b82f6', title: 'Instant Ticket Creation', desc: 'Submit tickets in under 30 seconds via a guided AI chat.' },
+  { icon: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2h-2', color: '#6366f1', title: 'AI-Powered Routing', desc: 'Auto-categorise and assign tickets to the right team instantly.' },
+  { icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z', color: '#06b6d4', title: 'Real-Time Dashboard', desc: 'Track all open tickets and agent activity in a live dashboard.' },
+  { icon: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9', color: '#f59e0b', title: 'Smart Notifications', desc: 'Get notified on every status change — email, push, or in-app.' },
+  { icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z', color: '#22c55e', title: 'Team Collaboration', desc: 'Assign, comment, and resolve tickets together as a team.' },
+  { icon: 'M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z', color: '#ec4899', title: 'Analytics & Reports', desc: 'Weekly summaries and resolution metrics for your IT team.' },
+];
+
+// Tiny progress bar component
+const Bar = ({ value, max, color }) => {
+  const pct = max > 0 ? Math.round((value / max) * 100) : 0;
+  return (
+    <div className="flex items-center gap-3">
+      <div className="flex-1 h-1.5 bg-[#27272a] rounded-full overflow-hidden">
+        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: color }} />
+      </div>
+      <span className="text-[11px] font-['JetBrains_Mono'] text-[#52525b] w-8 text-right">{pct}%</span>
+    </div>
+  );
+};
+
+const PRIORITY_COLOR = { Low: '#3b82f6', Medium: '#f59e0b', High: '#f97316', Critical: '#ef4444' };
+const STATUS_COLOR   = { Open: '#22c55e', 'In Progress': '#f59e0b', Resolved: '#3b82f6', Closed: '#52525b' };
+const STATUS_BG      = { Open: 'bg-[#22c55e]/10 text-[#22c55e]', 'In Progress': 'bg-[#f59e0b]/10 text-[#f59e0b]', Resolved: 'bg-[#3b82f6]/10 text-[#3b82f6]', Closed: 'bg-[#52525b]/10 text-[#a1a1aa]' };
 
 const Home = () => {
   const navigate = useNavigate();
   const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
   const userName = localStorage.getItem('userName') || '';
   const userRole = localStorage.getItem('userRole') || 'user';
-  const firstName = userName.split(' ')[0] || 'there';
+  const userEmail = localStorage.getItem('userEmail') || '';
+  const firstName = userName.split(' ')[0] || userEmail.split('@')[0] || 'there';
+  const isAdmin = userRole === 'admin';
 
-  const [myStats, setMyStats] = useState(null);
-  const [recentTickets, setRecentTickets] = useState([]);
+  const [tickets, setTickets] = useState([]);
   const [statsLoading, setStatsLoading] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) return;
     setStatsLoading(true);
     api.get('/tickets')
-      .then(({ data }) => {
-        const tickets = data.tickets || [];
-        setRecentTickets(tickets.slice(0, 3));
-        setMyStats({
-          total: tickets.length,
-          open: tickets.filter((t) => t.status === 'Open').length,
-          inProgress: tickets.filter((t) => t.status === 'In Progress').length,
-          resolved: tickets.filter((t) => t.status === 'Resolved' || t.status === 'Closed').length,
-        });
-      })
+      .then(({ data }) => setTickets(data.tickets || []))
       .catch(() => {})
       .finally(() => setStatsLoading(false));
   }, [isAuthenticated]);
 
-  const STATUS_DOT = {
-    'Open': 'bg-[#22c55e]',
-    'In Progress': 'bg-[#f59e0b]',
-    'Resolved': 'bg-[#3b82f6]',
-    'Closed': 'bg-[#52525b]',
-  };
+  // ── Derived stats ──────────────────────────────────────────────────────────
+  const total      = tickets.length;
+  const open       = tickets.filter((t) => t.status === 'Open').length;
+  const inProgress = tickets.filter((t) => t.status === 'In Progress').length;
+  const resolved   = tickets.filter((t) => t.status === 'Resolved').length;
+  const closed     = tickets.filter((t) => t.status === 'Closed').length;
+  const critical   = tickets.filter((t) => t.priority === 'Critical').length;
+  const unresolved = open + inProgress;
+
+  // Category breakdown (top 4)
+  const categoryMap = tickets.reduce((acc, t) => { acc[t.category] = (acc[t.category] || 0) + 1; return acc; }, {});
+  const topCategories = Object.entries(categoryMap).sort((a, b) => b[1] - a[1]).slice(0, 4);
+
+  // Recent activity (last 5 tickets)
+  const recent = tickets.slice(0, 5);
+
+  // Resolution rate
+  const resolutionRate = total > 0 ? Math.round(((resolved + closed) / total) * 100) : 0;
+
+  // ── Greeting time ──────────────────────────────────────────────────────────
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
   if (isAuthenticated) {
     return (
       <PageWrapper>
-        <div className="max-w-5xl mx-auto px-4 py-8">
-          {/* Welcome header */}
-          <div className="mb-8 animate-fade-in">
-            <p className="text-[13px] text-[#52525b] mb-1">Welcome back</p>
-            <h1 className="text-[26px] font-semibold text-[#fafafa]">Hi, {firstName} 👋</h1>
-          </div>
+        <div className="max-w-6xl mx-auto px-4 py-8">
 
-          {/* Quick actions */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
-            {[
-              { label: 'New Ticket', icon: 'M12 4v16m8-8H4', color: '#3b82f6', path: '/chatbot' },
-              { label: 'My Tickets', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2', color: '#6366f1', path: '/my-tickets' },
-              { label: 'Profile', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z', color: '#22c55e', path: '/profile' },
-              userRole === 'admin'
-                ? { label: 'Admin Panel', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z', color: '#f59e0b', path: '/admin' }
-                : { label: 'Settings', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z', color: '#a855f7', path: '/settings' },
-            ].map(({ label, icon, color, path }) => (
-              <button
-                key={label}
-                onClick={() => navigate(path)}
-                className="flex flex-col items-center gap-2.5 py-5 px-3 bg-[#18181b] border border-[#27272a] rounded-xl hover:border-[#3f3f46] hover:bg-[#1c1c1f] transition-all text-center group"
-              >
-                <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${color}20` }}>
-                  <svg className="w-4.5 h-4.5" style={{ color }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d={icon} />
-                  </svg>
-                </div>
-                <span className="text-[12.5px] font-medium text-[#a1a1aa] group-hover:text-[#fafafa] transition-colors">{label}</span>
-              </button>
-            ))}
-          </div>
-
-          {/* Stats row */}
-          {statsLoading ? (
-            <div className="h-24 flex items-center justify-center">
-              <svg className="w-5 h-5 text-[#3b82f6] animate-spin" fill="none" viewBox="0 0 24 24">
+          {/* Header */}
+          <div className="flex flex-wrap items-start justify-between gap-4 mb-8 animate-fade-in">
+            <div>
+              <p className="text-[13px] text-[#52525b] mb-0.5">{greeting}</p>
+              <h1 className="text-[26px] font-semibold text-[#fafafa]">{firstName}</h1>
+              {isAdmin && (
+                <span className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-full bg-[#f59e0b]/10 border border-[#f59e0b]/20 text-[#f59e0b] text-[11px] font-medium">
+                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                  Admin
+                </span>
+              )}
+            </div>
+            {statsLoading && (
+              <svg className="w-5 h-5 text-[#3b82f6] animate-spin mt-1" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
               </svg>
-            </div>
-          ) : myStats && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
-              {[
-                { label: 'Total', value: myStats.total, color: '#a1a1aa' },
-                { label: 'Open', value: myStats.open, color: '#22c55e' },
-                { label: 'In Progress', value: myStats.inProgress, color: '#f59e0b' },
-                { label: 'Resolved', value: myStats.resolved, color: '#3b82f6' },
-              ].map(({ label, value, color }) => (
-                <div key={label} className="bg-[#18181b] border border-[#27272a] rounded-xl px-4 py-4 text-center">
-                  <div className="text-[26px] font-bold" style={{ color }}>{value}</div>
-                  <div className="text-[12px] text-[#52525b] mt-0.5">{label}</div>
-                </div>
-              ))}
-            </div>
-          )}
+            )}
+          </div>
 
-          {/* Recent tickets */}
-          {recentTickets.length > 0 && (
-            <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-[14px] font-semibold text-[#fafafa]">Recent Tickets</h2>
-                <button onClick={() => navigate('/my-tickets')} className="text-[12px] text-[#3b82f6] hover:underline">View all</button>
-              </div>
-              <div className="space-y-2">
-                {recentTickets.map((t) => (
-                  <button
-                    key={t._id}
-                    onClick={() => navigate(`/tickets/${t._id}`)}
-                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-[#27272a] transition-colors text-left"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_DOT[t.status] || 'bg-zinc-500'}`} />
-                      <span className="text-[13px] text-[#fafafa] truncate">{t.title}</span>
-                    </div>
-                    <span className="text-[11px] font-['JetBrains_Mono'] text-[#52525b] ml-3 flex-shrink-0">{t.ticketId || ''}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {myStats?.total === 0 && !statsLoading && (
-            <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-10 text-center">
-              <div className="w-12 h-12 rounded-2xl bg-[#27272a] flex items-center justify-center mx-auto mb-4">
-                <svg className="w-6 h-6 text-[#52525b]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          {total === 0 && !statsLoading ? (
+            /* ── Empty state ── */
+            <div className="bg-[#18181b] border border-[#27272a] rounded-2xl p-12 text-center max-w-lg mx-auto">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#3b82f6]/20 to-[#6366f1]/20 border border-[#3b82f6]/20 flex items-center justify-center mx-auto mb-5">
+                <svg className="w-7 h-7 text-[#3b82f6]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                 </svg>
               </div>
-              <p className="text-[14px] text-[#fafafa] mb-1">No tickets yet</p>
-              <p className="text-[13px] text-[#52525b] mb-4">Raise your first support request using the AI chatbot.</p>
-              <Button variant="primary" onClick={() => navigate('/chatbot')}>Raise a Ticket</Button>
+              <h2 className="text-[17px] font-semibold text-[#fafafa] mb-2">No tickets yet</h2>
+              <p className="text-[13px] text-[#52525b] mb-6 leading-relaxed">Use the AI chatbot to raise your first support request. It'll guide you through the whole process.</p>
+              <Button variant="primary" onClick={() => navigate('/chatbot')}>
+                <svg className="w-4 h-4 mr-2 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/></svg>
+                Raise a Ticket
+              </Button>
+            </div>
+          ) : total > 0 && (
+            <div className="grid lg:grid-cols-3 gap-5">
+
+              {/* ── LEFT column (2/3) ── */}
+              <div className="lg:col-span-2 space-y-5">
+
+                {/* Status overview card */}
+                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5">
+                  <div className="flex items-center justify-between mb-5">
+                    <h2 className="text-[14px] font-semibold text-[#fafafa]">Ticket Overview</h2>
+                    <span className="text-[12px] text-[#52525b] font-['JetBrains_Mono']">{total} total</span>
+                  </div>
+
+                  {/* Resolution rate ring */}
+                  <div className="flex items-center gap-6 mb-5">
+                    <div className="relative w-20 h-20 flex-shrink-0">
+                      <svg className="w-20 h-20 -rotate-90" viewBox="0 0 36 36">
+                        <circle cx="18" cy="18" r="14" fill="none" stroke="#27272a" strokeWidth="3"/>
+                        <circle cx="18" cy="18" r="14" fill="none" stroke="#3b82f6" strokeWidth="3"
+                          strokeDasharray={`${resolutionRate * 0.879} ${100 - resolutionRate * 0.879}`}
+                          strokeLinecap="round"/>
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-[16px] font-bold text-[#fafafa]">{resolutionRate}%</span>
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-[13px] text-[#a1a1aa] mb-1">Resolution rate</p>
+                      <p className="text-[12px] text-[#52525b]">{resolved + closed} resolved · {unresolved} still open</p>
+                      {critical > 0 && (
+                        <p className="mt-2 text-[12px] text-[#ef4444] font-medium flex items-center gap-1.5">
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                          {critical} critical {critical === 1 ? 'ticket' : 'tickets'} need attention
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Status bars */}
+                  <div className="space-y-3">
+                    {[
+                      { label: 'Open', value: open, color: '#22c55e' },
+                      { label: 'In Progress', value: inProgress, color: '#f59e0b' },
+                      { label: 'Resolved', value: resolved, color: '#3b82f6' },
+                      { label: 'Closed', value: closed, color: '#52525b' },
+                    ].map(({ label, value, color }) => (
+                      <div key={label} className="flex items-center gap-3">
+                        <span className="text-[12px] text-[#a1a1aa] w-20 flex-shrink-0">{label}</span>
+                        <div className="flex-1 h-1.5 bg-[#27272a] rounded-full overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: total > 0 ? `${(value / total) * 100}%` : '0%', backgroundColor: color }} />
+                        </div>
+                        <span className="text-[12px] font-['JetBrains_Mono'] text-[#52525b] w-5 text-right">{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Recent activity */}
+                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-[14px] font-semibold text-[#fafafa]">Recent Activity</h2>
+                    <button onClick={() => navigate(isAdmin ? '/admin' : '/my-tickets')} className="text-[12px] text-[#3b82f6] hover:underline">
+                      View all →
+                    </button>
+                  </div>
+                  <div className="space-y-1">
+                    {recent.map((t) => (
+                      <button
+                        key={t._id}
+                        onClick={() => navigate(`/tickets/${t._id}`)}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-[#27272a] transition-colors text-left group"
+                      >
+                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: STATUS_COLOR[t.status] || '#52525b' }} />
+                        <span className="flex-1 text-[13px] text-[#fafafa] truncate">{t.title}</span>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${STATUS_BG[t.status] || 'bg-[#27272a] text-[#a1a1aa]'}`}>{t.status}</span>
+                        <span className="text-[10px] font-['JetBrains_Mono'] text-[#3f3f46] group-hover:text-[#52525b] ml-1 flex-shrink-0">{t.ticketId || ''}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* ── RIGHT column (1/3) ── */}
+              <div className="space-y-5">
+
+                {/* Priority breakdown */}
+                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5">
+                  <h2 className="text-[14px] font-semibold text-[#fafafa] mb-4">By Priority</h2>
+                  <div className="space-y-3">
+                    {['Critical', 'High', 'Medium', 'Low'].map((p) => {
+                      const count = tickets.filter((t) => t.priority === p).length;
+                      return (
+                        <div key={p} className="flex items-center gap-3">
+                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: PRIORITY_COLOR[p] }} />
+                          <span className="text-[12px] text-[#a1a1aa] flex-1">{p}</span>
+                          <Bar value={count} max={total} color={PRIORITY_COLOR[p]} />
+                          <span className="text-[12px] font-['JetBrains_Mono'] text-[#52525b] w-4 text-right">{count}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Top categories */}
+                {topCategories.length > 0 && (
+                  <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5">
+                    <h2 className="text-[14px] font-semibold text-[#fafafa] mb-4">Top Categories</h2>
+                    <div className="space-y-3">
+                      {topCategories.map(([cat, count]) => (
+                        <div key={cat} className="flex items-center gap-3">
+                          <span className="text-[12px] text-[#a1a1aa] flex-1 truncate">{cat}</span>
+                          <Bar value={count} max={total} color="#3b82f6" />
+                          <span className="text-[12px] font-['JetBrains_Mono'] text-[#52525b] w-4 text-right">{count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Admin-only: quick links to manage */}
+                {isAdmin && (
+                  <div className="bg-gradient-to-br from-[#3b82f6]/10 to-[#6366f1]/10 border border-[#3b82f6]/20 rounded-xl p-5">
+                    <h2 className="text-[14px] font-semibold text-[#fafafa] mb-3">Admin Tools</h2>
+                    <div className="space-y-2">
+                      {[
+                        { label: 'Open Admin Dashboard', sub: 'Charts, exports & full ticket table', path: '/admin', color: '#3b82f6' },
+                        { label: 'Manage Users', sub: 'Roles, activation & permissions', path: '/admin/users', color: '#a855f7' },
+                      ].map(({ label, sub, path, color }) => (
+                        <button
+                          key={path}
+                          onClick={() => navigate(path)}
+                          className="w-full flex items-center gap-3 p-3 rounded-lg bg-[#18181b]/60 hover:bg-[#18181b] border border-transparent hover:border-[#27272a] transition-all text-left group"
+                        >
+                          <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${color}20` }}>
+                            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color }} />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[12.5px] font-medium text-[#fafafa]">{label}</p>
+                            <p className="text-[11px] text-[#52525b] truncate">{sub}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* User-only: raise new ticket CTA */}
+                {!isAdmin && (
+                  <div className="bg-gradient-to-br from-[#3b82f6]/10 to-[#6366f1]/10 border border-[#3b82f6]/20 rounded-xl p-5 text-center">
+                    <div className="w-10 h-10 bg-[#3b82f6]/20 rounded-xl flex items-center justify-center mx-auto mb-3">
+                      <svg className="w-5 h-5 text-[#3b82f6]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                      </svg>
+                    </div>
+                    <p className="text-[13px] font-medium text-[#fafafa] mb-1">Need more help?</p>
+                    <p className="text-[12px] text-[#52525b] mb-4">Our AI chatbot will guide you through raising a new ticket in seconds.</p>
+                    <button
+                      onClick={() => navigate('/chatbot')}
+                      className="w-full py-2 px-4 bg-[#3b82f6] hover:bg-[#2563eb] text-white text-[13px] font-medium rounded-lg transition-colors"
+                    >
+                      Start a Conversation
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -284,8 +371,10 @@ const Home = () => {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {features.map((f, i) => (
               <div key={i} className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 hover:border-[#3f3f46] hover:bg-[#1c1c1f] transition-all duration-200 group">
-                <div className="w-9 h-9 bg-[#27272a] rounded-lg flex items-center justify-center mb-4 group-hover:bg-[#3f3f46] transition-colors">
-                  {f.icon}
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-4 group-hover:opacity-90 transition-opacity" style={{ backgroundColor: `${f.color}20` }}>
+                  <svg className="w-4.5 h-4.5" style={{ color: f.color }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d={f.icon} />
+                  </svg>
                 </div>
                 <h3 className="text-[14px] font-semibold text-[#fafafa] mb-1.5">{f.title}</h3>
                 <p className="text-[13px] text-[#a1a1aa] leading-relaxed">{f.desc}</p>
