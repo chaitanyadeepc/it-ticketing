@@ -24,7 +24,7 @@ const Breadcrumb = ({ items }) => {
   })();
 
   return (
-    <nav className="flex items-center gap-2 text-[12px] font-mono text-[#52525b] mb-6">
+    <nav className="flex items-center gap-2 text-[12px] font-mono text-[#52525b] mb-3">
       {crumbs.map((item, index) => (
         <React.Fragment key={index}>
           {index > 0 && <span className="text-[#3f3f46]">›</span>}

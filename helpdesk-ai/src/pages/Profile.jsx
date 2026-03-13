@@ -83,9 +83,9 @@ const Profile = () => {
 
   return (
     <PageWrapper>
-      <div className="max-w-4xl mx-auto px-4 py-6">
+      <div className="max-w-4xl mx-auto px-4 py-4">
         <Breadcrumb />
-        <div className="mt-6 mb-6">
+        <div className="mb-5">
           <h1 className="text-[22px] font-bold text-[#fafafa] mb-1">My Profile</h1>
           <p className="text-[13px] text-[#a1a1aa]">Manage your account information and preferences</p>
         </div>
@@ -94,7 +94,7 @@ const Profile = () => {
           <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-[13px]">{error}</div>
         )}
 
-        <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-6 mb-5">
+        <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 mb-4">
           <div className="flex items-start gap-5 mb-6">
             <div className="relative">
               <div className="w-16 h-16 bg-gradient-to-br from-[#3b82f6] to-[#2563eb] rounded-2xl flex items-center justify-center text-white text-[22px] font-bold shadow-lg shadow-[#3b82f6]/20 flex-shrink-0">

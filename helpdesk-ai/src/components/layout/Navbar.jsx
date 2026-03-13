@@ -73,7 +73,7 @@ const Navbar = () => {
                 <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7H3a7 7 0 0 1 7-7h1V5.73A2 2 0 0 1 10 4a2 2 0 0 1 2-2m-4 9.5a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1m8 0a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1M3 15h18v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1Z" />
               </svg>
             </div>
-            <span className="text-[15px] font-semibold text-[#fafafa] tracking-tight">HelpDesk AI</span>
+            <span className="text-[15px] font-semibold text-[#fafafa] tracking-tight">TicketFlow</span>
           </Link>
 
           {/* Desktop Nav */}

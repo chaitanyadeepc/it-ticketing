@@ -132,12 +132,12 @@ const AdminDashboard = () => {
 
   return (
     <PageWrapper>
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="max-w-7xl mx-auto px-4 py-4">
         <Breadcrumb />
-        <div className="mt-6 mb-8 flex flex-wrap items-center justify-between gap-3">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-[24px] font-semibold text-[#fafafa] mb-2">Admin Dashboard</h1>
-            <p className="text-[14px] text-[#a1a1aa]">Overview of all support tickets</p>
+            <h1 className="text-[22px] font-semibold text-[#fafafa] mb-1">Admin Dashboard</h1>
+            <p className="text-[13px] text-[#a1a1aa]">Overview of all support tickets</p>
           </div>
           <div className="flex gap-2">
             <button
@@ -170,7 +170,7 @@ const AdminDashboard = () => {
         )}
 
         {/* Stat cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
           <StatCard value={stats.total}     label="Total Tickets"  subtitle="All time"        trend="up"  delay={0}   />
           <StatCard value={stats.open}      label="Open Tickets"   subtitle="Needs attention"  trend="down" delay={0.1} />
           <StatCard value={stats.inProgress} label="In Progress"   subtitle="Being handled"               delay={0.2} />
@@ -179,7 +179,7 @@ const AdminDashboard = () => {
 
         {/* Charts row */}
         {tickets.length > 0 && (
-          <div className="grid lg:grid-cols-3 gap-4 mb-8">
+          <div className="grid lg:grid-cols-3 gap-4 mb-5">
             {/* Status pie */}
             <Card className="p-5">
               <h2 className="text-[14px] font-medium text-[#fafafa] mb-4">Status Breakdown</h2>

@@ -48,10 +48,10 @@ const Settings = () => {
 
   return (
     <PageWrapper>
-      <div className="max-w-3xl mx-auto px-4 py-6">
+      <div className="max-w-3xl mx-auto px-4 py-4">
         <Breadcrumb />
 
-        <div className="mt-6 mb-8">
+        <div className="mb-5">
           <h1 className="text-[22px] font-bold text-[#fafafa] mb-1">Settings</h1>
           <p className="text-[13px] text-[#a1a1aa]">Manage your account preferences, notifications, and appearance</p>
         </div>

@@ -74,14 +74,14 @@ const MyTickets = () => {
 
   return (
     <PageWrapper>
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="max-w-7xl mx-auto px-4 py-4">
         <Breadcrumb />
-        <div className="mt-6 mb-8">
-          <h1 className="text-[24px] font-semibold text-[#fafafa] mb-2">My Tickets</h1>
-          <p className="text-[14px] text-[#a1a1aa]">Track and manage your support requests</p>
+        <div className="mb-5">
+          <h1 className="text-[22px] font-semibold text-[#fafafa] mb-1">My Tickets</h1>
+          <p className="text-[13px] text-[#a1a1aa]">Track and manage your support requests</p>
         </div>
 
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+        <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -99,7 +99,7 @@ const MyTickets = () => {
         </div>
 
         {/* Search + Filters */}
-        <div className="flex flex-wrap gap-3 mb-6 items-center">
+        <div className="flex flex-wrap gap-3 mb-4 items-center">
           <div className="relative flex-1 min-w-[200px] max-w-sm">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#52525b]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z"/>
