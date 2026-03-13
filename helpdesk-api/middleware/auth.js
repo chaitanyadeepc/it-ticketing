@@ -13,8 +13,9 @@ const protect = async (req, res, next) => {
     const user = await User.findById(decoded.id).select('-password +tokenVersion');
     if (!user) return res.status(401).json({ error: 'User no longer exists' });
     // Reject tokens from previous sessions (e.g. another device)
-    const decodedVersion = decoded.tokenVersion ?? 0;
-    const userVersion = user.tokenVersion ?? 0;
+    // Use Number.isFinite to safely handle NaN/null/undefined for legacy accounts
+    const decodedVersion = Number.isFinite(decoded.tokenVersion) ? decoded.tokenVersion : 0;
+    const userVersion = Number.isFinite(user.tokenVersion) ? user.tokenVersion : 0;
     if (decodedVersion !== userVersion) {
       return res.status(401).json({ error: 'Session expired — please log in again' });
     }
