@@ -36,4 +36,20 @@ router.get('/', adminOnly, async (req, res) => {
   }
 });
 
+// PATCH /api/users/:id  (admin only — update role or isActive)
+router.patch('/:id', adminOnly, async (req, res) => {
+  try {
+    const { role, isActive } = req.body;
+    const allowed = {};
+    if (role !== undefined && ['user', 'admin'].includes(role)) allowed.role = role;
+    if (isActive !== undefined) allowed.isActive = !!isActive;
+
+    const user = await User.findByIdAndUpdate(req.params.id, allowed, { new: true }).select('-password');
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json({ user });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
