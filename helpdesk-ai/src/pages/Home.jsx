@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageWrapper from '../components/layout/PageWrapper';
 import Button from '../components/ui/Button';
+import api from '../api/api';
 
 const features = [
   {
@@ -66,6 +67,140 @@ const avatarInitials = ['JD', 'MP', 'AR', 'SK'];
 
 const Home = () => {
   const navigate = useNavigate();
+  const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
+  const userName = localStorage.getItem('userName') || '';
+  const userRole = localStorage.getItem('userRole') || 'user';
+  const firstName = userName.split(' ')[0] || 'there';
+
+  const [myStats, setMyStats] = useState(null);
+  const [recentTickets, setRecentTickets] = useState([]);
+  const [statsLoading, setStatsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    setStatsLoading(true);
+    api.get('/tickets')
+      .then(({ data }) => {
+        const tickets = data.tickets || [];
+        setRecentTickets(tickets.slice(0, 3));
+        setMyStats({
+          total: tickets.length,
+          open: tickets.filter((t) => t.status === 'Open').length,
+          inProgress: tickets.filter((t) => t.status === 'In Progress').length,
+          resolved: tickets.filter((t) => t.status === 'Resolved' || t.status === 'Closed').length,
+        });
+      })
+      .catch(() => {})
+      .finally(() => setStatsLoading(false));
+  }, [isAuthenticated]);
+
+  const STATUS_DOT = {
+    'Open': 'bg-[#22c55e]',
+    'In Progress': 'bg-[#f59e0b]',
+    'Resolved': 'bg-[#3b82f6]',
+    'Closed': 'bg-[#52525b]',
+  };
+
+  if (isAuthenticated) {
+    return (
+      <PageWrapper>
+        <div className="max-w-5xl mx-auto px-4 py-8">
+          {/* Welcome header */}
+          <div className="mb-8 animate-fade-in">
+            <p className="text-[13px] text-[#52525b] mb-1">Welcome back</p>
+            <h1 className="text-[26px] font-semibold text-[#fafafa]">Hi, {firstName} 👋</h1>
+          </div>
+
+          {/* Quick actions */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+            {[
+              { label: 'New Ticket', icon: 'M12 4v16m8-8H4', color: '#3b82f6', path: '/chatbot' },
+              { label: 'My Tickets', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2', color: '#6366f1', path: '/my-tickets' },
+              { label: 'Profile', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z', color: '#22c55e', path: '/profile' },
+              userRole === 'admin'
+                ? { label: 'Admin Panel', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z', color: '#f59e0b', path: '/admin' }
+                : { label: 'Settings', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z', color: '#a855f7', path: '/settings' },
+            ].map(({ label, icon, color, path }) => (
+              <button
+                key={label}
+                onClick={() => navigate(path)}
+                className="flex flex-col items-center gap-2.5 py-5 px-3 bg-[#18181b] border border-[#27272a] rounded-xl hover:border-[#3f3f46] hover:bg-[#1c1c1f] transition-all text-center group"
+              >
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${color}20` }}>
+                  <svg className="w-4.5 h-4.5" style={{ color }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d={icon} />
+                  </svg>
+                </div>
+                <span className="text-[12.5px] font-medium text-[#a1a1aa] group-hover:text-[#fafafa] transition-colors">{label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Stats row */}
+          {statsLoading ? (
+            <div className="h-24 flex items-center justify-center">
+              <svg className="w-5 h-5 text-[#3b82f6] animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+              </svg>
+            </div>
+          ) : myStats && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+              {[
+                { label: 'Total', value: myStats.total, color: '#a1a1aa' },
+                { label: 'Open', value: myStats.open, color: '#22c55e' },
+                { label: 'In Progress', value: myStats.inProgress, color: '#f59e0b' },
+                { label: 'Resolved', value: myStats.resolved, color: '#3b82f6' },
+              ].map(({ label, value, color }) => (
+                <div key={label} className="bg-[#18181b] border border-[#27272a] rounded-xl px-4 py-4 text-center">
+                  <div className="text-[26px] font-bold" style={{ color }}>{value}</div>
+                  <div className="text-[12px] text-[#52525b] mt-0.5">{label}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Recent tickets */}
+          {recentTickets.length > 0 && (
+            <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-[14px] font-semibold text-[#fafafa]">Recent Tickets</h2>
+                <button onClick={() => navigate('/my-tickets')} className="text-[12px] text-[#3b82f6] hover:underline">View all</button>
+              </div>
+              <div className="space-y-2">
+                {recentTickets.map((t) => (
+                  <button
+                    key={t._id}
+                    onClick={() => navigate(`/tickets/${t._id}`)}
+                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-[#27272a] transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_DOT[t.status] || 'bg-zinc-500'}`} />
+                      <span className="text-[13px] text-[#fafafa] truncate">{t.title}</span>
+                    </div>
+                    <span className="text-[11px] font-['JetBrains_Mono'] text-[#52525b] ml-3 flex-shrink-0">{t.ticketId || ''}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {myStats?.total === 0 && !statsLoading && (
+            <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-10 text-center">
+              <div className="w-12 h-12 rounded-2xl bg-[#27272a] flex items-center justify-center mx-auto mb-4">
+                <svg className="w-6 h-6 text-[#52525b]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                </svg>
+              </div>
+              <p className="text-[14px] text-[#fafafa] mb-1">No tickets yet</p>
+              <p className="text-[13px] text-[#52525b] mb-4">Raise your first support request using the AI chatbot.</p>
+              <Button variant="primary" onClick={() => navigate('/chatbot')}>Raise a Ticket</Button>
+            </div>
+          )}
+        </div>
+      </PageWrapper>
+    );
+  }
 
   return (
     <PageWrapper>

@@ -3,6 +3,7 @@ import PageWrapper from '../components/layout/PageWrapper';
 import Breadcrumb from '../components/layout/Breadcrumb';
 import Button from '../components/ui/Button';
 import api from '../api/api';
+import { useToast } from '../context/ToastContext';
 
 const Profile = () => {
   const userEmail = localStorage.getItem('userEmail') || '';
@@ -11,8 +12,8 @@ const Profile = () => {
   const [form, setForm] = useState({ name: '', department: '', phone: '', location: '', jobTitle: '' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
+  const { addToast } = useToast();
 
   // Ticket stats from API
   const [stats, setStats] = useState({ total: 0, active: 0, resolved: 0 });
@@ -45,9 +46,9 @@ const Profile = () => {
     try {
       await api.put('/users/profile', form);
       localStorage.setItem('userName', form.name);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2500);
+      addToast('Profile saved successfully');
     } catch {
+      addToast('Failed to save changes', 'error');
       setError('Failed to save changes');
     } finally {
       setSaving(false);

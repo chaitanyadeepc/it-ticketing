@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/api';
+import { useToast } from '../context/ToastContext';
 
 const STATUS_OPTIONS = ['Open', 'In Progress', 'Resolved', 'Closed'];
 const PRIORITY_COLOR = {
@@ -20,6 +21,7 @@ export default function TicketDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const isAdmin = localStorage.getItem('userRole') === 'admin';
+  const { addToast } = useToast();
 
   const [ticket, setTicket] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -46,8 +48,9 @@ export default function TicketDetail() {
     try {
       const { data } = await api.patch(`/tickets/${id}`, { status: newStatus });
       setTicket(data.ticket);
+      addToast(`Status updated to "${newStatus}"`);
     } catch {
-      alert('Failed to update status');
+      addToast('Failed to update status', 'error');
     } finally {
       setStatusUpdating(false);
     }
@@ -59,8 +62,9 @@ export default function TicketDetail() {
     try {
       const { data } = await api.patch(`/tickets/${id}`, { assignedTo: assignValue });
       setTicket(data.ticket);
+      addToast('Ticket assigned successfully');
     } catch {
-      alert('Failed to assign ticket');
+      addToast('Failed to assign ticket', 'error');
     } finally {
       setAssigning(false);
     }
@@ -70,8 +74,9 @@ export default function TicketDetail() {
     try {
       const { data } = await api.patch(`/tickets/${id}`, { status: 'Open' });
       setTicket(data.ticket);
+      addToast('Ticket reopened');
     } catch {
-      alert('Failed to reopen ticket');
+      addToast('Failed to reopen ticket', 'error');
     }
   };
 
@@ -83,8 +88,9 @@ export default function TicketDetail() {
       const { data } = await api.patch(`/tickets/${id}`, { comment: comment.trim() });
       setTicket(data.ticket);
       setComment('');
+      addToast('Comment posted');
     } catch {
-      alert('Failed to add comment');
+      addToast('Failed to add comment', 'error');
     } finally {
       setCommentLoading(false);
     }
@@ -94,9 +100,10 @@ export default function TicketDetail() {
     if (!window.confirm('Permanently delete this ticket? This cannot be undone.')) return;
     try {
       await api.delete(`/tickets/${id}`);
+      addToast('Ticket deleted');
       navigate('/admin');
     } catch {
-      alert('Failed to delete ticket');
+      addToast('Failed to delete ticket', 'error');
     }
   };
 
@@ -280,6 +287,24 @@ export default function TicketDetail() {
           </form>
         )}
       </div>
+
+      {/* Activity timeline */}
+      {ticket.history?.length > 0 && (
+        <div className="rounded-xl border border-zinc-800 p-5 mt-4" style={{ backgroundColor: 'var(--card)' }}>
+          <h2 className="text-sm font-semibold mb-4 text-zinc-300">Activity</h2>
+          <ol className="relative border-l border-zinc-700 ml-2 space-y-4">
+            {[...ticket.history].reverse().map((h, i) => (
+              <li key={i} className="ml-4">
+                <span className="absolute -left-[5px] mt-1 w-2.5 h-2.5 rounded-full bg-violet-500/60 border border-violet-400/40" />
+                <p className="text-sm text-zinc-300">{h.action}</p>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  {h.byName || 'System'} · {new Date(h.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                </p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
     </div>
   );
 }

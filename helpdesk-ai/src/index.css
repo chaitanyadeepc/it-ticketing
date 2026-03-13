@@ -132,7 +132,10 @@ html.light ::-webkit-scrollbar-thumb:hover { background: #a1a1aa; }
 @keyframes pulse        { 0%,100% { opacity: 0.3; } 50% { opacity: 1; } }
 @keyframes scaleIn      { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
 
+@keyframes slideInUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
 .animate-fade-in    { animation: fadeIn 0.18s ease-out; }
+.animate-slide-in   { animation: slideInUp 0.2s ease-out; }
 .animate-slide-right{ animation: slideInRight 0.22s ease-out; }
 .animate-slide-left { animation: slideInLeft 0.22s ease-out; }
 .animate-shake      { animation: shake 0.3s ease-in-out; }

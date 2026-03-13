@@ -93,8 +93,15 @@ router.patch('/:id', async (req, res) => {
 
     const { status, assignedTo, comment } = req.body;
 
-    if (status) ticket.status = status;
-    if (assignedTo !== undefined) ticket.assignedTo = assignedTo;
+    if (status && status !== ticket.status) {
+      ticket.history.push({ action: `Status changed to "${status}"`, field: 'status', from: ticket.status, to: status, by: req.user._id, byName: req.user.name });
+      ticket.status = status;
+    }
+    if (assignedTo !== undefined && assignedTo !== ticket.assignedTo) {
+      const prev = ticket.assignedTo || 'Unassigned';
+      ticket.history.push({ action: `Assigned to ${assignedTo || 'Unassigned'}`, field: 'assignedTo', from: prev, to: assignedTo || 'Unassigned', by: req.user._id, byName: req.user.name });
+      ticket.assignedTo = assignedTo;
+    }
     if (comment) {
       ticket.comments.push({ text: comment, author: req.user._id, authorName: req.user.name });
     }

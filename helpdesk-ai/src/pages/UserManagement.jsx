@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import PageWrapper from '../components/layout/PageWrapper';
 import Breadcrumb from '../components/layout/Breadcrumb';
 import api from '../api/api';
+import { useToast } from '../context/ToastContext';
 
 export default function UserManagement() {
   const navigate = useNavigate();
+  const { addToast } = useToast();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -22,8 +24,9 @@ export default function UserManagement() {
     try {
       const { data } = await api.patch(`/users/${userId}`, payload);
       setUsers((prev) => prev.map((u) => u._id === userId ? data.user : u));
+      addToast('User updated successfully');
     } catch {
-      alert('Failed to update user');
+      addToast('Failed to update user', 'error');
     } finally {
       setUpdating(null);
     }
