@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Navbar from './components/layout/Navbar';
 import BottomNav from './components/layout/BottomNav';
 import ScrollToTop from './components/layout/ScrollToTop';
@@ -31,10 +31,12 @@ const AdminRoute = ({ children }) => {
 };
 
 function App() {
+  const location = useLocation();
+  const isLogin = location.pathname === '/login';
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--bg)', color: 'var(--text-primary)' }}>
       <Navbar />
-      <main className="relative pt-14 pb-16 md:pb-0">
+      <main className={`relative ${isLogin ? '' : 'pt-14 pb-16 md:pb-0'}`}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />

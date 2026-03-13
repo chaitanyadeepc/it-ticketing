@@ -42,9 +42,9 @@ const Login = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-[#09090b] flex">
+    <div className="h-screen bg-[#09090b] flex overflow-hidden">
       {/* Left panel */}
-      <div className="hidden lg:flex lg:w-[55%] flex-col justify-between p-12 border-r border-[#27272a] relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-[55%] flex-col justify-between p-8 xl:p-10 border-r border-[#27272a] relative overflow-hidden">
         <div className="absolute inset-0 opacity-[0.025]" style={{ backgroundImage: 'linear-gradient(#fafafa 1px, transparent 1px), linear-gradient(90deg, #fafafa 1px, transparent 1px)', backgroundSize: '48px 48px' }} />
         <div className="relative flex items-center gap-3">
           <div className="w-9 h-9 bg-[#3b82f6] rounded-xl flex items-center justify-center flex-shrink-0">
@@ -55,17 +55,17 @@ const Login = () => {
           <span className="text-[17px] font-semibold text-[#fafafa]">TicketFlow</span>
         </div>
         <div className="relative">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#3b82f6]/10 border border-[#3b82f6]/20 rounded-full text-[12px] font-medium text-[#3b82f6] mb-8">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#3b82f6]/10 border border-[#3b82f6]/20 rounded-full text-[12px] font-medium text-[#3b82f6] mb-4">
             <span className="w-1.5 h-1.5 bg-[#3b82f6] rounded-full animate-pulse" />
             Enterprise IT Support
           </div>
-          <h1 className="text-[42px] font-bold text-[#fafafa] leading-[1.15] tracking-tight mb-5">
+          <h1 className="text-[34px] font-bold text-[#fafafa] leading-[1.15] tracking-tight mb-3">
             Resolve IT issues<br /><span className="text-[#3b82f6]">10x faster</span> with AI
           </h1>
-          <p className="text-[16px] text-[#71717a] leading-relaxed mb-10 max-w-md">
+          <p className="text-[15px] text-[#71717a] leading-relaxed mb-5 max-w-md">
             Intelligent ticket routing, automated triage, and real-time collaboration — all in one place.
           </p>
-          <div className="space-y-5">
+          <div className="space-y-3">
             {features.map((f, i) => (
               <div key={i} className="flex items-start gap-4">
                 <div className="w-9 h-9 rounded-lg bg-[#18181b] border border-[#27272a] flex items-center justify-center flex-shrink-0">
@@ -92,9 +92,9 @@ const Login = () => {
       </div>
 
       {/* Right panel */}
-      <div className="w-full lg:w-[45%] flex items-center justify-center p-6 sm:p-12">
+      <div className="w-full lg:w-[45%] flex items-center justify-center p-6 sm:p-8">
         <div className="w-full max-w-[380px]">
-          <div className="lg:hidden flex items-center gap-2 mb-10">
+          <div className="lg:hidden flex items-center gap-2 mb-6">
             <div className="w-8 h-8 bg-[#3b82f6] rounded-lg flex items-center justify-center flex-shrink-0">
               <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -107,7 +107,7 @@ const Login = () => {
             <h2 className="text-[28px] font-bold text-[#fafafa] mb-1 tracking-tight">
               {isRegister ? 'Create account' : 'Welcome back'}
             </h2>
-            <p className="text-[14px] text-[#71717a] mb-8">
+            <p className="text-[14px] text-[#71717a] mb-5">
               {isRegister ? 'Register with your work email.' : 'Sign in with your work email to continue.'}
             </p>
 
