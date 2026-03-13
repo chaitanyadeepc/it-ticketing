@@ -74,28 +74,49 @@ const MyTickets = () => {
 
   return (
     <PageWrapper>
-      <div className="max-w-7xl mx-auto px-4 py-4">
+      <div className="w-full max-w-screen-2xl mx-auto px-6 xl:px-10 py-5">
         <Breadcrumb />
-        <div className="mb-5">
-          <h1 className="text-[22px] font-semibold text-[#fafafa] mb-1">My Tickets</h1>
-          <p className="text-[13px] text-[#a1a1aa]">Track and manage your support requests</p>
+        <div className="flex flex-wrap items-center justify-between gap-3 p-5 mb-5 rounded-2xl bg-gradient-to-r from-[#6366f1]/8 via-[#3b82f6]/4 to-transparent border border-[#6366f1]/15">
+          <div>
+            <h1 className="text-[24px] font-bold text-[#fafafa] mb-0.5">My Tickets</h1>
+            <p className="text-[13px] text-[#a1a1aa]">Track and manage your support requests</p>
+          </div>
+          <div className="flex gap-3">
+            {[
+              { label: 'Open', value: counts.open, color: '#22c55e' },
+              { label: 'In Progress', value: counts.inProgress, color: '#f59e0b' },
+              { label: 'Resolved', value: counts.resolved, color: '#06b6d4' },
+            ].map(({ label, value, color }) => (
+              <div key={label} className="text-center px-4 py-2 rounded-xl border" style={{ borderColor: `${color}30`, background: `${color}0d` }}>
+                <div className="text-[20px] font-bold leading-none" style={{ color }}>{value}</div>
+                <div className="text-[11px] text-[#a1a1aa] mt-0.5">{label}</div>
+              </div>
+            ))}
+          </div>
         </div>
 
-        <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2 rounded-[7px] text-[13px] font-medium whitespace-nowrap transition-colors duration-200 ${
-                activeTab === tab.id ? 'bg-[#3b82f6] text-[#fafafa]' : 'bg-[#27272a] border border-[#27272a] text-[#a1a1aa] hover:bg-[#3f3f46]'
-              }`}
-            >
-              {tab.label}
-              <span className={`ml-2 px-2 py-0.5 rounded-full text-[11px] font-['JetBrains_Mono'] ${
-                activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-[#18181b] text-[#a1a1aa]'
-              }`}>{tab.count}</span>
-            </button>
-          ))}
+        <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+          {tabs.map((tab) => {
+            const TAB_COLOR = { all: '#a1a1aa', Open: '#22c55e', 'In Progress': '#f59e0b', Resolved: '#06b6d4', Closed: '#71717a' };
+            const col = TAB_COLOR[tab.id] || '#a1a1aa';
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-[8px] text-[13px] font-medium whitespace-nowrap transition-all duration-200 border ${
+                  isActive ? 'text-[#fafafa] border-transparent' : 'bg-[#18181b] border-[#27272a] text-[#a1a1aa] hover:bg-[#27272a] hover:text-[#fafafa]'
+                }`}
+                style={isActive ? { backgroundColor: col, borderColor: col } : {}}
+              >
+                {tab.id !== 'all' && <span className="w-2 h-2 rounded-full" style={{ backgroundColor: isActive ? 'rgba(255,255,255,0.7)' : col }} />}
+                {tab.label}
+                <span className={`px-1.5 py-0.5 rounded-full text-[11px] font-['JetBrains_Mono'] ${
+                  isActive ? 'bg-black/20 text-white' : 'bg-[#27272a] text-[#a1a1aa]'
+                }`}>{tab.count}</span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Search + Filters */}

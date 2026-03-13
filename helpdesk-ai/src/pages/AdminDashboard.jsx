@@ -132,11 +132,11 @@ const AdminDashboard = () => {
 
   return (
     <PageWrapper>
-      <div className="max-w-7xl mx-auto px-4 py-4">
+      <div className="w-full max-w-screen-2xl mx-auto px-6 xl:px-10 py-5">
         <Breadcrumb />
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 p-5 rounded-2xl bg-gradient-to-r from-[#f59e0b]/8 via-[#ef4444]/4 to-transparent border border-[#f59e0b]/15">
           <div>
-            <h1 className="text-[22px] font-semibold text-[#fafafa] mb-1">Admin Dashboard</h1>
+            <h1 className="text-[24px] font-bold text-[#fafafa] mb-0.5">Admin Dashboard</h1>
             <p className="text-[13px] text-[#a1a1aa]">Overview of all support tickets</p>
           </div>
           <div className="flex gap-2">
@@ -171,18 +171,34 @@ const AdminDashboard = () => {
 
         {/* Stat cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-          <StatCard value={stats.total}     label="Total Tickets"  subtitle="All time"        trend="up"  delay={0}   />
-          <StatCard value={stats.open}      label="Open Tickets"   subtitle="Needs attention"  trend="down" delay={0.1} />
-          <StatCard value={stats.inProgress} label="In Progress"   subtitle="Being handled"               delay={0.2} />
-          <StatCard value={stats.resolved}  label="Resolved"       subtitle="All time"         trend="up"  delay={0.3} />
+          {[
+            { label: 'Total Tickets', value: stats.total,      color: '#3b82f6', sub: 'All time',        icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
+            { label: 'Open',         value: stats.open,       color: '#22c55e', sub: 'Needs attention', icon: 'M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
+            { label: 'In Progress',  value: stats.inProgress, color: '#f59e0b', sub: 'Being handled',   icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
+            { label: 'Resolved',     value: stats.resolved,   color: '#06b6d4', sub: 'Completed',       icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
+          ].map(({ label, value, color, sub, icon }) => (
+            <div key={label} className="rounded-xl border p-5 relative overflow-hidden" style={{ borderColor: `${color}30`, background: `linear-gradient(135deg, ${color}0d 0%, transparent 65%)` }}>
+              <div className="flex items-start justify-between mb-3">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${color}18` }}>
+                  <svg className="w-4.5 h-4.5" style={{ color }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d={icon} />
+                  </svg>
+                </div>
+                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ color, backgroundColor: `${color}15` }}>{sub}</span>
+              </div>
+              <div className="text-[34px] font-bold leading-none mb-1 text-[#fafafa]">{value}</div>
+              <div className="text-[13px] text-[#a1a1aa]">{label}</div>
+              <div className="absolute -right-4 -bottom-4 w-16 h-16 rounded-full blur-2xl opacity-20" style={{ backgroundColor: color }} />
+            </div>
+          ))}
         </div>
 
         {/* Charts row */}
         {tickets.length > 0 && (
           <div className="grid lg:grid-cols-3 gap-4 mb-5">
             {/* Status pie */}
-            <Card className="p-5">
-              <h2 className="text-[14px] font-medium text-[#fafafa] mb-4">Status Breakdown</h2>
+            <Card className="p-5 border-t-[3px]" style={{ borderTopColor: '#3b82f6' }}>
+              <h2 className="text-[14px] font-semibold text-[#fafafa] mb-4">Status Breakdown</h2>
               <ResponsiveContainer width="100%" height={200}>
                 <PieChart>
                   <Pie data={statusData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value">
@@ -195,8 +211,8 @@ const AdminDashboard = () => {
             </Card>
 
             {/* Category bar */}
-            <Card className="p-5">
-              <h2 className="text-[14px] font-medium text-[#fafafa] mb-4">Tickets by Category</h2>
+            <Card className="p-5 border-t-[3px]" style={{ borderTopColor: '#6366f1' }}>
+              <h2 className="text-[14px] font-semibold text-[#fafafa] mb-4">Tickets by Category</h2>
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={categoryData} layout="vertical" margin={{ left: 0, right: 16 }}>
                   <XAxis type="number" tick={{ fontSize: 11, fill: '#71717a' }} axisLine={false} tickLine={false} />
@@ -208,8 +224,8 @@ const AdminDashboard = () => {
             </Card>
 
             {/* Priority bar */}
-            <Card className="p-5">
-              <h2 className="text-[14px] font-medium text-[#fafafa] mb-4">Tickets by Priority</h2>
+            <Card className="p-5 border-t-[3px]" style={{ borderTopColor: '#f59e0b' }}>
+              <h2 className="text-[14px] font-semibold text-[#fafafa] mb-4">Tickets by Priority</h2>
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={priorityData} margin={{ left: 0, right: 16 }}>
                   <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#a1a1aa' }} axisLine={false} tickLine={false} />

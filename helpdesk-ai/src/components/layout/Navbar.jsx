@@ -61,19 +61,19 @@ const Navbar = () => {
   return (
     <nav
       className={`fixed top-0 left-0 right-0 z-50 backdrop-blur-sm border-b border-[#27272a] transition-transform duration-300 ${isVisible ? 'translate-y-0' : '-translate-y-full'}`}
-      style={{ backgroundColor: isDark ? 'rgba(9,9,11,0.95)' : 'rgba(244,244,245,0.95)' }}
+      style={{ backgroundColor: isDark ? 'rgba(9,9,11,0.97)' : 'rgba(244,244,245,0.97)' }}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="flex justify-between items-center h-14">
+      <div className="w-full px-6 xl:px-10">
+        <div className="flex justify-between items-center h-16">
 
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 flex-shrink-0">
-            <div className="w-7 h-7 bg-[#3b82f6] rounded-lg flex items-center justify-center">
-              <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
+          <Link to="/" className="flex items-center gap-2.5 flex-shrink-0">
+            <div className="w-9 h-9 bg-gradient-to-br from-[#3b82f6] to-[#6366f1] rounded-xl flex items-center justify-center shadow-lg shadow-[#3b82f6]/25">
+              <svg className="w-[18px] h-[18px] text-white" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7H3a7 7 0 0 1 7-7h1V5.73A2 2 0 0 1 10 4a2 2 0 0 1 2-2m-4 9.5a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1m8 0a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1M3 15h18v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1Z" />
               </svg>
             </div>
-            <span className="text-[15px] font-semibold text-[#fafafa] tracking-tight">TicketFlow</span>
+            <span className="text-[16px] font-bold text-[#fafafa] tracking-tight">TicketFlow</span>
           </Link>
 
           {/* Desktop Nav */}
@@ -84,12 +84,11 @@ const Navbar = () => {
                 <Link
                   key={link.path}
                   to={link.path}
-                  className={`relative px-3 py-1.5 rounded-md text-[13px] font-medium transition-colors duration-150 ${
-                    isActive ? 'text-[#fafafa] bg-[#18181b]' : 'text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#18181b]'
+                  className={`px-3.5 py-2 rounded-lg text-[13px] font-medium transition-all duration-150 border ${
+                    isActive ? 'text-[#3b82f6] bg-[#3b82f6]/10 border-[#3b82f6]/25' : 'text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#18181b] border-transparent'
                   }`}
                 >
                   {link.name}
-                  {isActive && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-0.5 bg-[#3b82f6] rounded-full" />}
                 </Link>
               );
             })}

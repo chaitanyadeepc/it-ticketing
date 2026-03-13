@@ -80,13 +80,13 @@ const Home = () => {
   if (isAuthenticated) {
     return (
       <PageWrapper>
-        <div className="max-w-6xl mx-auto px-4 py-4">
+        <div className="w-full max-w-screen-2xl mx-auto px-6 xl:px-10 py-5">
 
           {/* Header */}
-          <div className="flex flex-wrap items-start justify-between gap-4 mb-5 animate-fade-in">
+          <div className="flex flex-wrap items-start justify-between gap-4 mb-5 p-5 rounded-2xl bg-gradient-to-r from-[#3b82f6]/8 via-[#6366f1]/4 to-transparent border border-[#3b82f6]/15 animate-fade-in">
             <div>
-              <p className="text-[13px] text-[#52525b] mb-0.5">{greeting}</p>
-              <h1 className="text-[26px] font-semibold text-[#fafafa]">{firstName}</h1>
+              <p className="text-[13px] text-[#a1a1aa] mb-0.5">{greeting},</p>
+              <h1 className="text-[28px] font-bold text-[#fafafa]">{firstName}</h1>
               {isAdmin && (
                 <span className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-full bg-[#f59e0b]/10 border border-[#f59e0b]/20 text-[#f59e0b] text-[11px] font-medium">
                   <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
@@ -118,7 +118,25 @@ const Home = () => {
               </Button>
             </div>
           ) : total > 0 && (
-            <div className="grid lg:grid-cols-3 gap-5">
+            <>
+              {/* Stat chips */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5">
+                {[
+                  { label: 'Open', value: open, color: '#22c55e', sub: 'Active tickets' },
+                  { label: 'In Progress', value: inProgress, color: '#f59e0b', sub: 'Being handled' },
+                  { label: 'Resolved', value: resolved + closed, color: '#06b6d4', sub: 'Completed' },
+                  { label: 'Critical', value: critical, color: '#ef4444', sub: 'Need attention' },
+                ].map(({ label, value, color, sub }) => (
+                  <div key={label} className="rounded-xl border p-4 relative overflow-hidden" style={{ borderColor: `${color}30`, background: `linear-gradient(135deg, ${color}0d 0%, transparent 70%)` }}>
+                    <div className="text-[32px] font-bold leading-none mb-1" style={{ color }}>{value}</div>
+                    <div className="text-[13px] font-medium text-[#fafafa]">{label}</div>
+                    <div className="text-[11px] text-[#52525b] mt-0.5">{sub}</div>
+                    <div className="absolute -right-4 -bottom-4 w-14 h-14 rounded-full blur-2xl opacity-25" style={{ backgroundColor: color }} />
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid lg:grid-cols-3 gap-5">
 
               {/* ── LEFT column (2/3) ── */}
               <div className="lg:col-span-2 space-y-5">
@@ -282,7 +300,8 @@ const Home = () => {
                   </div>
                 )}
               </div>
-            </div>
+              </div>
+            </>
           )}
         </div>
       </PageWrapper>
@@ -292,7 +311,7 @@ const Home = () => {
   return (
     <PageWrapper>
       {/* Hero */}
-      <div className="max-w-6xl mx-auto px-4 pt-16 pb-20">
+      <div className="w-full max-w-screen-2xl mx-auto px-6 xl:px-10 pt-16 pb-20">
         <div className="text-center max-w-3xl mx-auto">
           {/* Status pill */}
           <div className="inline-flex items-center gap-2 bg-[#18181b] border border-[#27272a] rounded-full px-3 py-1 mb-6 animate-fade-in">
@@ -343,15 +362,17 @@ const Home = () => {
       {/* Stats */}
       <div className="border-y border-[#27272a] py-16">
         <div className="max-w-6xl mx-auto px-4">
-          <div className="grid grid-cols-3 gap-8">
+          <div className="grid grid-cols-3 gap-8 md:gap-12">
             {[
-              { value: '2,400+', label: 'Tickets Resolved', icon: <svg className="w-5 h-5 text-[#3b82f6]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
-              { value: '98%', label: 'User Satisfaction', icon: <svg className="w-5 h-5 text-[#22c55e]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
-              { value: '< 2hrs', label: 'Avg Resolution Time', icon: <svg className="w-5 h-5 text-[#f59e0b]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
-            ].map(({ value, label, icon }, i) => (
+              { value: '2,400+', label: 'Tickets Resolved', color: '#3b82f6', icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
+              { value: '98%',    label: 'User Satisfaction',     color: '#22c55e', icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
+              { value: '< 2hrs', label: 'Avg Resolution Time',   color: '#f59e0b', icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
+            ].map(({ value, label, color, icon }, i) => (
               <div key={i} className={`text-center ${i === 1 ? 'border-x border-[#27272a]' : ''}`}>
-                <div className="flex justify-center mb-2">{icon}</div>
-                <div className="font-bold text-[32px] text-[#fafafa] mb-1">{value}</div>
+                <div className="flex justify-center mb-3">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${color}18`, color }}>{icon}</div>
+                </div>
+                <div className="font-bold text-[34px] text-[#fafafa] mb-1" style={{ color }}>{value}</div>
                 <div className="text-[13px] text-[#52525b]">{label}</div>
               </div>
             ))}
@@ -361,18 +382,18 @@ const Home = () => {
 
       {/* Features */}
       <div className="py-20">
-        <div className="max-w-6xl mx-auto px-4">
+        <div className="w-full max-w-screen-2xl mx-auto px-6 xl:px-10">
           <div className="text-center mb-12">
-            <h2 className="text-[24px] font-semibold text-[#fafafa] mb-2">Everything your IT team needs</h2>
+            <h2 className="text-[26px] font-bold text-[#fafafa] mb-2">Everything your IT team needs</h2>
             <p className="text-[14px] text-[#a1a1aa] max-w-md mx-auto">
               Streamline your support workflow with intelligent automation and real-time tracking
             </p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {features.map((f, i) => (
-              <div key={i} className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 hover:border-[#3f3f46] hover:bg-[#1c1c1f] transition-all duration-200 group">
-                <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-4 group-hover:opacity-90 transition-opacity" style={{ backgroundColor: `${f.color}20` }}>
-                  <svg className="w-4.5 h-4.5" style={{ color: f.color }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+              <div key={i} className="bg-[#18181b] border border-[#27272a] border-l-[3px] rounded-xl p-5 hover:border-[#3f3f46] hover:bg-[#1c1c1f] transition-all duration-200 group" style={{ borderLeftColor: f.color }}>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4 group-hover:opacity-90 transition-opacity" style={{ backgroundColor: `${f.color}18` }}>
+                  <svg className="w-5 h-5" style={{ color: f.color }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                     <path strokeLinecap="round" strokeLinejoin="round" d={f.icon} />
                   </svg>
                 </div>
@@ -404,7 +425,7 @@ const Home = () => {
 
       {/* Footer */}
       <div className="border-t border-[#27272a] py-8">
-        <div className="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-4 text-[13px] text-[#52525b]">
+        <div className="w-full max-w-screen-2xl mx-auto px-6 xl:px-10 flex flex-col sm:flex-row justify-between items-center gap-4 text-[13px] text-[#52525b]">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 bg-[#3b82f6] rounded-md flex items-center justify-center">
               <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="currentColor">

@@ -36,7 +36,7 @@ function App() {
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--bg)', color: 'var(--text-primary)' }}>
       <Navbar />
-      <main className={`relative ${isLogin ? '' : 'pt-14 pb-16 md:pb-0'}`}>
+      <main className={`relative ${isLogin ? '' : 'pt-16 pb-16 md:pb-0'}`}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />

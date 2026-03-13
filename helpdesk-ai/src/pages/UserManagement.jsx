@@ -54,11 +54,11 @@ export default function UserManagement() {
 
   return (
     <PageWrapper>
-      <div className="max-w-5xl mx-auto px-4 py-4">
+      <div className="w-full max-w-screen-2xl mx-auto px-6 xl:px-10 py-5">
         <Breadcrumb />
-        <div className="mb-5 flex items-center justify-between">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 p-5 rounded-2xl bg-gradient-to-r from-[#a855f7]/8 via-[#6366f1]/4 to-transparent border border-[#a855f7]/15">
           <div>
-            <h1 className="text-[22px] font-semibold text-[#fafafa] mb-1">User Management</h1>
+            <h1 className="text-[24px] font-bold text-[#fafafa] mb-0.5">User Management</h1>
             <p className="text-[14px] text-[#a1a1aa]">{users.length} registered user{users.length !== 1 ? 's' : ''}</p>
           </div>
           <button

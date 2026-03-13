@@ -27,10 +27,10 @@ const SettingRow = ({ icon, title, desc, children }) => (
   </div>
 );
 
-const SectionCard = ({ title, icon, children }) => (
-  <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 mb-5">
+const SectionCard = ({ title, icon, children, accentColor = '#3b82f6' }) => (
+  <div className="bg-[#18181b] border border-[#27272a] border-l-[3px] rounded-xl p-5 mb-5" style={{ borderLeftColor: accentColor }}>
     <div className="flex items-center gap-2 mb-4">
-      <span className="text-[#3b82f6]">{icon}</span>
+      <span style={{ color: accentColor }}>{icon}</span>
       <h2 className="text-[14px] font-semibold text-[#fafafa]">{title}</h2>
     </div>
     {children}
@@ -48,16 +48,19 @@ const Settings = () => {
 
   return (
     <PageWrapper>
-      <div className="max-w-4xl mx-auto px-4 py-4">
+      <div className="w-full max-w-screen-2xl mx-auto px-6 xl:px-10 py-5">
         <Breadcrumb />
 
-        <div className="mb-5">
-          <h1 className="text-[22px] font-bold text-[#fafafa] mb-1">Settings</h1>
-          <p className="text-[13px] text-[#a1a1aa]">Manage your account preferences, notifications, and appearance</p>
+        <div className="flex flex-wrap items-center justify-between gap-3 p-5 mb-5 rounded-2xl bg-gradient-to-r from-[#8b5cf6]/8 via-[#3b82f6]/4 to-transparent border border-[#8b5cf6]/15">
+          <div>
+            <h1 className="text-[24px] font-bold text-[#fafafa] mb-0.5">Settings</h1>
+            <p className="text-[13px] text-[#a1a1aa]">Manage your account preferences, notifications, and appearance</p>
+          </div>
         </div>
 
         {/* Appearance */}
         <SectionCard
+          accentColor="#8b5cf6"
           title="Appearance"
           icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" /></svg>}
         >
@@ -75,6 +78,7 @@ const Settings = () => {
 
         {/* Notifications */}
         <SectionCard
+          accentColor="#3b82f6"
           title="Notifications"
           icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>}
         >
@@ -110,6 +114,7 @@ const Settings = () => {
 
         {/* Security */}
         <SectionCard
+          accentColor="#22c55e"
           title="Security"
           icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" /></svg>}
         >
@@ -130,9 +135,9 @@ const Settings = () => {
         </SectionCard>
 
         {/* Account */}
-        <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5">
+        <div className="bg-[#18181b] border border-[#27272a] border-l-[3px] rounded-xl p-5" style={{ borderLeftColor: '#ef4444' }}>
           <div className="flex items-center gap-2 mb-4">
-            <span className="text-[#3b82f6]">
+            <span className="text-[#ef4444]">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>

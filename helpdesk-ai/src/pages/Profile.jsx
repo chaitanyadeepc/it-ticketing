@@ -83,24 +83,28 @@ const Profile = () => {
 
   return (
     <PageWrapper>
-      <div className="max-w-4xl mx-auto px-4 py-4">
+      <div className="w-full max-w-screen-2xl mx-auto px-6 xl:px-10 py-5">
         <Breadcrumb />
-        <div className="mb-5">
-          <h1 className="text-[22px] font-bold text-[#fafafa] mb-1">My Profile</h1>
-          <p className="text-[13px] text-[#a1a1aa]">Manage your account information and preferences</p>
+        <div className="flex flex-wrap items-center justify-between gap-3 p-5 mb-5 rounded-2xl bg-gradient-to-r from-[#3b82f6]/8 via-[#6366f1]/4 to-transparent border border-[#3b82f6]/15">
+          <div>
+            <h1 className="text-[24px] font-bold text-[#fafafa] mb-0.5">My Profile</h1>
+            <p className="text-[13px] text-[#a1a1aa]">Manage your account information and preferences</p>
+          </div>
         </div>
 
         {error && (
           <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-[13px]">{error}</div>
         )}
 
-        <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 mb-4">
+        <div className="bg-gradient-to-br from-[#3b82f6]/8 via-[#18181b] to-[#6366f1]/5 border border-[#3b82f6]/20 rounded-xl p-6 mb-5">
           <div className="flex items-start gap-5 mb-6">
             <div className="relative">
-              <div className="w-16 h-16 bg-gradient-to-br from-[#3b82f6] to-[#2563eb] rounded-2xl flex items-center justify-center text-white text-[22px] font-bold shadow-lg shadow-[#3b82f6]/20 flex-shrink-0">
+              <div className="w-20 h-20 bg-gradient-to-br from-[#3b82f6] to-[#6366f1] rounded-2xl flex items-center justify-center text-white text-[26px] font-bold shadow-xl shadow-[#3b82f6]/25 flex-shrink-0">
                 {(form.name || userEmail).slice(0, 2).toUpperCase()}
               </div>
-              <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-[#22c55e] rounded-full border-2 border-[#18181b]" />
+              <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-[#22c55e] rounded-full border-2 border-[#18181b] flex items-center justify-center">
+                <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
+              </div>
             </div>
             <div className="flex-1 min-w-0">
               <h2 className="text-[17px] font-semibold text-[#fafafa] mb-0.5">{form.name || userEmail.split('@')[0]}</h2>
@@ -137,7 +141,7 @@ const Profile = () => {
                     value={disabled ? userEmail : (form[key] || '')}
                     disabled={disabled}
                     onChange={(e) => !disabled && setForm((f) => ({ ...f, [key]: e.target.value }))}
-                    className={`w-full h-9 pl-8 pr-3.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[13.5px] focus:outline-none focus:border-[#3b82f6] focus:ring-2 focus:ring-[#3b82f6]/20 transition-all ${disabled ? 'text-[#52525b] cursor-not-allowed' : 'text-[#fafafa]'}`}
+                  className={`w-full h-10 pl-9 pr-3.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[13.5px] focus:outline-none focus:border-[#3b82f6] focus:ring-2 focus:ring-[#3b82f6]/20 transition-all ${disabled ? 'text-[#52525b] cursor-not-allowed' : 'text-[#fafafa]'}`}
                   />
                 </div>
               </div>
@@ -156,16 +160,15 @@ const Profile = () => {
 
         <div className="grid grid-cols-3 gap-4">
           {statItems.map(({ value, label, icon, color }) => (
-            <div key={label} className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: color + '15' }}>
+            <div key={label} className="rounded-xl border p-5 relative overflow-hidden" style={{ borderColor: `${color}30`, background: `linear-gradient(135deg, ${color}0d 0%, transparent 70%)` }}>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 mb-3" style={{ backgroundColor: color + '18' }}>
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} style={{ color }}>
                   <path strokeLinecap="round" strokeLinejoin="round" d={icon} />
                 </svg>
               </div>
-              <div>
-                <div className="text-[22px] font-bold" style={{ color }}>{value}</div>
-                <div className="text-[11.5px] text-[#52525b] mt-0.5">{label}</div>
-              </div>
+              <div className="text-[28px] font-bold" style={{ color }}>{value}</div>
+              <div className="text-[12px] text-[#a1a1aa] mt-0.5">{label}</div>
+              <div className="absolute -right-4 -bottom-4 w-14 h-14 rounded-full blur-2xl opacity-20" style={{ backgroundColor: color }} />
             </div>
           ))}
         </div>

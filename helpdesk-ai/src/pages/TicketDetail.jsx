@@ -120,191 +120,206 @@ export default function TicketDetail() {
     </div>
   );
 
+  const PRIORITY_ACCENT = { Low: '#3b82f6', Medium: '#f59e0b', High: '#f97316', Critical: '#ef4444' };
+  const STATUS_ACCENT   = { Open: '#22c55e', 'In Progress': '#f59e0b', Resolved: '#06b6d4', Closed: '#71717a' };
+  const priorityColor = PRIORITY_ACCENT[ticket.priority] || '#3b82f6';
+  const statusColor   = STATUS_ACCENT[ticket.status]   || '#a1a1aa';
+
   return (
-    <div className="max-w-5xl mx-auto px-4 py-4">
+    <div className="w-full max-w-screen-2xl mx-auto px-6 xl:px-10 py-5">
       {/* Back */}
-      <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-sm text-zinc-400 hover:text-white mb-6 transition-colors">
+      <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-[13px] text-[#a1a1aa] hover:text-[#fafafa] mb-5 transition-colors">
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
         </svg>
         Back
       </button>
 
-      {/* Header */}
-      <div className="rounded-xl border border-zinc-800 p-6 mb-4" style={{ backgroundColor: 'var(--card)' }}>
+      {/* Priority-colored header banner */}
+      <div className="rounded-2xl border p-6 mb-5 relative overflow-hidden" style={{ borderColor: `${priorityColor}30`, background: `linear-gradient(135deg, ${priorityColor}0d 0%, transparent 60%)` }}>
+        <div className="absolute top-0 left-0 w-1 h-full rounded-l-2xl" style={{ backgroundColor: priorityColor }} />
         <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
           <div>
-            <p className="text-xs text-zinc-500 mb-1">{ticket.ticketId}</p>
-            <h1 className="text-xl font-semibold">{ticket.title}</h1>
+            <p className="text-[12px] font-mono text-[#52525b] mb-1">{ticket.ticketId}</p>
+            <h1 className="text-[22px] font-bold text-[#fafafa]">{ticket.title}</h1>
           </div>
           <div className="flex flex-wrap gap-2">
-            <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${PRIORITY_COLOR[ticket.priority] || 'bg-zinc-700 text-zinc-300'}`}>
+            <span className="text-[12px] font-semibold px-3 py-1 rounded-full border" style={{ color: priorityColor, borderColor: `${priorityColor}40`, backgroundColor: `${priorityColor}15` }}>
               {ticket.priority}
             </span>
-            <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${STATUS_COLOR[ticket.status] || 'bg-zinc-700 text-zinc-300'}`}>
+            <span className="text-[12px] font-semibold px-3 py-1 rounded-full border" style={{ color: statusColor, borderColor: `${statusColor}40`, backgroundColor: `${statusColor}15` }}>
               {ticket.status}
             </span>
           </div>
         </div>
-
-        <p className="text-sm text-zinc-300 leading-relaxed mb-4">{ticket.description}</p>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
-          <div>
-            <span className="text-zinc-500 block text-xs mb-0.5">Category</span>
-            <span>{ticket.category}{ticket.subType ? ` / ${ticket.subType}` : ''}</span>
-          </div>
-          <div>
-            <span className="text-zinc-500 block text-xs mb-0.5">Raised by</span>
-            <span>{ticket.createdBy?.name || ticket.createdBy?.email || 'Unknown'}</span>
-          </div>
-          <div>
-            <span className="text-zinc-500 block text-xs mb-0.5">Created</span>
-            <span>{new Date(ticket.createdAt).toLocaleDateString()}</span>
-          </div>
-          {ticket.assignedTo && (
-            <div>
-              <span className="text-zinc-500 block text-xs mb-0.5">Assigned to</span>
-              <span>{ticket.assignedTo}</span>
-            </div>
-          )}
-          {ticket.resolvedAt && (
-            <div>
-              <span className="text-zinc-500 block text-xs mb-0.5">Resolved</span>
-              <span>{new Date(ticket.resolvedAt).toLocaleDateString()}</span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Admin: Status Update + Assign */}
-      {isAdmin && (
-        <div className="rounded-xl border border-zinc-800 p-5 mb-4" style={{ backgroundColor: 'var(--card)' }}>
-          <h2 className="text-sm font-semibold mb-3 text-zinc-300">Update Status</h2>
-          <div className="flex flex-wrap gap-2 mb-5">
-            {STATUS_OPTIONS.map((s) => (
-              <button
-                key={s}
-                disabled={statusUpdating || ticket.status === s}
-                onClick={() => handleStatusChange(s)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all border
-                  ${ticket.status === s
-                    ? 'border-violet-500 bg-violet-500/20 text-violet-300 cursor-default'
-                    : 'border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-white'
-                  }`}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-
-          <h2 className="text-sm font-semibold mb-3 text-zinc-300">Assign to Agent</h2>
-          <form onSubmit={handleAssign} className="flex gap-2">
-            <input
-              type="text"
-              value={assignValue}
-              onChange={(e) => setAssignValue(e.target.value)}
-              placeholder="Agent name or email…"
-              className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-violet-500 placeholder-zinc-500"
-            />
-            <button
-              type="submit"
-              disabled={assigning}
-              className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50 text-white text-sm rounded-lg transition-colors font-medium"
-            >
-              {assigning ? '…' : 'Assign'}
-            </button>
-          </form>
-          <div className="mt-6 pt-5 border-t border-zinc-800">
-            <button
-              onClick={handleDelete}
-              className="flex items-center gap-2 px-4 py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 text-red-400 hover:text-red-300 text-sm rounded-lg transition-colors font-medium"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-              </svg>
-              Delete Ticket
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* User: Reopen resolved ticket */}
-      {!isAdmin && ticket.status === 'Resolved' && (
-        <div className="rounded-xl border border-zinc-800 p-5 mb-4 flex items-center justify-between" style={{ backgroundColor: 'var(--card)' }}>
-          <div>
-            <p className="text-sm font-medium text-zinc-300">Is your issue still not resolved?</p>
-            <p className="text-xs text-zinc-500 mt-0.5">Reopening will move this ticket back to Open.</p>
-          </div>
-          <button
-            onClick={handleReopen}
-            className="ml-4 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm rounded-lg transition-colors font-medium whitespace-nowrap"
-          >
-            Reopen Ticket
-          </button>
-        </div>
-      )}
-
-      {/* Comments */}
-      <div className="rounded-xl border border-zinc-800 p-5" style={{ backgroundColor: 'var(--card)' }}>
-        <h2 className="text-sm font-semibold mb-4 text-zinc-300">
-          Comments ({ticket.comments?.length || 0})
-        </h2>
-
-        {ticket.comments?.length === 0 && (
-          <p className="text-sm text-zinc-500 mb-4">No comments yet.</p>
-        )}
-
-        <div className="space-y-3 mb-4">
-          {ticket.comments?.map((c, i) => (
-            <div key={i} className="rounded-lg bg-zinc-800/50 p-3">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-medium text-violet-400">{c.authorName || 'User'}</span>
-                <span className="text-xs text-zinc-500">{new Date(c.createdAt).toLocaleDateString()}</span>
-              </div>
-              <p className="text-sm text-zinc-300">{c.text}</p>
+        <p className="text-[14px] text-[#a1a1aa] leading-relaxed mb-4">{ticket.description}</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-[#27272a]">
+          {[
+            { label: 'Category', value: `${ticket.category}${ticket.subType ? ` / ${ticket.subType}` : ''}` },
+            { label: 'Raised by', value: ticket.createdBy?.name || ticket.createdBy?.email || 'Unknown' },
+            { label: 'Created',   value: new Date(ticket.createdAt).toLocaleDateString() },
+            { label: 'Assigned',  value: ticket.assignedTo || 'Unassigned' },
+          ].map(({ label, value }) => (
+            <div key={label}>
+              <span className="text-[11px] uppercase font-semibold tracking-wider text-[#52525b] block mb-0.5">{label}</span>
+              <span className="text-[13px] text-[#fafafa]">{value}</span>
             </div>
           ))}
         </div>
-
-        {/* Add comment form */}
-        {ticket.status !== 'Closed' && (
-          <form onSubmit={handleComment} className="flex gap-2">
-            <input
-              type="text"
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              placeholder="Add a comment..."
-              className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-violet-500 placeholder-zinc-500"
-            />
-            <button
-              type="submit"
-              disabled={commentLoading || !comment.trim()}
-              className="px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm rounded-lg transition-colors font-medium"
-            >
-              {commentLoading ? '...' : 'Post'}
-            </button>
-          </form>
-        )}
       </div>
 
-      {/* Activity timeline */}
-      {ticket.history?.length > 0 && (
-        <div className="rounded-xl border border-zinc-800 p-5 mt-4" style={{ backgroundColor: 'var(--card)' }}>
-          <h2 className="text-sm font-semibold mb-4 text-zinc-300">Activity</h2>
-          <ol className="relative border-l border-zinc-700 ml-2 space-y-4">
-            {[...ticket.history].reverse().map((h, i) => (
-              <li key={i} className="ml-4">
-                <span className="absolute -left-[5px] mt-1 w-2.5 h-2.5 rounded-full bg-violet-500/60 border border-violet-400/40" />
-                <p className="text-sm text-zinc-300">{h.action}</p>
-                <p className="text-xs text-zinc-500 mt-0.5">
-                  {h.byName || 'System'} · {new Date(h.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
-                </p>
-              </li>
-            ))}
-          </ol>
+      {/* Two-column layout */}
+      <div className="grid lg:grid-cols-3 gap-5">
+
+        {/* Main column — comments + activity */}
+        <div className="lg:col-span-2 space-y-4">
+
+          {/* User: Reopen banner */}
+          {!isAdmin && ticket.status === 'Resolved' && (
+            <div className="rounded-xl border border-[#f97316]/25 bg-[#f97316]/8 p-4 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-[13px] font-medium text-[#fafafa]">Is your issue still not resolved?</p>
+                <p className="text-[12px] text-[#a1a1aa] mt-0.5">Reopening will move this ticket back to Open.</p>
+              </div>
+              <button onClick={handleReopen} className="px-4 py-2 bg-[#f97316] hover:bg-[#ea6c00] text-white text-[13px] rounded-lg transition-colors font-medium whitespace-nowrap">
+                Reopen Ticket
+              </button>
+            </div>
+          )}
+
+          {/* Comments */}
+          <div className="bg-[#18181b] border border-[#27272a] border-t-[3px] rounded-xl p-5" style={{ borderTopColor: '#8b5cf6' }}>
+            <h2 className="text-[14px] font-semibold text-[#fafafa] mb-4 flex items-center gap-2">
+              <svg className="w-4 h-4 text-[#8b5cf6]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+              Comments <span className="text-[12px] text-[#52525b] font-normal">({ticket.comments?.length || 0})</span>
+            </h2>
+            {ticket.comments?.length === 0 && (
+              <p className="text-[13px] text-[#52525b] mb-4">No comments yet. Be the first to comment.</p>
+            )}
+            <div className="space-y-3 mb-4">
+              {ticket.comments?.map((c, i) => (
+                <div key={i} className="rounded-lg bg-[#27272a] border border-[#3f3f46] p-3.5">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[12px] font-semibold text-[#8b5cf6]">{c.authorName || 'User'}</span>
+                    <span className="text-[11px] text-[#52525b]">{new Date(c.createdAt).toLocaleDateString()}</span>
+                  </div>
+                  <p className="text-[13px] text-[#a1a1aa] leading-relaxed">{c.text}</p>
+                </div>
+              ))}
+            </div>
+            {ticket.status !== 'Closed' && (
+              <form onSubmit={handleComment} className="flex gap-2">
+                <input
+                  type="text"
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder="Add a comment..."
+                  className="flex-1 bg-[#27272a] border border-[#3f3f46] text-[#fafafa] text-[13px] rounded-lg px-3.5 py-2.5 focus:outline-none focus:border-[#8b5cf6] focus:ring-2 focus:ring-[#8b5cf6]/15 placeholder-[#52525b]"
+                />
+                <button type="submit" disabled={commentLoading || !comment.trim()}
+                  className="px-4 py-2 bg-[#8b5cf6] hover:bg-[#7c3aed] disabled:opacity-50 text-white text-[13px] rounded-lg transition-colors font-medium">
+                  {commentLoading ? '...' : 'Post'}
+                </button>
+              </form>
+            )}
+          </div>
+
+          {/* Activity timeline */}
+          {ticket.history?.length > 0 && (
+            <div className="bg-[#18181b] border border-[#27272a] border-t-[3px] rounded-xl p-5" style={{ borderTopColor: '#06b6d4' }}>
+              <h2 className="text-[14px] font-semibold text-[#fafafa] mb-4 flex items-center gap-2">
+                <svg className="w-4 h-4 text-[#06b6d4]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                Activity
+              </h2>
+              <ol className="relative border-l-2 border-[#27272a] ml-2 space-y-4">
+                {[...ticket.history].reverse().map((h, i) => (
+                  <li key={i} className="ml-5">
+                    <span className="absolute -left-[7px] mt-1 w-3 h-3 rounded-full bg-[#06b6d4]/40 border-2 border-[#06b6d4]" />
+                    <p className="text-[13px] text-[#fafafa]">{h.action}</p>
+                    <p className="text-[11px] text-[#52525b] mt-0.5">
+                      {h.byName || 'System'} · {new Date(h.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                    </p>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
         </div>
-      )}
+
+        {/* Sidebar column */}
+        <div className="space-y-4">
+
+          {/* Admin controls */}
+          {isAdmin && (
+            <div className="bg-[#18181b] border border-[#27272a] border-t-[3px] rounded-xl p-5" style={{ borderTopColor: '#f59e0b' }}>
+              <h2 className="text-[13px] font-semibold text-[#fafafa] mb-3 flex items-center gap-2">
+                <svg className="w-4 h-4 text-[#f59e0b]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                Admin Controls
+              </h2>
+
+              <p className="text-[11px] uppercase font-semibold text-[#52525b] tracking-wider mb-2">Update Status</p>
+              <div className="grid grid-cols-2 gap-1.5 mb-4">
+                {STATUS_OPTIONS.map((s) => {
+                  const sColor = STATUS_ACCENT[s] || '#a1a1aa';
+                  return (
+                    <button key={s} disabled={statusUpdating || ticket.status === s}
+                      onClick={() => handleStatusChange(s)}
+                      className="px-2.5 py-2 rounded-lg text-[12px] font-medium transition-all border text-left"
+                      style={ticket.status === s
+                        ? { borderColor: `${sColor}50`, backgroundColor: `${sColor}18`, color: sColor }
+                        : { borderColor: '#27272a', color: '#a1a1aa', backgroundColor: 'transparent' }}>
+                      <span className="w-2 h-2 rounded-full inline-block mr-1.5" style={{ backgroundColor: ticket.status === s ? sColor : '#3f3f46' }} />
+                      {s}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <p className="text-[11px] uppercase font-semibold text-[#52525b] tracking-wider mb-2">Assign to Agent</p>
+              <form onSubmit={handleAssign} className="flex flex-col gap-2 mb-4">
+                <input type="text" value={assignValue} onChange={(e) => setAssignValue(e.target.value)}
+                  placeholder="Agent name or email…"
+                  className="w-full bg-[#27272a] border border-[#3f3f46] text-[#fafafa] text-[13px] rounded-lg px-3 py-2 focus:outline-none focus:border-[#f59e0b] placeholder-[#52525b]" />
+                <button type="submit" disabled={assigning}
+                  className="w-full px-4 py-2 bg-[#f59e0b] hover:bg-[#d97706] disabled:opacity-50 text-[#09090b] text-[13px] rounded-lg transition-colors font-semibold">
+                  {assigning ? 'Assigning…' : 'Assign'}
+                </button>
+              </form>
+
+              <div className="pt-3 border-t border-[#27272a]">
+                <button onClick={handleDelete}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-[#ef4444]/10 hover:bg-[#ef4444]/20 border border-[#ef4444]/25 text-[#ef4444] text-[13px] rounded-lg transition-colors font-medium">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                  </svg>
+                  Delete Ticket
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Meta info card */}
+          <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5">
+            <h2 className="text-[13px] font-semibold text-[#fafafa] mb-3">Ticket Info</h2>
+            <div className="space-y-3">
+              {[
+                { label: 'Category',   value: ticket.category },
+                { label: 'Sub-type',   value: ticket.subType || '–' },
+                { label: 'Priority',   value: ticket.priority, color: priorityColor },
+                { label: 'Status',     value: ticket.status,   color: statusColor },
+                { label: 'Raised by',  value: ticket.createdBy?.name || ticket.createdBy?.email || 'Unknown' },
+                { label: 'Created',    value: new Date(ticket.createdAt).toLocaleDateString() },
+                ...(ticket.resolvedAt ? [{ label: 'Resolved', value: new Date(ticket.resolvedAt).toLocaleDateString() }] : []),
+              ].map(({ label, value, color }) => (
+                <div key={label} className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] uppercase font-semibold tracking-wider text-[#52525b]">{label}</span>
+                  <span className="text-[12px] font-medium" style={{ color: color || '#a1a1aa' }}>{value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
