@@ -26,12 +26,18 @@ export default function TicketDetail() {
   const [error, setError] = useState('');
 
   const [statusUpdating, setStatusUpdating] = useState(false);
+  const [assignValue, setAssignValue] = useState('');
+  const [assigning, setAssigning] = useState(false);
   const [comment, setComment] = useState('');
   const [commentLoading, setCommentLoading] = useState(false);
 
   useEffect(() => {
     api.get(`/tickets/${id}`)
-      .then(({ data }) => { setTicket(data.ticket); setLoading(false); })
+      .then(({ data }) => {
+        setTicket(data.ticket);
+        setAssignValue(data.ticket.assignedTo || '');
+        setLoading(false);
+      })
       .catch(() => { setError('Failed to load ticket.'); setLoading(false); });
   }, [id]);
 
@@ -44,6 +50,28 @@ export default function TicketDetail() {
       alert('Failed to update status');
     } finally {
       setStatusUpdating(false);
+    }
+  };
+
+  const handleAssign = async (e) => {
+    e.preventDefault();
+    setAssigning(true);
+    try {
+      const { data } = await api.patch(`/tickets/${id}`, { assignedTo: assignValue });
+      setTicket(data.ticket);
+    } catch {
+      alert('Failed to assign ticket');
+    } finally {
+      setAssigning(false);
+    }
+  };
+
+  const handleReopen = async () => {
+    try {
+      const { data } = await api.patch(`/tickets/${id}`, { status: 'Open' });
+      setTicket(data.ticket);
+    } catch {
+      alert('Failed to reopen ticket');
     }
   };
 
@@ -132,11 +160,11 @@ export default function TicketDetail() {
         </div>
       </div>
 
-      {/* Admin: Status Update */}
+      {/* Admin: Status Update + Assign */}
       {isAdmin && (
         <div className="rounded-xl border border-zinc-800 p-5 mb-4" style={{ backgroundColor: 'var(--card)' }}>
           <h2 className="text-sm font-semibold mb-3 text-zinc-300">Update Status</h2>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 mb-5">
             {STATUS_OPTIONS.map((s) => (
               <button
                 key={s}
@@ -152,6 +180,40 @@ export default function TicketDetail() {
               </button>
             ))}
           </div>
+
+          <h2 className="text-sm font-semibold mb-3 text-zinc-300">Assign to Agent</h2>
+          <form onSubmit={handleAssign} className="flex gap-2">
+            <input
+              type="text"
+              value={assignValue}
+              onChange={(e) => setAssignValue(e.target.value)}
+              placeholder="Agent name or email…"
+              className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-violet-500 placeholder-zinc-500"
+            />
+            <button
+              type="submit"
+              disabled={assigning}
+              className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50 text-white text-sm rounded-lg transition-colors font-medium"
+            >
+              {assigning ? '…' : 'Assign'}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* User: Reopen resolved ticket */}
+      {!isAdmin && ticket.status === 'Resolved' && (
+        <div className="rounded-xl border border-zinc-800 p-5 mb-4 flex items-center justify-between" style={{ backgroundColor: 'var(--card)' }}>
+          <div>
+            <p className="text-sm font-medium text-zinc-300">Is your issue still not resolved?</p>
+            <p className="text-xs text-zinc-500 mt-0.5">Reopening will move this ticket back to Open.</p>
+          </div>
+          <button
+            onClick={handleReopen}
+            className="ml-4 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm rounded-lg transition-colors font-medium whitespace-nowrap"
+          >
+            Reopen Ticket
+          </button>
         </div>
       )}
 

@@ -5,9 +5,14 @@ import Breadcrumb from '../components/layout/Breadcrumb';
 import TicketCard from '../components/TicketCard';
 import api from '../api/api';
 
+const PRIORITIES = ['All', 'Low', 'Medium', 'High', 'Critical'];
+const CATEGORIES = ['All', 'Hardware', 'Software', 'Network', 'Access', 'Email', 'Printer', 'VPN', 'Other'];
+
 const MyTickets = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('all');
+  const [priority, setPriority] = useState('All');
+  const [category, setCategory] = useState('All');
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -41,9 +46,10 @@ const MyTickets = () => {
     { id: 'Closed', label: 'Closed', count: counts.closed },
   ];
 
-  const filteredTickets = activeTab === 'all'
-    ? tickets
-    : tickets.filter((t) => t.status === activeTab);
+  const filteredTickets = tickets
+    .filter((t) => activeTab === 'all' || t.status === activeTab)
+    .filter((t) => priority === 'All' || t.priority === priority)
+    .filter((t) => category === 'All' || t.category === category);
 
   // Normalise ticket shape for TicketCard (which expects id, not _id / ticketId)
   const normalise = (t) => ({
@@ -77,6 +83,38 @@ const MyTickets = () => {
               }`}>{tab.count}</span>
             </button>
           ))}
+        </div>
+
+        {/* Priority + Category filters */}
+        <div className="flex flex-wrap gap-3 mb-6">
+          <div className="flex items-center gap-2">
+            <label className="text-[12px] text-[#a1a1aa] whitespace-nowrap">Priority</label>
+            <select
+              value={priority}
+              onChange={(e) => setPriority(e.target.value)}
+              className="bg-[#27272a] border border-[#3f3f46] text-[#fafafa] text-[13px] rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#3b82f6]"
+            >
+              {PRIORITIES.map((p) => <option key={p}>{p}</option>)}
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-[12px] text-[#a1a1aa] whitespace-nowrap">Category</label>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="bg-[#27272a] border border-[#3f3f46] text-[#fafafa] text-[13px] rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#3b82f6]"
+            >
+              {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+            </select>
+          </div>
+          {(priority !== 'All' || category !== 'All') && (
+            <button
+              onClick={() => { setPriority('All'); setCategory('All'); }}
+              className="text-[12px] text-[#a1a1aa] hover:text-[#fafafa] underline"
+            >
+              Clear filters
+            </button>
+          )}
         </div>
 
         {loading ? (
