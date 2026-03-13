@@ -11,7 +11,8 @@ const userSchema = new mongoose.Schema(
     phone:      { type: String, default: '' },
     jobTitle:   { type: String, default: '' },
     location:   { type: String, default: '' },
-    isActive:   { type: Boolean, default: true },
+    isActive:      { type: Boolean, default: true },
+    tokenVersion:  { type: Number, default: 0 },
   },
   { timestamps: true }
 );

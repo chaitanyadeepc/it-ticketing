@@ -37,16 +37,21 @@ const Navbar = () => {
 
   if (location.pathname === '/login') return null;
 
+  const isAdmin = localStorage.getItem('userRole') === 'admin';
+
   const navLinks = [
     { name: 'Home', path: '/' },
     { name: 'Raise Ticket', path: '/raise-ticket' },
     { name: 'My Tickets', path: '/my-tickets' },
-    { name: 'Admin', path: '/admin' },
+    ...(isAdmin ? [{ name: 'Admin', path: '/admin' }] : []),
   ];
 
   const handleLogout = () => {
     localStorage.removeItem('isAuthenticated');
     localStorage.removeItem('userEmail');
+    localStorage.removeItem('userName');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('token');
     navigate('/login');
   };
 

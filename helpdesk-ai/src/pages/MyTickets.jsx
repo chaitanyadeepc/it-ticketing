@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import PageWrapper from '../components/layout/PageWrapper';
 import Breadcrumb from '../components/layout/Breadcrumb';
 import TicketCard from '../components/TicketCard';
-import TicketModal from '../components/TicketModal';
 import api from '../api/api';
 
 const MyTickets = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('all');
-  const [selectedTicket, setSelectedTicket] = useState(null);
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -96,7 +96,7 @@ const MyTickets = () => {
         ) : filteredTickets.length > 0 ? (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredTickets.map((ticket) => (
-              <TicketCard key={ticket._id} ticket={normalise(ticket)} onClick={() => setSelectedTicket(normalise(ticket))} />
+              <TicketCard key={ticket._id} ticket={normalise(ticket)} onClick={() => navigate(`/tickets/${ticket._id}`)} />
             ))}
           </div>
         ) : (
@@ -107,10 +107,6 @@ const MyTickets = () => {
             <h3 className="text-[15px] font-medium text-[#fafafa] mb-1">No tickets found</h3>
             <p className="text-[13px] text-[#a1a1aa]">No tickets match the selected filter.</p>
           </div>
-        )}
-
-        {selectedTicket && (
-          <TicketModal ticket={selectedTicket} onClose={() => setSelectedTicket(null)} />
         )}
       </div>
     </PageWrapper>

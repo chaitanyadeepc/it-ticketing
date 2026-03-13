@@ -5,8 +5,8 @@ const { protect } = require('../middleware/auth');
 
 const router = express.Router();
 
-const signToken = (id) =>
-  jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' });
+const signToken = (id, tokenVersion) =>
+  jwt.sign({ id, tokenVersion }, process.env.JWT_SECRET, { expiresIn: '30d' });
 
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
@@ -18,8 +18,8 @@ router.post('/register', async (req, res) => {
     const exists = await User.findOne({ email });
     if (exists) return res.status(400).json({ error: 'Email already registered' });
 
-    const user = await User.create({ name, email, password, role: role === 'admin' ? 'admin' : 'user' });
-    const token = signToken(user._id);
+    const user = await User.create({ name, email, password, role: 'user' });
+    const token = signToken(user._id, user.tokenVersion);
 
     res.status(201).json({
       token,
@@ -37,11 +37,15 @@ router.post('/login', async (req, res) => {
     if (!email || !password)
       return res.status(400).json({ error: 'Email and password are required' });
 
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findOne({ email }).select('+password +tokenVersion');
     if (!user || !(await user.matchPassword(password)))
       return res.status(401).json({ error: 'Invalid email or password' });
 
-    const token = signToken(user._id);
+    // Increment tokenVersion — invalidates all previous sessions on other devices
+    user.tokenVersion += 1;
+    await user.save({ validateBeforeSave: false });
+
+    const token = signToken(user._id, user.tokenVersion);
 
     res.json({
       token,

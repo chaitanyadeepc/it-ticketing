@@ -9,6 +9,7 @@ import Login from './pages/Login';
 import Chatbot from './pages/Chatbot';
 import MyTickets from './pages/MyTickets';
 import AdminDashboard from './pages/AdminDashboard';
+import TicketDetail from './pages/TicketDetail';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import NotFound from './pages/NotFound';
@@ -18,6 +19,13 @@ const ProtectedRoute = ({ children }) => {
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: window.location.pathname }} replace />;
   }
+  return children;
+};
+
+const AdminRoute = ({ children }) => {
+  const isAuthenticated = !!localStorage.getItem('token') && localStorage.getItem('isAuthenticated') === 'true';
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (localStorage.getItem('userRole') !== 'admin') return <Navigate to="/" replace />;
   return children;
 };
 
@@ -32,7 +40,8 @@ function App() {
           <Route path="/chatbot" element={<ProtectedRoute><Chatbot /></ProtectedRoute>} />
           <Route path="/raise-ticket" element={<ProtectedRoute><Chatbot /></ProtectedRoute>} />
           <Route path="/my-tickets" element={<ProtectedRoute><MyTickets /></ProtectedRoute>} />
-          <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/tickets/:id" element={<ProtectedRoute><TicketDetail /></ProtectedRoute>} />
+          <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import PageWrapper from '../components/layout/PageWrapper';
 import Breadcrumb from '../components/layout/Breadcrumb';
 import StatCard from '../components/ui/StatCard';
@@ -7,6 +8,7 @@ import Card from '../components/ui/Card';
 import api from '../api/api';
 
 const AdminDashboard = () => {
+  const navigate = useNavigate();
   const [stats, setStats] = useState({ total: 0, open: 0, inProgress: 0, resolved: 0, closed: 0 });
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -100,7 +102,11 @@ const AdminDashboard = () => {
                 </thead>
                 <tbody>
                   {recentTickets.map((ticket) => (
-                    <tr key={ticket._id} className="border-b border-[#27272a] hover:bg-[#27272a] transition-colors">
+                    <tr
+                      key={ticket._id}
+                      onClick={() => navigate(`/tickets/${ticket._id}`)}
+                      className="border-b border-[#27272a] hover:bg-[#27272a] transition-colors cursor-pointer"
+                    >
                       <td className="py-4 font-['JetBrains_Mono'] text-[12px] text-[#3b82f6]">
                         {ticket.ticketId || ticket._id.slice(-6).toUpperCase()}
                       </td>
