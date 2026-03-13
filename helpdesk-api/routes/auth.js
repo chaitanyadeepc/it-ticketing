@@ -42,7 +42,7 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password' });
 
     // Increment tokenVersion — invalidates all previous sessions on other devices
-    user.tokenVersion += 1;
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
     await user.save({ validateBeforeSave: false });
 
     const token = signToken(user._id, user.tokenVersion);
