@@ -13,6 +13,8 @@ const MyTickets = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [priority, setPriority] = useState('All');
   const [category, setCategory] = useState('All');
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -30,6 +32,7 @@ const MyTickets = () => {
   };
 
   useEffect(() => { fetchTickets(); }, []);
+  useEffect(() => { setPage(1); }, [activeTab, priority, category, search]);
 
   const counts = {
     open: tickets.filter((t) => t.status === 'Open').length,
@@ -49,7 +52,17 @@ const MyTickets = () => {
   const filteredTickets = tickets
     .filter((t) => activeTab === 'all' || t.status === activeTab)
     .filter((t) => priority === 'All' || t.priority === priority)
-    .filter((t) => category === 'All' || t.category === category);
+    .filter((t) => category === 'All' || t.category === category)
+    .filter((t) => {
+      if (!search) return true;
+      const q = search.toLowerCase();
+      return t.title.toLowerCase().includes(q) || (t.ticketId || '').toLowerCase().includes(q);
+    });
+
+  const ITEMS_PER_PAGE = 9;
+  const totalPages = Math.max(1, Math.ceil(filteredTickets.length / ITEMS_PER_PAGE));
+  const paginatedTickets = filteredTickets.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+  const hasActiveFilters = priority !== 'All' || category !== 'All' || search !== '';
 
   // Normalise ticket shape for TicketCard (which expects id, not _id / ticketId)
   const normalise = (t) => ({
@@ -85,8 +98,20 @@ const MyTickets = () => {
           ))}
         </div>
 
-        {/* Priority + Category filters */}
-        <div className="flex flex-wrap gap-3 mb-6">
+        {/* Search + Filters */}
+        <div className="flex flex-wrap gap-3 mb-6 items-center">
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#52525b]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z"/>
+            </svg>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by title or ID…"
+              className="w-full bg-[#27272a] border border-[#3f3f46] text-[#fafafa] text-[13px] rounded-lg pl-9 pr-3 py-1.5 focus:outline-none focus:border-[#3b82f6] placeholder-[#52525b]"
+            />
+          </div>
           <div className="flex items-center gap-2">
             <label className="text-[12px] text-[#a1a1aa] whitespace-nowrap">Priority</label>
             <select
@@ -107,9 +132,9 @@ const MyTickets = () => {
               {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
             </select>
           </div>
-          {(priority !== 'All' || category !== 'All') && (
+          {hasActiveFilters && (
             <button
-              onClick={() => { setPriority('All'); setCategory('All'); }}
+              onClick={() => { setPriority('All'); setCategory('All'); setSearch(''); }}
               className="text-[12px] text-[#a1a1aa] hover:text-[#fafafa] underline"
             >
               Clear filters
@@ -131,12 +156,50 @@ const MyTickets = () => {
             {error}
             <button onClick={fetchTickets} className="ml-auto underline text-[#ef4444]/70 hover:text-[#ef4444]">Retry</button>
           </div>
-        ) : filteredTickets.length > 0 ? (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredTickets.map((ticket) => (
-              <TicketCard key={ticket._id} ticket={normalise(ticket)} onClick={() => navigate(`/tickets/${ticket._id}`)} />
-            ))}
-          </div>
+        ) : paginatedTickets.length > 0 ? (
+          <>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {paginatedTickets.map((ticket) => (
+                <TicketCard key={ticket._id} ticket={normalise(ticket)} onClick={() => navigate(`/tickets/${ticket._id}`)} />
+              ))}
+            </div>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-8">
+                <p className="text-[13px] text-[#52525b]">
+                  Showing {(page - 1) * ITEMS_PER_PAGE + 1}–{Math.min(page * ITEMS_PER_PAGE, filteredTickets.length)} of {filteredTickets.length}
+                </p>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    className="px-3 py-1.5 rounded-lg text-[13px] bg-[#27272a] border border-[#3f3f46] text-[#a1a1aa] hover:text-[#fafafa] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    ← Prev
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((pg) => (
+                    <button
+                      key={pg}
+                      onClick={() => setPage(pg)}
+                      className={`w-8 h-8 rounded-lg text-[13px] border transition-colors ${
+                        pg === page
+                          ? 'bg-[#3b82f6] border-[#3b82f6] text-white'
+                          : 'bg-[#27272a] border-[#3f3f46] text-[#a1a1aa] hover:text-[#fafafa]'
+                      }`}
+                    >
+                      {pg}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages}
+                    className="px-3 py-1.5 rounded-lg text-[13px] bg-[#27272a] border border-[#3f3f46] text-[#a1a1aa] hover:text-[#fafafa] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next →
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         ) : (
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <div className="w-14 h-14 rounded-2xl bg-[#18181b] border border-[#27272a] flex items-center justify-center mb-4">

@@ -13,6 +13,11 @@ import api from '../api/api';
 
 const COLORS = ['#3b82f6', '#f59e0b', '#22c55e', '#6b7280'];
 
+const STATUSES = ['All', 'Open', 'In Progress', 'Resolved', 'Closed'];
+const PRIORITIES = ['All', 'Low', 'Medium', 'High', 'Critical'];
+const CATEGORIES = ['All', 'Hardware', 'Software', 'Network', 'Access', 'Email', 'Printer', 'VPN', 'Other'];
+const TABLE_PAGE_SIZE = 10;
+
 const exportCSV = (tickets) => {
   const header = ['Ticket ID', 'Title', 'Category', 'Priority', 'Status', 'Submitted By', 'Created At'];
   const rows = tickets.map((t) => [
@@ -40,6 +45,11 @@ const AdminDashboard = () => {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
+  const [filterStatus, setFilterStatus] = useState('All');
+  const [filterPriority, setFilterPriority] = useState('All');
+  const [filterCategory, setFilterCategory] = useState('All');
+  const [tablePage, setTablePage] = useState(1);
 
   const fetchData = async () => {
     try {
@@ -58,8 +68,21 @@ const AdminDashboard = () => {
   };
 
   useEffect(() => { fetchData(); }, []);
+  useEffect(() => { setTablePage(1); }, [search, filterStatus, filterPriority, filterCategory]);
 
-  const recentTickets = tickets.slice(0, 10);
+  const filteredTableTickets = tickets
+    .filter((t) => filterStatus === 'All' || t.status === filterStatus)
+    .filter((t) => filterPriority === 'All' || t.priority === filterPriority)
+    .filter((t) => filterCategory === 'All' || t.category === filterCategory)
+    .filter((t) => {
+      if (!search) return true;
+      const q = search.toLowerCase();
+      return t.title.toLowerCase().includes(q) || (t.ticketId || '').toLowerCase().includes(q);
+    });
+
+  const tablePageCount = Math.max(1, Math.ceil(filteredTableTickets.length / TABLE_PAGE_SIZE));
+  const recentTickets = filteredTableTickets.slice((tablePage - 1) * TABLE_PAGE_SIZE, tablePage * TABLE_PAGE_SIZE);
+  const hasTableFilters = search !== '' || filterStatus !== 'All' || filterPriority !== 'All' || filterCategory !== 'All';
 
   // Chart data
   const statusData = [
@@ -203,11 +226,58 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* Recent tickets table */}
+        {/* Tickets table */}
         <Card className="p-6">
-          <h2 className="text-[16px] font-medium text-[#fafafa] mb-6">Recent Tickets</h2>
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+            <h2 className="text-[16px] font-medium text-[#fafafa]">All Tickets</h2>
+            <div className="flex flex-wrap gap-2 items-center">
+              <div className="relative">
+                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#52525b]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z"/>
+                </svg>
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search…"
+                  className="bg-[#18181b] border border-[#27272a] text-[#fafafa] text-[13px] rounded-lg pl-8 pr-3 py-1.5 w-40 focus:outline-none focus:border-[#3b82f6] placeholder-[#52525b]"
+                />
+              </div>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="bg-[#18181b] border border-[#27272a] text-[#a1a1aa] text-[13px] rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#3b82f6]"
+              >
+                {STATUSES.map((s) => <option key={s}>{s}</option>)}
+              </select>
+              <select
+                value={filterPriority}
+                onChange={(e) => setFilterPriority(e.target.value)}
+                className="bg-[#18181b] border border-[#27272a] text-[#a1a1aa] text-[13px] rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#3b82f6]"
+              >
+                {PRIORITIES.map((p) => <option key={p}>{p}</option>)}
+              </select>
+              <select
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value)}
+                className="bg-[#18181b] border border-[#27272a] text-[#a1a1aa] text-[13px] rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#3b82f6]"
+              >
+                {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+              </select>
+              {hasTableFilters && (
+                <button
+                  onClick={() => { setSearch(''); setFilterStatus('All'); setFilterPriority('All'); setFilterCategory('All'); }}
+                  className="text-[12px] text-[#a1a1aa] hover:text-[#fafafa] underline"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
           {recentTickets.length === 0 ? (
-            <div className="text-center py-12 text-[#52525b] text-[13px]">No tickets yet</div>
+            <div className="text-center py-12 text-[#52525b] text-[13px]">
+              {hasTableFilters ? 'No tickets match your filters.' : 'No tickets yet'}
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -247,6 +317,42 @@ const AdminDashboard = () => {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+          {tablePageCount > 1 && (
+            <div className="flex items-center justify-between mt-6 pt-4 border-t border-[#27272a]">
+              <p className="text-[13px] text-[#52525b]">
+                Showing {(tablePage - 1) * TABLE_PAGE_SIZE + 1}–{Math.min(tablePage * TABLE_PAGE_SIZE, filteredTableTickets.length)} of {filteredTableTickets.length}
+              </p>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setTablePage((p) => Math.max(1, p - 1))}
+                  disabled={tablePage === 1}
+                  className="px-3 py-1.5 rounded-lg text-[13px] bg-[#27272a] border border-[#3f3f46] text-[#a1a1aa] hover:text-[#fafafa] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  ← Prev
+                </button>
+                {Array.from({ length: tablePageCount }, (_, i) => i + 1).map((pg) => (
+                  <button
+                    key={pg}
+                    onClick={() => setTablePage(pg)}
+                    className={`w-8 h-8 rounded-lg text-[13px] border transition-colors ${
+                      pg === tablePage
+                        ? 'bg-[#3b82f6] border-[#3b82f6] text-white'
+                        : 'bg-[#27272a] border-[#3f3f46] text-[#a1a1aa] hover:text-[#fafafa]'
+                    }`}
+                  >
+                    {pg}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setTablePage((p) => Math.min(tablePageCount, p + 1))}
+                  disabled={tablePage === tablePageCount}
+                  className="px-3 py-1.5 rounded-lg text-[13px] bg-[#27272a] border border-[#3f3f46] text-[#a1a1aa] hover:text-[#fafafa] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  Next →
+                </button>
+              </div>
             </div>
           )}
         </Card>
