@@ -10,15 +10,8 @@ const protect = async (req, res, next) => {
   const token = authHeader.split(' ')[1];
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id).select('-password +tokenVersion');
+    const user = await User.findById(decoded.id).select('-password');
     if (!user) return res.status(401).json({ error: 'User no longer exists' });
-    // Reject tokens from previous sessions (e.g. another device)
-    // Use Number.isFinite to safely handle NaN/null/undefined for legacy accounts
-    const decodedVersion = Number.isFinite(decoded.tokenVersion) ? decoded.tokenVersion : 0;
-    const userVersion = Number.isFinite(user.tokenVersion) ? user.tokenVersion : 0;
-    if (decodedVersion !== userVersion) {
-      return res.status(401).json({ error: 'Session expired — please log in again' });
-    }
     req.user = user;
     next();
   } catch {
