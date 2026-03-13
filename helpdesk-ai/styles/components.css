@@ -1,0 +1,637 @@
+/* ==========================================================================
+   COMPONENTS - Cards, Buttons, Badges, Inputs, etc.
+   ========================================================================== */
+
+/* ==========================================================================
+   CARDS
+   ========================================================================== */
+
+.glass-card {
+    background: var(--card-gradient);
+    border: 1px solid var(--card-border);
+    border-radius: var(--card-radius);
+    padding: var(--spacing-xl);
+    position: relative;
+    backdrop-filter: blur(24px);
+    box-shadow: 
+        0 20px 60px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(168, 85, 247, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    overflow: hidden;
+}
+
+.card {
+    background: var(--card-gradient);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: var(--spacing-lg);
+    position: relative;
+    backdrop-filter: blur(24px);
+    transition: all var(--transition-base);
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+        0 12px 40px rgba(0, 0, 0, 0.4),
+        0 0 20px rgba(168, 85, 247, 0.2);
+}
+
+.card-compact {
+    padding: var(--spacing-md);
+}
+
+.card-elevated {
+    box-shadow: 
+        0 20px 60px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(168, 85, 247, 0.1);
+}
+
+/* ==========================================================================
+   BUTTONS
+   ========================================================================== */
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    padding: 12px 24px;
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all var(--transition-base);
+    text-decoration: none;
+    white-space: nowrap;
+    user-select: none;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Primary Button */
+.btn-primary {
+    background: linear-gradient(135deg, 
+        rgba(168, 85, 247, 0.35), 
+        rgba(168, 85, 247, 0.75)
+    );
+    color: var(--color-text-primary);
+    border: 1px solid rgba(168, 85, 247, 0.5);
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: linear-gradient(135deg, 
+        rgba(168, 85, 247, 0.55), 
+        rgba(168, 85, 247, 0.95)
+    );
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(168, 85, 247, 0.3);
+}
+
+.btn-primary:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
+/* Secondary Button (Outlined) */
+.btn-secondary {
+    background: transparent;
+    color: var(--color-purple);
+    border: 1px solid var(--color-purple);
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: rgba(168, 85, 247, 0.15);
+    border-color: var(--color-text-primary);
+    color: var(--color-text-primary);
+}
+
+.btn-secondary:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
+/* Success Button */
+.btn-success {
+    background: var(--color-success);
+    color: white;
+    border: 1px solid rgba(16, 185, 129, 0.5);
+}
+
+.btn-success:hover:not(:disabled) {
+    background: #059669;
+    box-shadow: 0 8px 24px rgba(16, 185, 129, 0.3);
+}
+
+/* Danger Button */
+.btn-danger {
+    background: transparent;
+    color: var(--color-error);
+    border: 1px solid var(--color-error);
+}
+
+.btn-danger:hover:not(:disabled) {
+    background: rgba(239, 68, 68, 0.15);
+}
+
+/* Small Button */
+.btn-sm {
+    padding: 8px 16px;
+    font-size: 0.875rem;
+    border-radius: 8px;
+}
+
+/* Large Button */
+.btn-lg {
+    padding: 16px 32px;
+    font-size: 1.1rem;
+    border-radius: 14px;
+}
+
+/* Icon Button */
+.btn-icon {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: 50%;
+}
+
+/* ==========================================================================
+   BADGES
+   ========================================================================== */
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 6px;
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.badge-critical {
+    background: rgba(239, 68, 68, 0.2);
+    color: var(--color-error);
+    border: 1px solid var(--color-error);
+}
+
+.badge-high {
+    background: rgba(251, 191, 36, 0.2);
+    color: var(--color-warning);
+    border: 1px solid var(--color-warning);
+}
+
+.badge-medium {
+    background: rgba(168, 85, 247, 0.2);
+    color: var(--color-purple);
+    border: 1px solid var(--color-purple);
+}
+
+.badge-low {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--color-success);
+    border: 1px solid var(--color-success);
+}
+
+.badge-open {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--color-success);
+    border: 1px solid var(--color-success);
+}
+
+.badge-in-progress {
+    background: rgba(251, 191, 36, 0.2);
+    color: var(--color-warning);
+    border: 1px solid var(--color-warning);
+}
+
+.badge-resolved {
+    background: rgba(59, 130, 246, 0.2);
+    color: #3b82f6;
+    border: 1px solid #3b82f6;
+}
+
+.badge-closed {
+    background: rgba(156, 163, 175, 0.2);
+    color: #9ca3af;
+    border: 1px solid #6b7280;
+}
+
+.badge-elevated-risk {
+    background: rgba(251, 191, 36, 0.2);
+    color: var(--color-warning);
+    border: 1px solid var(--color-warning);
+    animation: blink 1.4s ease-in-out infinite;
+}
+
+/* Category Badges */
+.badge-hardware::before {
+    content: '🖥️';
+    margin-right: 4px;
+}
+
+.badge-software::before {
+    content: '💻';
+    margin-right: 4px;
+}
+
+.badge-network::before {
+    content: '🌐';
+    margin-right: 4px;
+}
+
+.badge-access::before {
+    content: '🔐';
+    margin-right: 4px;
+}
+
+.badge-other::before {
+    content: '📋';
+    margin-right: 4px;
+}
+
+/* ==========================================================================
+   INPUTS & FORMS
+   ========================================================================== */
+
+.input-group {
+    margin-bottom: var(--spacing-lg);
+}
+
+.input-label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin-bottom: var(--spacing-sm);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.input {
+    width: 100%;
+    padding: 14px 16px;
+    font-family: var(--font-body);
+    font-size: 1rem;
+    color: var(--color-text-primary);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    outline: none;
+    transition: all var(--transition-base);
+}
+
+.input::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.input:focus {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--color-purple);
+    box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.15);
+}
+
+.input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.input.error {
+    border-color: var(--color-error);
+}
+
+.textarea {
+    min-height: 120px;
+    resize: vertical;
+    font-family: var(--font-body);
+}
+
+/* OTP Input Boxes */
+.otp-container {
+    display: flex;
+    gap: var(--spacing-sm);
+    justify-content: center;
+    margin: var(--spacing-lg) 0;
+}
+
+.otp-box {
+    width: 50px;
+    height: 60px;
+    padding: 0;
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    background: rgba(255, 255, 255, 0.05);
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    outline: none;
+    transition: all var(--transition-base);
+}
+
+.otp-box:focus {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--color-purple);
+    box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.2);
+}
+
+.otp-box.filled {
+    background: rgba(168, 85, 247, 0.08);
+    border-color: var(--color-purple);
+}
+
+.otp-box.error {
+    border-color: var(--color-error);
+    animation: shake 0.42s ease-in-out;
+}
+
+/* ==========================================================================
+   CHAT COMPONENTS
+   ========================================================================== */
+
+.chat-message {
+    display: flex;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    animation: fadeUp 0.3s ease-out;
+}
+
+.chat-message.user {
+    flex-direction: row-reverse;
+}
+
+.chat-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+}
+
+.chat-avatar.bot {
+    background: linear-gradient(135deg, var(--color-purple), var(--color-deep-purple));
+}
+
+.chat-avatar.user {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+}
+
+.chat-bubble {
+    max-width: 70%;
+    padding: 12px 16px;
+    border-radius: 16px;
+    word-wrap: break-word;
+}
+
+.chat-bubble.bot {
+    background: rgba(168, 85, 247, 0.15);
+    border: 1px solid rgba(168, 85, 247, 0.3);
+    border-bottom-left-radius: 4px;
+}
+
+.chat-bubble.user {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-bottom-right-radius: 4px;
+}
+
+.quick-replies {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-sm);
+}
+
+.quick-reply-btn {
+    padding: 8px 16px;
+    font-size: 0.875rem;
+    background: rgba(168, 85, 247, 0.1);
+    border: 1px solid var(--color-purple);
+    border-radius: 20px;
+    color: var(--color-text-primary);
+    cursor: pointer;
+    transition: all var(--transition-base);
+}
+
+.quick-reply-btn:hover {
+    background: rgba(168, 85, 247, 0.25);
+    transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   MODAL
+   ========================================================================== */
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all var(--transition-base);
+    padding: var(--spacing-lg);
+}
+
+.modal-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal-panel {
+    position: relative;
+    width: 100%;
+    max-width: 700px;
+    max-height: 90vh;
+    background: var(--card-gradient);
+    border: 1px solid var(--card-border);
+    border-radius: var(--card-radius);
+    padding: var(--spacing-xl);
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+    transform: scale(0.9);
+    transition: transform var(--transition-slow);
+}
+
+.modal-overlay.active .modal-panel {
+    transform: scale(1);
+}
+
+.modal-close {
+    position: absolute;
+    top: var(--spacing-lg);
+    right: var(--spacing-lg);
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    color: var(--color-text-primary);
+    cursor: pointer;
+    font-size: 1.2rem;
+    transition: all var(--transition-fast);
+}
+
+.modal-close:hover {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: var(--color-error);
+    color: var(--color-error);
+}
+
+/* ==========================================================================
+   TABS & FILTERS
+   ========================================================================== */
+
+.tabs {
+    display: flex;
+    gap: var(--spacing-lg);
+    border-bottom: 1px solid var(--card-border);
+    margin-bottom: var(--spacing-xl);
+    overflow-x: auto;
+}
+
+.tab {
+    position: relative;
+    padding: var(--spacing-md) var(--spacing-sm);
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.6);
+    background: none;
+    border: none;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color var(--transition-fast);
+}
+
+.tab:hover {
+    color: var(--color-text-primary);
+}
+
+.tab.active {
+    color: var(--color-text-primary);
+}
+
+.tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--color-purple);
+    border-radius: 2px;
+}
+
+/* ==========================================================================
+   TIMELINE (Ticket Activity Log)
+   ========================================================================== */
+
+.timeline {
+    position: relative;
+    padding-left: var(--spacing-lg);
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 6px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--card-border);
+}
+
+.timeline-item {
+    position: relative;
+    padding-bottom: var(--spacing-lg);
+}
+
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -18px;
+    top: 4px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--color-purple);
+    border: 2px solid var(--color-bg);
+}
+
+.timeline-time {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: var(--spacing-xs);
+}
+
+.timeline-content {
+    font-size: 0.95rem;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* ==========================================================================
+   RESPONSIVE COMPONENTS
+   ========================================================================== */
+
+@media (max-width: 768px) {
+    .glass-card {
+        padding: var(--spacing-lg);
+        border-radius: 20px;
+    }
+    
+    .chat-bubble {
+        max-width: 85%;
+    }
+    
+    .otp-box {
+        width: 45px;
+        height: 55px;
+        font-size: 1.3rem;
+    }
+    
+    .modal-panel {
+        max-width: 100%;
+    }
+    
+    .btn {
+        padding: 10px 20px;
+    }
+}
+
+@media (max-width: 375px) {
+    .otp-box {
+        width: 40px;
+        height: 50px;
+        font-size: 1.2rem;
+    }
+    
+    .otp-container {
+        gap: 6px;
+    }
+    
+    .badge {
+        font-size: 0.7rem;
+        padding: 3px 8px;
+    }
+}

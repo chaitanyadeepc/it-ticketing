@@ -1,0 +1,129 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==========================================================================
+   CLEAN PROFESSIONAL DARK DESIGN SYSTEM
+   Inspired by Linear.app, Vercel, Plane.so
+   ========================================================================== */
+
+@layer base {
+  :root {
+    /* Core Colors */
+    --bg: #09090b;
+    --surface: #18181b;
+    --surface-2: #27272a;
+    --border: #27272a;
+    --border-2: #3f3f46;
+    
+    /* Text */
+    --text-1: #fafafa;
+    --text-2: #a1a1aa;
+    --text-3: #52525b;
+    
+    /* Accent & Status */
+    --accent: #3b82f6;
+    --success: #22c55e;
+    --error: #ef4444;
+    --warning: #f59e0b;
+  }
+
+  body {
+    @apply bg-[#09090b] text-[#fafafa] font-['Inter'] antialiased;
+    min-height: 100vh;
+  }
+
+  /* Scroll margin for anchor links */
+  * {
+    scroll-margin-top: 64px;
+  }
+}
+
+
+/* ==========================================================================
+   FUNCTIONAL ANIMATIONS ONLY
+   ========================================================================== */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-3px); }
+  20%, 40%, 60%, 80% { transform: translateX(3px); }
+}
+
+@keyframes tabUnderline {
+  from { transform: translateX(-4px); opacity: 0.5; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* ==========================================================================
+   UTILITY CLASSES
+   ========================================================================== */
+
+@layer utilities {
+  /* Animations */
+  .animate-fade-in { animation: fadeIn 0.18s ease; }
+  .animate-slide-right { animation: slideInRight 0.22s ease; }
+  .animate-shake { animation: shake 0.3s ease-in-out; }
+  .animate-tab-underline { animation: tabUnderline 0.2s ease; }
+  .animate-blink { animation: blink 2s ease-in-out infinite; }
+
+  /* Card */
+  .card {
+    background: #18181b;
+    border: 1px solid #27272a;
+    border-radius: 10px;
+    padding: 20px 24px;
+    transition: border-color 0.15s ease;
+  }
+  
+  .card:hover {
+    border-color: #3f3f46;
+  }
+
+  /* Surfaces */
+  .surface { background: #18181b; }
+  .surface-2 { background: #27272a; }
+  
+  /* Borders */
+  .border-default { border-color: #27272a; }
+  .border-active { border-color: #3f3f46; }
+}
+
+/* ==========================================================================
+   CUSTOM SCROLLBAR
+   ========================================================================== */
+
+@layer base {
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #18181b;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #27272a;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #3f3f46;
+  }
+}
