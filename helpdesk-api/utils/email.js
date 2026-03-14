@@ -67,9 +67,13 @@ const wantsComments = (user) =>
 
 // ─── Send wrapper — silently no-ops if not configured ────────────────────────
 const send = async (to, subject, html) => {
-  if (!transporter) return;
+  if (!transporter) {
+    console.warn('[email] Skipped — EMAIL_HOST not configured. Set EMAIL_HOST in environment variables.');
+    return;
+  }
   try {
-    await transporter.sendMail({ from: FROM, to, subject, html });
+    const info = await transporter.sendMail({ from: FROM, to, subject, html });
+    console.log(`[email] Sent to ${to} — messageId: ${info.messageId}`);
   } catch (err) {
     console.error('[email] send error:', err.message);
   }

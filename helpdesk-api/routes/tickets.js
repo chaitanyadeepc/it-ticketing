@@ -118,6 +118,8 @@ router.patch('/:id', async (req, res) => {
       return res.status(403).json({ error: 'Access denied' });
 
     const { status, assignedTo, comment, satisfaction } = req.body;
+    // Capture these BEFORE populate() converts createdBy into an object
+    const createdById = ticket.createdBy;
 
     let oldStatus = ticket.status;
     if (status && status !== ticket.status) {
@@ -142,15 +144,15 @@ router.patch('/:id', async (req, res) => {
 
     // Async email notifications — never block the response
     if (status && status !== oldStatus) {
-      User.findById(ticket.createdBy._id || ticket.createdBy)
+      User.findById(createdById)
         .then((user) => sendStatusChanged(ticket, user, oldStatus, status))
-        .catch(() => {});
+        .catch((e) => console.error('[email] status change notify failed:', e.message));
     }
     if (comment) {
       const postedComment = ticket.comments[ticket.comments.length - 1];
-      User.findById(ticket.createdBy._id || ticket.createdBy)
+      User.findById(createdById)
         .then((user) => sendCommentAdded(ticket, user, postedComment))
-        .catch(() => {});
+        .catch((e) => console.error('[email] comment notify failed:', e.message));
     }
   } catch (err) {
     res.status(500).json({ error: err.message });
