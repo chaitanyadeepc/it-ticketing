@@ -2,12 +2,34 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const helmet = require('helmet');
+const mongoSanitize = require('express-mongo-sanitize');
+const rateLimit = require('express-rate-limit');
 
 const authRoutes = require('./routes/auth');
 const ticketRoutes = require('./routes/tickets');
 const userRoutes = require('./routes/users');
 
 const app = express();
+
+// ── Security headers (helmet) ────────────────────────────────────────────
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' }, // allow Cloudinary images
+  contentSecurityPolicy: false, // handled by Vercel on frontend
+}));
+
+// ── Trust proxy (needed for accurate IPs behind Render's load balancer) ─────
+app.set('trust proxy', 1);
+
+// ── Global rate limit: 200 req / 15 min per IP ─────────────────────────
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please try again later.' },
+});
+app.use(globalLimiter);
 
 // ── CORS ────────────────────────────────────────────────────────────────────
 const allowedOrigins = [
@@ -34,7 +56,8 @@ app.use(cors({
 // ── Body parsing ─────────────────────────────────────────────────────────────
 app.use(express.json({ limit: '50kb' }));
 app.use(express.urlencoded({ extended: true, limit: '50kb' }));
-
+// ── NoSQL injection sanitization ─────────────────────────────────
+app.use(mongoSanitize()); // strips $ and . from req.body, req.params, req.query
 // ── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
 app.use('/api/tickets', ticketRoutes);

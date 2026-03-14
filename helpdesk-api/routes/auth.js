@@ -2,11 +2,31 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const speakeasy = require('speakeasy');
 const QRCode = require('qrcode');
+const rateLimit = require('express-rate-limit');
 const User = require('../models/User');
 const { protect } = require('../middleware/auth');
 const { sendOTPEmail } = require('../utils/email');
 
 const router = express.Router();
+
+// Strict rate limiter for auth endpoints: 10 attempts / 15 min per IP
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many attempts. Please wait 15 minutes and try again.' },
+  skipSuccessfulRequests: true, // only count failed attempts
+});
+
+// Looser limiter for resend/setup endpoints: 5 req / 10 min
+const otpLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many code requests. Please wait 10 minutes.' },
+});
 
 const signToken = (id, tokenVersion) =>
   jwt.sign({ id, tokenVersion }, process.env.JWT_SECRET, { expiresIn: '30d' });
@@ -18,7 +38,7 @@ const signTempToken = (id) =>
 const generateOTP = () => String(Math.floor(100000 + Math.random() * 900000));
 
 // ─── POST /api/auth/register ──────────────────────────────────────────────────
-router.post('/register', async (req, res) => {
+router.post('/register', authLimiter, async (req, res) => {
   try {
     const { name, email, password } = req.body;
     if (!name || !email || !password)
@@ -40,7 +60,7 @@ router.post('/register', async (req, res) => {
 });
 
 // ─── POST /api/auth/login ─────────────────────────────────────────────────────
-router.post('/login', async (req, res) => {
+router.post('/login', authLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password)
@@ -84,7 +104,7 @@ router.post('/login', async (req, res) => {
 
 // ─── POST /api/auth/2fa/verify ────────────────────────────────────────────────
 // Accepts the 6-digit code + tempToken from the login step, returns full JWT on success
-router.post('/2fa/verify', async (req, res) => {
+router.post('/2fa/verify', authLimiter, async (req, res) => {
   try {
     const { tempToken, code } = req.body;
     if (!tempToken || !code)
@@ -137,7 +157,7 @@ router.post('/2fa/verify', async (req, res) => {
 
 // ─── POST /api/auth/2fa/resend ────────────────────────────────────────────────
 // Resend OTP email for the current pending login (email method only)
-router.post('/2fa/resend', async (req, res) => {
+router.post('/2fa/resend', otpLimiter, async (req, res) => {
   try {
     const { tempToken } = req.body;
     if (!tempToken) return res.status(400).json({ error: 'tempToken required' });
@@ -173,7 +193,7 @@ router.post('/2fa/resend', async (req, res) => {
 
 // ─── POST /api/auth/2fa/setup/email ──────────────────────────────────────────
 // Step 1 of email 2FA setup: send verification OTP to the user's email
-router.post('/2fa/setup/email', protect, async (req, res) => {
+router.post('/2fa/setup/email', protect, otpLimiter, async (req, res) => {
   try {
     if (!process.env.GMAIL_CLIENT_ID)
       return res.status(503).json({ error: 'Email service is not configured on this server.' });
@@ -194,7 +214,7 @@ router.post('/2fa/setup/email', protect, async (req, res) => {
 
 // ─── POST /api/auth/2fa/setup/email/confirm ───────────────────────────────────
 // Step 2 of email 2FA setup: confirm the OTP and activate email 2FA
-router.post('/2fa/setup/email/confirm', protect, async (req, res) => {
+router.post('/2fa/setup/email/confirm', protect, authLimiter, async (req, res) => {
   try {
     const { code } = req.body;
     if (!code) return res.status(400).json({ error: 'Code required' });
@@ -240,7 +260,7 @@ router.post('/2fa/setup/totp', protect, async (req, res) => {
 
 // ─── POST /api/auth/2fa/setup/totp/confirm ────────────────────────────────────
 // Step 2 of TOTP setup: verify first code from authenticator app, activate TOTP 2FA
-router.post('/2fa/setup/totp/confirm', protect, async (req, res) => {
+router.post('/2fa/setup/totp/confirm', protect, authLimiter, async (req, res) => {
   try {
     const { code } = req.body;
     if (!code) return res.status(400).json({ error: 'Code required' });
@@ -289,62 +309,6 @@ router.post('/2fa/disable', protect, async (req, res) => {
 });
 
 // ─── GET /api/auth/me ─────────────────────────────────────────────────────────
-router.get('/me', protect, (req, res) => {
-  res.json({ user: req.user });
-});
-
-module.exports = router;
-
-
-// POST /api/auth/register
-router.post('/register', async (req, res) => {
-  try {
-    const { name, email, password, role } = req.body;
-    if (!name || !email || !password)
-      return res.status(400).json({ error: 'Name, email and password are required' });
-
-    const exists = await User.findOne({ email });
-    if (exists) return res.status(400).json({ error: 'Email already registered' });
-
-    const user = await User.create({ name, email, password, role: 'user' });
-    const token = signToken(user._id, user.tokenVersion);
-
-    res.status(201).json({
-      token,
-      user: { id: user._id, name: user.name, email: user.email, role: user.role },
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// POST /api/auth/login
-router.post('/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    if (!email || !password)
-      return res.status(400).json({ error: 'Email and password are required' });
-
-    const user = await User.findOne({ email }).select('+password +tokenVersion');
-    if (!user || !(await user.matchPassword(password)))
-      return res.status(401).json({ error: 'Invalid email or password' });
-
-    // Increment tokenVersion — invalidates all previous sessions on other devices
-    user.tokenVersion = (Number.isFinite(user.tokenVersion) ? user.tokenVersion : 0) + 1;
-    await user.save({ validateBeforeSave: false });
-
-    const token = signToken(user._id, user.tokenVersion);
-
-    res.json({
-      token,
-      user: { id: user._id, name: user.name, email: user.email, role: user.role },
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// GET /api/auth/me
 router.get('/me', protect, (req, res) => {
   res.json({ user: req.user });
 });
