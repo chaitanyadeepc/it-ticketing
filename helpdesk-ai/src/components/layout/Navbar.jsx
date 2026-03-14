@@ -88,6 +88,16 @@ const Navbar = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Lock body scroll when mobile menu is open
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [isMobileMenuOpen]);
+
   if (location.pathname === '/login') return null;
 
   const isAdmin = localStorage.getItem('userRole') === 'admin';
@@ -285,7 +295,7 @@ const Navbar = () => {
       {isMobileMenuOpen && (
         <>
           <div className="fixed inset-0 bg-black/60 z-40 md:hidden" onClick={() => setIsMobileMenuOpen(false)} />
-          <div className="fixed top-14 left-0 w-64 h-[calc(100vh-3.5rem)] border-r z-50 md:hidden animate-slide-right overflow-y-auto" style={{ backgroundColor: 'var(--color-canvas-default)', borderColor: 'var(--color-border-default)' }}>
+          <div className="fixed top-16 left-0 w-64 h-[calc(100vh-4rem)] border-r z-50 md:hidden animate-slide-right overflow-y-auto" style={{ backgroundColor: 'var(--color-canvas-default)', borderColor: 'var(--color-border-default)' }}>
             <div className="p-4 space-y-1">
               {navLinks.map((link) => {
                 const isActive = location.pathname === link.path;
