@@ -1,24 +1,34 @@
-const nodemailer = require('nodemailer');
+const { google } = require('googleapis');
 
-// Transporter — gracefully no-ops when EMAIL_HOST env var is absent
-let transporter = null;
+// ── Gmail API client (OAuth2 over HTTPS — works on Render free tier) ─────────
+// SMTP ports 465/587 are blocked by Render's free tier firewall.
+// The Gmail REST API uses port 443 (HTTPS) which is never blocked.
+const getGmailClient = () => {
+  if (!process.env.GMAIL_CLIENT_ID) return null;
+  const auth = new google.auth.OAuth2(
+    process.env.GMAIL_CLIENT_ID,
+    process.env.GMAIL_CLIENT_SECRET,
+    'https://developers.google.com/oauthplayground'
+  );
+  auth.setCredentials({ refresh_token: process.env.GMAIL_REFRESH_TOKEN });
+  return google.gmail({ version: 'v1', auth });
+};
 
-if (process.env.EMAIL_HOST) {
-  transporter = nodemailer.createTransport({
-    host: process.env.EMAIL_HOST,
-    port: parseInt(process.env.EMAIL_PORT || '587', 10),
-    secure: process.env.EMAIL_SECURE === 'true',
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-    // Force IPv4 — Render's IPv6 connectivity to Gmail SMTP is unreliable
-    family: 4,
-    tls: { rejectUnauthorized: false },
-  });
-}
+// Build an RFC 2822 message and base64url-encode it for the Gmail API
+const buildRaw = (to, subject, html) => {
+  const msg = [
+    `From: ${process.env.EMAIL_FROM || `HiTicket <${process.env.EMAIL_USER}>`}`,
+    `To: ${to}`,
+    `Subject: ${subject}`,
+    'MIME-Version: 1.0',
+    'Content-Type: text/html; charset=utf-8',
+    '',
+    html,
+  ].join('\r\n');
+  return Buffer.from(msg).toString('base64url');
+};
 
-const FROM = process.env.EMAIL_FROM || 'HiTicket <no-reply@hiticket.app>';
+const FROM = process.env.EMAIL_FROM || `HiTicket <${process.env.EMAIL_USER}>`;
 
 // ─── HTML email wrapper ───────────────────────────────────────────────────────
 const wrap = (title, body) => `
@@ -68,17 +78,21 @@ const wantsUpdates = (user) =>
 const wantsComments = (user) =>
   user?.notificationPrefs?.newComments !== false;
 
-// ─── Send wrapper — silently no-ops if not configured ────────────────────────
+// ─── Send wrapper — uses Gmail API over HTTPS ─────────────────────────────────
 const send = async (to, subject, html) => {
-  if (!transporter) {
-    console.warn('[email] Skipped — EMAIL_HOST not configured. Set EMAIL_HOST in environment variables.');
+  const gmail = getGmailClient();
+  if (!gmail) {
+    console.warn('[email] Skipped — GMAIL_CLIENT_ID not configured.');
     return;
   }
   try {
-    const info = await transporter.sendMail({ from: FROM, to, subject, html });
-    console.log(`[email] Sent to ${to} — messageId: ${info.messageId}`);
+    const res = await gmail.users.messages.send({
+      userId: 'me',
+      requestBody: { raw: buildRaw(to, subject, html) },
+    });
+    console.log(`[email] Sent to ${to} — id: ${res.data.id}`);
   } catch (err) {
-    console.error('[email] send error:', err.message);
+    console.error('[email] Gmail API send error:', err.message);
   }
 };
 
