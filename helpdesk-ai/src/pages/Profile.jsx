@@ -72,11 +72,45 @@ const Profile = () => {
 
   if (loading) return (
     <PageWrapper>
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <svg className="w-6 h-6 text-[#3b82f6] animate-spin" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-        </svg>
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-5">
+        <div className="skeleton h-4 w-32 rounded mb-5" />
+        {/* Header banner */}
+        <div className="rounded-2xl border border-[#27272a] bg-[#18181b] p-5 mb-5 flex items-center justify-between">
+          <div className="space-y-2">
+            <div className="skeleton h-6 w-32 rounded" />
+            <div className="skeleton h-3 w-56 rounded" />
+          </div>
+        </div>
+        {/* Profile card */}
+        <div className="rounded-xl border border-[#27272a] bg-[#18181b] p-6 mb-5">
+          <div className="flex items-start gap-5 mb-6">
+            <div className="skeleton w-20 h-20 rounded-2xl flex-shrink-0" />
+            <div className="flex-1 space-y-2">
+              <div className="skeleton h-5 w-36 rounded" />
+              <div className="skeleton h-3 w-44 rounded" />
+              <div className="skeleton h-6 w-48 rounded-full" />
+            </div>
+          </div>
+          <div className="grid md:grid-cols-2 gap-4 mb-5">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="space-y-1.5">
+                <div className="skeleton h-3 w-24 rounded" />
+                <div className="skeleton h-10 w-full rounded-lg" />
+              </div>
+            ))}
+          </div>
+          <div className="skeleton h-9 w-32 rounded-lg" />
+        </div>
+        {/* Stat cards */}
+        <div className="grid grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="rounded-xl border border-[#27272a] bg-[#18181b] p-5 space-y-3">
+              <div className="skeleton w-10 h-10 rounded-xl" />
+              <div className="skeleton h-7 w-12 rounded" />
+              <div className="skeleton h-3 w-20 rounded" />
+            </div>
+          ))}
+        </div>
       </div>
     </PageWrapper>
   );

@@ -65,6 +65,7 @@ const Settings = () => {
   const [sessionAlerts, setSessionAlerts] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
+  const [settingsLoading, setSettingsLoading] = useState(true);
 
   // Load notification prefs from backend on mount
   useEffect(() => {
@@ -77,7 +78,7 @@ const Settings = () => {
       const tf = data.user?.twoFactor;
       if (tf?.enabled !== undefined) setTwoFaEnabled(tf.enabled);
       if (tf?.method)  setTwoFaMethod(tf.method);
-    }).catch(() => {});
+    }).catch(() => {}).finally(() => setSettingsLoading(false));
   }, []);
 
   const saveNotificationPrefs = async (patch) => {
@@ -149,6 +150,40 @@ const Settings = () => {
     } catch (err) { setDisableError(err.response?.data?.error || 'Failed to disable 2FA'); }
     finally { setDisableLoading(false); }
   };
+
+  if (settingsLoading) return (
+    <PageWrapper>
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-5">
+        <div className="skeleton h-4 w-24 rounded mb-5" />
+        {/* Header banner */}
+        <div className="rounded-2xl border border-[#27272a] bg-[#18181b] p-5 mb-5 space-y-2">
+          <div className="skeleton h-6 w-24 rounded" />
+          <div className="skeleton h-3 w-72 rounded" />
+        </div>
+        {/* Section cards */}
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="rounded-xl border border-[#27272a] bg-[#18181b] p-5 mb-4">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="skeleton w-5 h-5 rounded" />
+              <div className="skeleton h-4 w-32 rounded" />
+            </div>
+            {Array.from({ length: 3 }).map((_, j) => (
+              <div key={j} className="flex items-center justify-between py-3.5 border-b border-[#27272a] last:border-0">
+                <div className="flex items-center gap-3">
+                  <div className="skeleton w-8 h-8 rounded-lg" />
+                  <div className="space-y-1.5">
+                    <div className="skeleton h-3.5 w-36 rounded" />
+                    <div className="skeleton h-3 w-52 rounded" />
+                  </div>
+                </div>
+                <div className="skeleton w-10 h-5 rounded-full" />
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </PageWrapper>
+  );
 
   return (
     <>

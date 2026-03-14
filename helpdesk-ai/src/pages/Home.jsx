@@ -95,14 +95,25 @@ const Home = () => {
               )}
             </div>
             {statsLoading && (
-              <svg className="w-5 h-5 text-[#3b82f6] animate-spin mt-1" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-              </svg>
+              <div className="flex gap-2 mt-1">
+                {[64, 48, 56, 40].map((w, i) => (
+                  <div key={i} className="skeleton rounded-full" style={{ width: w, height: 20 }} />
+                ))}
+              </div>
             )}
           </div>
 
-          {total === 0 && !statsLoading ? (
+          {statsLoading ? (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="rounded-xl border border-[#27272a] bg-[#18181b] p-4 space-y-2">
+                  <div className="skeleton h-8 w-12 rounded" />
+                  <div className="skeleton h-4 w-20 rounded" />
+                  <div className="skeleton h-3 w-24 rounded" />
+                </div>
+              ))}
+            </div>
+          ) : total === 0 ? (
             /* ── Empty state ── */
             <div className="bg-[#18181b] border border-[#27272a] rounded-2xl p-12 text-center max-w-lg mx-auto">
               <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#3b82f6]/20 to-[#6366f1]/20 border border-[#3b82f6]/20 flex items-center justify-center mx-auto mb-5">
@@ -117,7 +128,7 @@ const Home = () => {
                 Raise a Ticket
               </Button>
             </div>
-          ) : total > 0 && (
+          ) : (
             <>
               {/* Stat chips */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5">
