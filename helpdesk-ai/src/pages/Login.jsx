@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Button from '../components/ui/Button';
+import OTPInput from '../components/OTPInput';
 import api from '../api/api';
 
 const Login = () => {
@@ -14,6 +15,17 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const from = location.state?.from || '/';
 
+  // 2FA state
+  const [step, setStep] = useState('credentials'); // 'credentials' | '2fa'
+  const [twoFaToken, setTwoFaToken] = useState('');
+  const [twoFaMethod, setTwoFaMethod] = useState('email');
+  const [twoFaError, setTwoFaError] = useState('');
+  const [twoFaLoading, setTwoFaLoading] = useState(false);
+  const [otpKey, setOtpKey] = useState(0);
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  const inactivity = new URLSearchParams(location.search).get('reason') === 'inactivity';
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -22,6 +34,15 @@ const Login = () => {
       const endpoint = isRegister ? '/auth/register' : '/auth/login';
       const payload = isRegister ? { name, email, password } : { email, password };
       const { data } = await api.post(endpoint, payload);
+
+      // 2FA required — go to verification step
+      if (data.requires2FA) {
+        setTwoFaToken(data.tempToken);
+        setTwoFaMethod(data.method);
+        setStep('2fa');
+        if (data.method === 'email') startResendCooldown(60);
+        return;
+      }
       localStorage.setItem('token', data.token);
       localStorage.setItem('isAuthenticated', 'true');
       localStorage.setItem('userEmail', data.user.email);
@@ -32,6 +53,49 @@ const Login = () => {
       setError(err.response?.data?.error || 'Something went wrong. Is the server running?');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const storeAuth = (data) => {
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('isAuthenticated', 'true');
+    localStorage.setItem('userEmail', data.user.email);
+    localStorage.setItem('userName', data.user.name);
+    localStorage.setItem('userRole', data.user.role);
+  };
+
+  const startResendCooldown = (secs) => {
+    setResendCooldown(secs);
+    const iv = setInterval(() => {
+      setResendCooldown((prev) => {
+        if (prev <= 1) { clearInterval(iv); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const handleVerify2FA = async (code) => {
+    if (twoFaLoading) return;
+    setTwoFaError('');
+    setTwoFaLoading(true);
+    try {
+      const { data } = await api.post('/auth/2fa/verify', { tempToken: twoFaToken, code });
+      storeAuth(data);
+      navigate(from, { replace: true });
+    } catch (err) {
+      setTwoFaError(err.response?.data?.error || 'Verification failed');
+      setOtpKey((k) => k + 1);
+    } finally {
+      setTwoFaLoading(false);
+    }
+  };
+
+  const handleResend2FA = async () => {
+    try {
+      await api.post('/auth/2fa/resend', { tempToken: twoFaToken });
+      startResendCooldown(60);
+    } catch (err) {
+      setTwoFaError(err.response?.data?.error || 'Failed to resend code');
     }
   };
 
@@ -103,12 +167,71 @@ const Login = () => {
             <span className="text-[15px] font-semibold text-[#fafafa]">HiTicket</span>
           </div>
 
-          <div className="animate-fade-in">
-            <h2 className="text-[28px] font-bold text-[#fafafa] mb-1 tracking-tight">
-              {isRegister ? 'Create account' : 'Welcome back'}
-            </h2>
-            <p className="text-[14px] text-[#71717a] mb-5">
-              {isRegister ? 'Register with your work email.' : 'Sign in with your work email to continue.'}
+          {/* ── Inactivity banner ── */}
+          {inactivity && (
+            <div className="mb-5 flex items-center gap-2 p-3 bg-[#f59e0b]/10 border border-[#f59e0b]/20 rounded-lg text-[13px] text-[#f59e0b]">
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              Session expired due to inactivity. Please sign in again.
+            </div>
+          )}
+
+          {step === '2fa' ? (
+            /* ── 2FA verification screen ── */
+            <div className="animate-fade-in">
+              <button
+                onClick={() => { setStep('credentials'); setTwoFaError(''); }}
+                className="flex items-center gap-1.5 text-[12px] text-[#71717a] hover:text-[#a1a1aa] mb-5 transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg>
+                Back to sign in
+              </button>
+
+              <div className="w-11 h-11 rounded-xl bg-[#22c55e]/10 border border-[#22c55e]/20 flex items-center justify-center mb-4">
+                <svg className="w-5 h-5 text-[#22c55e]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/></svg>
+              </div>
+              <h2 className="text-[26px] font-bold text-[#fafafa] mb-1 tracking-tight">2-Step Verification</h2>
+              <p className="text-[14px] text-[#71717a] mb-6">
+                {twoFaMethod === 'email'
+                  ? <>A 6-digit code was sent to <strong className="text-[#a1a1aa]">{email}</strong></>
+                  : 'Enter the 6-digit code from your authenticator app.'}
+              </p>
+
+              <OTPInput key={otpKey} onComplete={handleVerify2FA} error={!!twoFaError} />
+
+              {twoFaLoading && (
+                <div className="flex justify-center mt-4">
+                  <svg className="w-5 h-5 animate-spin text-[#3b82f6]" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
+                </div>
+              )}
+
+              {twoFaError && (
+                <div className="flex items-center gap-2 mt-4 p-3 bg-[#ef4444]/10 border border-[#ef4444]/20 rounded-lg text-[13px] text-[#ef4444]">
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                  {twoFaError}
+                </div>
+              )}
+
+              {twoFaMethod === 'email' && (
+                <p className="mt-5 text-center text-[13px] text-[#52525b]">
+                  Didn't receive it?{' '}
+                  {resendCooldown > 0 ? (
+                    <span className="text-[#3f3f46]">Resend in {resendCooldown}s</span>
+                  ) : (
+                    <button onClick={handleResend2FA} className="text-[#3b82f6] hover:text-[#2563eb] font-medium transition-colors">
+                      Resend code
+                    </button>
+                  )}
+                </p>
+              )}
+            </div>
+          ) : (
+            /* ── Credentials screen ── */
+            <div className="animate-fade-in">
+              <h2 className="text-[28px] font-bold text-[#fafafa] mb-1 tracking-tight">
+                {isRegister ? 'Create account' : 'Welcome back'}
+              </h2>
+              <p className="text-[14px] text-[#71717a] mb-5">
+                {isRegister ? 'Register with your work email.' : 'Sign in with your work email to continue.'}
             </p>
 
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -175,6 +298,7 @@ const Login = () => {
               </button>
             </p>
           </div>
+          )} {/* end step === '2fa' ? ... : ... */}
         </div>
       </div>
     </div>

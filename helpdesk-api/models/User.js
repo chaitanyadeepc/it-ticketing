@@ -19,6 +19,13 @@ const userSchema = new mongoose.Schema(
       newComments:   { type: Boolean, default: true },
       weeklyDigest:  { type: Boolean, default: false },
     },
+    twoFactor: {
+      enabled:          { type: Boolean, default: false },
+      method:           { type: String, enum: ['email', 'totp'], default: 'email' },
+      totpSecret:       { type: String, select: false },
+      pendingOtp:       { type: String, select: false },
+      pendingOtpExpiry: { type: Date,   select: false },
+    },
   },
   { timestamps: true }
 );

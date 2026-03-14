@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Navbar from './components/layout/Navbar';
 import BottomNav from './components/layout/BottomNav';
 import ScrollToTop from './components/layout/ScrollToTop';
+import useInactivityLogout from './hooks/useInactivityLogout';
 
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -33,6 +34,7 @@ const AdminRoute = ({ children }) => {
 function App() {
   const location = useLocation();
   const isLogin = location.pathname === '/login';
+  useInactivityLogout();
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--bg)', color: 'var(--text-primary)' }}>
       <Navbar />

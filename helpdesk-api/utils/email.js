@@ -99,6 +99,25 @@ const send = async (to, subject, html) => {
 // ─── Public email functions ───────────────────────────────────────────────────
 
 /**
+ * Sent when a user needs a 2FA verification code (login or setup).
+ */
+const sendOTPEmail = async (to, name, otp) => {
+  await send(
+    to,
+    '[HiTicket] Your verification code',
+    wrap(
+      'Verify your identity',
+      `<p>Hi ${name},</p>
+       <p>Use the code below to complete sign-in. It expires in <strong>10 minutes</strong>.</p>
+       <div style="text-align:center;margin:28px 0">
+         <span style="font-size:40px;font-weight:800;letter-spacing:16px;font-family:'Courier New',monospace;color:#fafafa;background:#27272a;padding:18px 28px;border-radius:12px;border:1px solid #3f3f46;display:inline-block">${otp}</span>
+       </div>
+       <p style="color:#52525b;font-size:13px">If you didn't attempt to sign in, please ignore this email — your account is safe.</p>`
+    )
+  );
+};
+
+/**
  * Sent to user when their ticket is successfully created.
  */
 const sendTicketCreated = async (ticket, user) => {
@@ -171,4 +190,4 @@ const sendCommentAdded = async (ticket, user, comment) => {
   );
 };
 
-module.exports = { sendTicketCreated, sendStatusChanged, sendCommentAdded };
+module.exports = { sendTicketCreated, sendStatusChanged, sendCommentAdded, sendOTPEmail };
