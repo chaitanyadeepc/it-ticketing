@@ -20,7 +20,7 @@ const Button = ({
   const baseStyles = 'inline-flex items-center justify-center gap-2 font-medium transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]';
   
   const variants = {
-    primary:   'text-white rounded-md border border-[#2ea043] hover:border-[#3fb950]',
+    primary:   'rounded-md border border-transparent',
     secondary: 'rounded-md border',
     ghost:     'bg-transparent rounded-md border border-transparent',
     danger:    'rounded-md border',

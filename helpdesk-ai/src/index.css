@@ -8,88 +8,93 @@
    Attribute selector: [data-color-mode="dark"] / [data-color-mode="light"]
    ========================================================================== */
 
-/* ── Dark mode tokens (default) ── */
+/* ── Dark mode tokens (default) ─────────────────────────────────────────────
+   Grayscale palette — each surface step is 10 percentage points apart.
+   0% = #000000  │  10% = #1a1a1a  │  20% = #333333  │  30% = #4d4d4d
+   40% = #666666 │  50% = #808080  │  60% = #999999  │  70% = #b3b3b3
+   80% = #cccccc │  90% = #e6e6e6  │  95% = #f2f2f2  │ 100% = #ffffff
+   ── */
 :root,
 [data-color-mode="dark"] {
   /* Canvas */
-  --color-canvas-default:    #0d1117;
-  --color-canvas-subtle:     #161b22;
-  --color-canvas-inset:      #010409;
-  --color-canvas-overlay:    #161b22;
+  --color-canvas-default:    #0d0d0d;   /* ~5%  */
+  --color-canvas-subtle:     #1a1a1a;   /* 10%  */
+  --color-canvas-inset:      #000000;   /* 0%   */
+  --color-canvas-overlay:    #1a1a1a;   /* 10%  */
 
   /* Border */
-  --color-border-default:    #30363d;
-  --color-border-muted:      #21262d;
-  --color-border-subtle:     rgba(240,246,252,0.1);
+  --color-border-default:    #333333;   /* 20%  */
+  --color-border-muted:      #262626;   /* 15%  */
+  --color-border-subtle:     rgba(255,255,255,0.06);
 
   /* Foreground */
-  --color-fg-default:        #e6edf3;
-  --color-fg-muted:          #848d97;
-  --color-fg-subtle:         #6e7681;
-  --color-fg-on-emphasis:    #ffffff;
+  --color-fg-default:        #f2f2f2;   /* 95%  */
+  --color-fg-muted:          #999999;   /* 60%  */
+  --color-fg-subtle:         #808080;   /* 50%  */
+  --color-fg-on-emphasis:    #000000;   /* 0%  — text on light emphasis bg */
 
-  /* Accent (blue) */
-  --color-accent-fg:         #58a6ff;
-  --color-accent-emphasis:   #1f6feb;
-  --color-accent-muted:      rgba(56,139,253,0.4);
-  --color-accent-subtle:     rgba(56,139,253,0.15);
+  /* Accent → neutral gray (no hue) */
+  --color-accent-fg:         #cccccc;   /* 80%  */
+  --color-accent-emphasis:   #808080;   /* 50%  */
+  --color-accent-muted:      rgba(255,255,255,0.15);
+  --color-accent-subtle:     rgba(255,255,255,0.06);
 
-  /* Success (green) */
-  --color-success-fg:        #3fb950;
-  --color-success-emphasis:  #238636;
-  --color-success-muted:     rgba(46,160,67,0.4);
-  --color-success-subtle:    rgba(46,160,67,0.15);
+  /* Success — desaturated green */
+  --color-success-fg:        #6dbb8a;
+  --color-success-emphasis:  #3d8a5a;
+  --color-success-muted:     rgba(109,187,138,0.2);
+  --color-success-subtle:    rgba(109,187,138,0.08);
 
-  /* Danger (red) */
-  --color-danger-fg:         #f85149;
-  --color-danger-emphasis:   #da3633;
-  --color-danger-muted:      rgba(248,81,73,0.4);
-  --color-danger-subtle:     rgba(248,81,73,0.15);
+  /* Danger — desaturated red */
+  --color-danger-fg:         #cc6666;
+  --color-danger-emphasis:   #994444;
+  --color-danger-muted:      rgba(204,102,102,0.2);
+  --color-danger-subtle:     rgba(204,102,102,0.08);
 
-  /* Attention (amber) */
-  --color-attention-fg:      #d29922;
-  --color-attention-emphasis:#9e6a03;
-  --color-attention-muted:   rgba(187,128,9,0.4);
-  --color-attention-subtle:  rgba(187,128,9,0.15);
+  /* Attention — desaturated amber */
+  --color-attention-fg:      #ccaa44;
+  --color-attention-emphasis:#998833;
+  --color-attention-muted:   rgba(204,170,68,0.2);
+  --color-attention-subtle:  rgba(204,170,68,0.08);
 
-  /* Done (purple) */
-  --color-done-fg:           #a371f7;
-  --color-done-emphasis:     #8957e5;
-  --color-done-muted:        rgba(163,113,247,0.4);
-  --color-done-subtle:       rgba(163,113,247,0.15);
+  /* Done — desaturated purple */
+  --color-done-fg:           #9988cc;
+  --color-done-emphasis:     #7766aa;
+  --color-done-muted:        rgba(153,136,204,0.2);
+  --color-done-subtle:       rgba(153,136,204,0.08);
 
   /* Neutral */
-  --color-neutral-emphasis-plus: #6e7681;
-  --color-neutral-emphasis:  #6e7681;
-  --color-neutral-muted:     rgba(110,118,129,0.4);
-  --color-neutral-subtle:    rgba(110,118,129,0.1);
+  --color-neutral-emphasis-plus: #808080; /* 50% */
+  --color-neutral-emphasis:  #666666;   /* 40%  */
+  --color-neutral-muted:     rgba(255,255,255,0.12);
+  --color-neutral-subtle:    rgba(255,255,255,0.06);
 
   /* Buttons */
-  --color-btn-bg:            #21262d;
-  --color-btn-border:        rgba(240,246,252,0.1);
-  --color-btn-hover-bg:      #30363d;
-  --color-btn-primary-bg:    #238636;
-  --color-btn-primary-hover-bg: #2ea043;
-  --color-btn-danger-bg:     #da3633;
-  --color-btn-danger-hover-bg: #b91c1c;
+  --color-btn-bg:            #1a1a1a;   /* 10%  */
+  --color-btn-border:        rgba(255,255,255,0.15);
+  --color-btn-hover-bg:      #262626;   /* 15%  */
+  --color-btn-primary-bg:    #e6e6e6;   /* 90%  — near-white, high contrast */
+  --color-btn-primary-hover-bg: #cccccc; /* 80% */
+  --color-btn-danger-bg:     #994444;
+  --color-btn-danger-hover-bg: #7a3535;
 
   /* Inputs */
-  --color-input-bg:          #0d1117;
-  --color-input-border:      #30363d;
-  --color-input-contrast-bg: #161b22;
+  --color-input-bg:          #0d0d0d;
+  --color-input-border:      #333333;   /* 20%  */
+  --color-input-contrast-bg: #1a1a1a;   /* 10%  */
 
-  /* Header — always close to #161b22 in dark */
-  --color-header-bg:         #161b22;
-  --color-header-divider:    #21262d;
-  --color-header-text:       #e6edf3;
+  /* Header — pure black, always dark */
+  --color-header-bg:         #000000;
+  --color-header-divider:    #1a1a1a;   /* 10%  */
+  --color-header-text:       #e6e6e6;   /* 90%  */
 
   /* Shadows */
   --shadow-small:      0 0 transparent;
-  --shadow-medium:     0 3px 6px rgba(0,0,0,0.4);
-  --shadow-large:      0 8px 24px rgba(1,4,9,0.8);
-  --shadow-extra-large:0 12px 28px rgba(1,4,9,0.9);
+  --shadow-medium:     0 3px 6px rgba(0,0,0,0.6);
+  --shadow-large:      0 8px 24px rgba(0,0,0,0.8);
+  --shadow-extra-large:0 12px 28px rgba(0,0,0,0.9);
 
-  /* Legacy aliases (used by var(--bg) references in existing JSX) */
+  /* Legacy aliases */
   --bg:           var(--color-canvas-default);
   --surface-1:    var(--color-canvas-subtle);
   --surface-2:    var(--color-border-muted);
@@ -108,71 +113,83 @@
 
 /* ── Light mode tokens ── */
 [data-color-mode="light"] {
-  --color-canvas-default:    #ffffff;
-  --color-canvas-subtle:     #f6f8fa;
-  --color-canvas-inset:      #f6f8fa;
-  --color-canvas-overlay:    #ffffff;
+  /* Canvas */
+  --color-canvas-default:    #ffffff;   /* 100% */
+  --color-canvas-subtle:     #f2f2f2;   /* 95%  */
+  --color-canvas-inset:      #e6e6e6;   /* 90%  */
+  --color-canvas-overlay:    #ffffff;   /* 100% */
 
-  --color-border-default:    #d0d7de;
-  --color-border-muted:      hsla(210,18%,87%,1);
-  --color-border-subtle:     rgba(31,35,40,0.15);
+  /* Border */
+  --color-border-default:    #cccccc;   /* 80%  */
+  --color-border-muted:      #e6e6e6;   /* 90%  */
+  --color-border-subtle:     rgba(0,0,0,0.08);
 
-  --color-fg-default:        #1f2328;
-  --color-fg-muted:          #636c76;
-  --color-fg-subtle:         #6e7781;
-  --color-fg-on-emphasis:    #ffffff;
+  /* Foreground */
+  --color-fg-default:        #0d0d0d;   /* ~5%  */
+  --color-fg-muted:          #4d4d4d;   /* 30%  */
+  --color-fg-subtle:         #666666;   /* 40%  */
+  --color-fg-on-emphasis:    #ffffff;   /* 100% — text on dark emphasis bg */
 
-  --color-accent-fg:         #0969da;
-  --color-accent-emphasis:   #0969da;
-  --color-accent-muted:      rgba(84,174,255,0.4);
-  --color-accent-subtle:     #ddf4ff;
+  /* Accent → dark gray */
+  --color-accent-fg:         #333333;   /* 20%  */
+  --color-accent-emphasis:   #1a1a1a;   /* 10%  */
+  --color-accent-muted:      rgba(0,0,0,0.1);
+  --color-accent-subtle:     rgba(0,0,0,0.05);
 
-  --color-success-fg:        #1a7f37;
-  --color-success-emphasis:  #1f883d;
-  --color-success-muted:     rgba(74,194,107,0.4);
-  --color-success-subtle:    #dafbe1;
+  /* Success */
+  --color-success-fg:        #2d7a4d;
+  --color-success-emphasis:  #1f6b3e;
+  --color-success-muted:     rgba(45,122,77,0.2);
+  --color-success-subtle:    rgba(45,122,77,0.08);
 
-  --color-danger-fg:         #d1242f;
-  --color-danger-emphasis:   #cf222e;
-  --color-danger-muted:      rgba(255,129,130,0.4);
-  --color-danger-subtle:     #ffebe9;
+  /* Danger */
+  --color-danger-fg:         #994444;
+  --color-danger-emphasis:   #7a3333;
+  --color-danger-muted:      rgba(153,68,68,0.2);
+  --color-danger-subtle:     rgba(153,68,68,0.08);
 
-  --color-attention-fg:      #9a6700;
-  --color-attention-emphasis:#bf8700;
-  --color-attention-muted:   rgba(212,167,44,0.4);
-  --color-attention-subtle:  #fff8c5;
+  /* Attention */
+  --color-attention-fg:      #7a6600;
+  --color-attention-emphasis:#665700;
+  --color-attention-muted:   rgba(122,102,0,0.2);
+  --color-attention-subtle:  rgba(122,102,0,0.08);
 
-  --color-done-fg:           #8250df;
-  --color-done-emphasis:     #8250df;
-  --color-done-muted:        rgba(194,151,255,0.4);
-  --color-done-subtle:       #fbefff;
+  /* Done */
+  --color-done-fg:           #6655aa;
+  --color-done-emphasis:     #554499;
+  --color-done-muted:        rgba(102,85,170,0.2);
+  --color-done-subtle:       rgba(102,85,170,0.08);
 
-  --color-neutral-emphasis-plus: #24292f;
-  --color-neutral-emphasis:  #6e7781;
-  --color-neutral-muted:     rgba(175,184,193,0.2);
-  --color-neutral-subtle:    rgba(234,238,242,0.5);
+  /* Neutral */
+  --color-neutral-emphasis-plus: #333333; /* 20% */
+  --color-neutral-emphasis:  #666666;   /* 40%  */
+  --color-neutral-muted:     rgba(0,0,0,0.08);
+  --color-neutral-subtle:    rgba(0,0,0,0.04);
 
-  --color-btn-bg:            #f6f8fa;
-  --color-btn-border:        rgba(31,35,40,0.15);
-  --color-btn-hover-bg:      #f3f4f6;
-  --color-btn-primary-bg:    #1f883d;
-  --color-btn-primary-hover-bg: #1a7f37;
-  --color-btn-danger-bg:     #cf222e;
-  --color-btn-danger-hover-bg: #a40e26;
+  /* Buttons */
+  --color-btn-bg:            #f2f2f2;   /* 95%  */
+  --color-btn-border:        rgba(0,0,0,0.15);
+  --color-btn-hover-bg:      #e6e6e6;   /* 90%  */
+  --color-btn-primary-bg:    #0d0d0d;   /* ~5%  — near-black, high contrast */
+  --color-btn-primary-hover-bg: #1a1a1a; /* 10% */
+  --color-btn-danger-bg:     #994444;
+  --color-btn-danger-hover-bg: #7a3333;
 
+  /* Inputs */
   --color-input-bg:          #ffffff;
-  --color-input-border:      #d0d7de;
-  --color-input-contrast-bg: #f6f8fa;
+  --color-input-border:      #cccccc;   /* 80%  */
+  --color-input-contrast-bg: #f2f2f2;   /* 95%  */
 
-  /* GitHub light header is still dark (#24292f) */
-  --color-header-bg:         #24292f;
-  --color-header-divider:    rgba(255,255,255,0.15);
-  --color-header-text:       rgba(255,255,255,0.7);
+  /* Header — still near-black even in light mode */
+  --color-header-bg:         #0d0d0d;
+  --color-header-divider:    rgba(255,255,255,0.1);
+  --color-header-text:       #e6e6e6;   /* 90%  */
 
-  --shadow-small:      0 1px 0 rgba(31,35,40,0.04);
-  --shadow-medium:     0 3px 6px rgba(140,149,159,0.15);
-  --shadow-large:      0 8px 24px rgba(140,149,159,0.2);
-  --shadow-extra-large:0 12px 28px rgba(140,149,159,0.25);
+  /* Shadows */
+  --shadow-small:      0 1px 0 rgba(0,0,0,0.05);
+  --shadow-medium:     0 3px 6px rgba(0,0,0,0.1);
+  --shadow-large:      0 8px 24px rgba(0,0,0,0.12);
+  --shadow-extra-large:0 12px 28px rgba(0,0,0,0.15);
 
   /* Legacy aliases */
   --bg:           var(--color-canvas-default);
