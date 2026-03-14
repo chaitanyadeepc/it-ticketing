@@ -8,82 +8,83 @@
    ========================================================================== */
 
 /* ── Dark mode ──────────────────────────────────────────────────────────────
-   Surfaces are darkened versions of the gray palette tones.
-   #FF634A coral used as the primary accent in both modes.
+   3-tier surface system with clear separation:
+   Page #141414 → Card #1e1e20 → Elevated #282829
+   Coral #FF634A as the sole accent. Borders have just enough contrast.
    ── */
 :root,
 [data-color-mode="dark"] {
-  /* Canvas */
-  --color-canvas-default:    #1c1c1e;   /* dark analog of #D2D2D4 */
-  --color-canvas-subtle:     #252527;   /* card / surface */
-  --color-canvas-inset:      #111113;   /* deepest / recessed */
-  --color-canvas-overlay:    #2e2e30;   /* floating panels */
+  /* Canvas — clear 3 steps so cards always lift off the page */
+  --color-canvas-default:    #141414;   /* page background — true dark */
+  --color-canvas-subtle:     #1e1e20;   /* card / panel surface */
+  --color-canvas-inset:      #0e0e0e;   /* deepest inset (inputs, code) */
+  --color-canvas-overlay:    #282829;   /* dropdowns, modals, tooltips */
 
-  /* Border */
-  --color-border-default:    #3a3a3c;
-  --color-border-muted:      #2c2c2e;
-  --color-border-subtle:     rgba(255,255,255,0.06);
+  /* Border — fine lines with enough contrast to see on cards */
+  --color-border-default:    #323234;   /* main border */
+  --color-border-muted:      #242426;   /* subtle inner border */
+  --color-border-subtle:     rgba(255,255,255,0.05);
 
   /* Foreground */
-  --color-fg-default:        #F4F4F6;   /* exact palette — crisp text */
-  --color-fg-muted:          #9a9a9e;
-  --color-fg-subtle:         #6a6a6e;
-  --color-fg-on-emphasis:    #ffffff;   /* text on coral button */
+  --color-fg-default:        #F0F0F2;   /* slightly warm white — easier on eyes */
+  --color-fg-muted:          #8e8e92;   /* secondary labels */
+  --color-fg-subtle:         #636366;   /* placeholder / tertiary */
+  --color-fg-on-emphasis:    #ffffff;   /* text on coral accent bg */
 
   /* Accent — coral */
   --color-accent-fg:         #FF634A;
   --color-accent-emphasis:   #FF634A;
-  --color-accent-muted:      rgba(255,99,74,0.25);
-  --color-accent-subtle:     rgba(255,99,74,0.10);
+  --color-accent-muted:      rgba(255,99,74,0.22);
+  --color-accent-subtle:     rgba(255,99,74,0.09);
 
   /* Success */
-  --color-success-fg:        #52b47d;
-  --color-success-emphasis:  #2d8a55;
-  --color-success-muted:     rgba(82,180,125,0.2);
-  --color-success-subtle:    rgba(82,180,125,0.08);
+  --color-success-fg:        #4ead78;
+  --color-success-emphasis:  #2a8050;
+  --color-success-muted:     rgba(78,173,120,0.2);
+  --color-success-subtle:    rgba(78,173,120,0.08);
 
   /* Danger */
-  --color-danger-fg:         #e07070;
-  --color-danger-emphasis:   #b84040;
-  --color-danger-muted:      rgba(224,112,112,0.2);
-  --color-danger-subtle:     rgba(224,112,112,0.08);
+  --color-danger-fg:         #d96060;
+  --color-danger-emphasis:   #a83838;
+  --color-danger-muted:      rgba(217,96,96,0.2);
+  --color-danger-subtle:     rgba(217,96,96,0.08);
 
   /* Attention */
-  --color-attention-fg:      #d4aa40;
-  --color-attention-emphasis:#b08a00;
-  --color-attention-muted:   rgba(212,170,64,0.2);
-  --color-attention-subtle:  rgba(212,170,64,0.08);
+  --color-attention-fg:      #c8a030;
+  --color-attention-emphasis:#a08000;
+  --color-attention-muted:   rgba(200,160,48,0.2);
+  --color-attention-subtle:  rgba(200,160,48,0.08);
 
   /* Done */
-  --color-done-fg:           #a08ad4;
-  --color-done-emphasis:     #7c64b0;
-  --color-done-muted:        rgba(160,138,212,0.2);
-  --color-done-subtle:       rgba(160,138,212,0.08);
+  --color-done-fg:           #9a84cc;
+  --color-done-emphasis:     #7860aa;
+  --color-done-muted:        rgba(154,132,204,0.2);
+  --color-done-subtle:       rgba(154,132,204,0.08);
 
   /* Neutral */
-  --color-neutral-emphasis-plus: #6a6a6e;
-  --color-neutral-emphasis:  #4a4a4e;
-  --color-neutral-muted:     rgba(255,255,255,0.1);
-  --color-neutral-subtle:    rgba(255,255,255,0.05);
+  --color-neutral-emphasis-plus: #636366;
+  --color-neutral-emphasis:  #48484a;
+  --color-neutral-muted:     rgba(255,255,255,0.08);
+  --color-neutral-subtle:    rgba(255,255,255,0.04);
 
   /* Buttons */
-  --color-btn-bg:            #252527;
-  --color-btn-border:        rgba(255,255,255,0.12);
-  --color-btn-hover-bg:      #333335;
+  --color-btn-bg:            #1e1e20;   /* same as card — blends in */
+  --color-btn-border:        rgba(255,255,255,0.14);
+  --color-btn-hover-bg:      #2a2a2c;
   --color-btn-primary-bg:    #FF634A;
   --color-btn-primary-hover-bg: #e84e35;
-  --color-btn-danger-bg:     #b84040;
-  --color-btn-danger-hover-bg: #8f2e2e;
+  --color-btn-danger-bg:     #a83838;
+  --color-btn-danger-hover-bg: #862c2c;
 
-  /* Inputs */
-  --color-input-bg:          #1c1c1e;
-  --color-input-border:      #3a3a3c;
-  --color-input-contrast-bg: #252527;
+  /* Inputs — slightly deeper than page so they feel inset */
+  --color-input-bg:          #0e0e0e;
+  --color-input-border:      #323234;
+  --color-input-contrast-bg: #1e1e20;
 
-  /* Header — always near-black */
-  --color-header-bg:         #111113;
-  --color-header-divider:    #2c2c2e;
-  --color-header-text:       #F4F4F6;
+  /* Header — distinct from page, not pure black */
+  --color-header-bg:         #0a0a0a;
+  --color-header-divider:    #1e1e20;
+  --color-header-text:       #F0F0F2;
 
   /* Shadows */
   --shadow-small:      0 0 transparent;
@@ -109,88 +110,88 @@
 }
 
 /* ── Light mode ─────────────────────────────────────────────────────────────
-   Exact palette values used directly as surface layers.
-   #F4F4F6 → page bg  │  #E7E7E7 → cards  │  #D2D2D4 → borders
-   #FF634A → accent throughout. Header stays near-black for contrast.
+   3-tier surface system matching dark mode logic.
+   Page #F4F4F6 → Card #FFFFFF → Elevated #FFFFFF (white cards on gray page)
+   Borders use #D2D2D4 for clear definition. Header stays near-black.
    ── */
 [data-color-mode="light"] {
-  /* Canvas — exact palette */
-  --color-canvas-default:    #F4F4F6;
-  --color-canvas-subtle:     #E7E7E7;
-  --color-canvas-inset:      #dcdcde;
-  --color-canvas-overlay:    #ffffff;
+  /* Canvas — clear separation so cards feel elevated */
+  --color-canvas-default:    #F4F4F6;   /* page — slightly cool off-white */
+  --color-canvas-subtle:     #ffffff;   /* card surface — pure white pops off page */
+  --color-canvas-inset:      #EBEBED;   /* inset areas (table rows, code bg) */
+  --color-canvas-overlay:    #ffffff;   /* dropdowns / modals */
 
-  /* Border — exact palette */
-  --color-border-default:    #D2D2D4;
-  --color-border-muted:      #e0e0e2;
-  --color-border-subtle:     rgba(0,0,0,0.06);
+  /* Border — defined but not loud */
+  --color-border-default:    #D2D2D4;   /* main card/panel border */
+  --color-border-muted:      #E3E3E5;   /* inner / softer dividers */
+  --color-border-subtle:     rgba(0,0,0,0.05);
 
   /* Foreground */
-  --color-fg-default:        #1a1a1c;
-  --color-fg-muted:          #5a5a5e;
-  --color-fg-subtle:         #8a8a8e;
+  --color-fg-default:        #141414;   /* near-black — matches dark page bg */
+  --color-fg-muted:          #52525b;   /* secondary labels */
+  --color-fg-subtle:         #8d8d95;   /* placeholder / helper text */
   --color-fg-on-emphasis:    #ffffff;
 
   /* Accent — coral */
   --color-accent-fg:         #FF634A;
   --color-accent-emphasis:   #e84e35;
-  --color-accent-muted:      rgba(255,99,74,0.2);
-  --color-accent-subtle:     rgba(255,99,74,0.08);
+  --color-accent-muted:      rgba(255,99,74,0.15);
+  --color-accent-subtle:     rgba(255,99,74,0.07);
 
   /* Success */
-  --color-success-fg:        #1e8a4a;
-  --color-success-emphasis:  #166b39;
-  --color-success-muted:     rgba(30,138,74,0.2);
-  --color-success-subtle:    rgba(30,138,74,0.08);
+  --color-success-fg:        #1a7a42;
+  --color-success-emphasis:  #135e32;
+  --color-success-muted:     rgba(26,122,66,0.15);
+  --color-success-subtle:    rgba(26,122,66,0.07);
 
   /* Danger */
-  --color-danger-fg:         #c23a3a;
-  --color-danger-emphasis:   #9e2c2c;
-  --color-danger-muted:      rgba(194,58,58,0.2);
-  --color-danger-subtle:     rgba(194,58,58,0.08);
+  --color-danger-fg:         #b83030;
+  --color-danger-emphasis:   #922424;
+  --color-danger-muted:      rgba(184,48,48,0.15);
+  --color-danger-subtle:     rgba(184,48,48,0.07);
 
   /* Attention */
-  --color-attention-fg:      #b08a00;
-  --color-attention-emphasis:#8a6c00;
-  --color-attention-muted:   rgba(176,138,0,0.2);
-  --color-attention-subtle:  rgba(176,138,0,0.08);
+  --color-attention-fg:      #a07800;
+  --color-attention-emphasis:#7c5e00;
+  --color-attention-muted:   rgba(160,120,0,0.15);
+  --color-attention-subtle:  rgba(160,120,0,0.07);
 
   /* Done */
-  --color-done-fg:           #7c64b0;
-  --color-done-emphasis:     #6450a0;
-  --color-done-muted:        rgba(124,100,176,0.2);
-  --color-done-subtle:       rgba(124,100,176,0.08);
+  --color-done-fg:           #6a50a8;
+  --color-done-emphasis:     #543e88;
+  --color-done-muted:        rgba(106,80,168,0.15);
+  --color-done-subtle:       rgba(106,80,168,0.07);
 
   /* Neutral */
-  --color-neutral-emphasis-plus: #1a1a1c;
-  --color-neutral-emphasis:  #5a5a5e;
-  --color-neutral-muted:     rgba(0,0,0,0.08);
-  --color-neutral-subtle:    rgba(0,0,0,0.04);
+  --color-neutral-emphasis-plus: #141414;
+  --color-neutral-emphasis:  #52525b;
+  --color-neutral-muted:     rgba(0,0,0,0.06);
+  --color-neutral-subtle:    rgba(0,0,0,0.03);
 
-  /* Buttons */
-  --color-btn-bg:            #E7E7E7;
+  /* Buttons — white cards, so buttons use the border color as bg */
+  --color-btn-bg:            #F4F4F6;
   --color-btn-border:        #D2D2D4;
-  --color-btn-hover-bg:      #D2D2D4;
+  --color-btn-hover-bg:      #E7E7E9;
   --color-btn-primary-bg:    #FF634A;
   --color-btn-primary-hover-bg: #e84e35;
-  --color-btn-danger-bg:     #c23a3a;
-  --color-btn-danger-hover-bg: #9e2c2c;
+  --color-btn-danger-bg:     #b83030;
+  --color-btn-danger-hover-bg: #922424;
 
-  /* Inputs */
+  /* Inputs — white bg, slightly sunken look via border */
   --color-input-bg:          #ffffff;
   --color-input-border:      #D2D2D4;
   --color-input-contrast-bg: #F4F4F6;
 
-  /* Header — always near-black even in light mode */
-  --color-header-bg:         #1a1a1c;
-  --color-header-divider:    rgba(255,255,255,0.1);
-  --color-header-text:       #F4F4F6;
+  /* Header — always near-black, coral accent on logo */
+  --color-header-bg:         #0a0a0a;
+  --color-header-divider:    rgba(255,255,255,0.08);
+  --color-header-text:       #F0F0F2;
 
-  /* Shadows */
-  --shadow-small:      0 1px 0 rgba(0,0,0,0.05);
-  --shadow-medium:     0 3px 6px rgba(0,0,0,0.08);
-  --shadow-large:      0 8px 24px rgba(0,0,0,0.1);
-  --shadow-extra-large:0 12px 28px rgba(0,0,0,0.12);
+  /* Shadows — subtle lift for white cards on gray page */
+  --shadow-small:      0 1px 2px rgba(0,0,0,0.06);
+  --shadow-medium:     0 4px 8px rgba(0,0,0,0.08);
+  --shadow-large:      0 8px 24px rgba(0,0,0,0.10);
+  --shadow-extra-large:0 12px 32px rgba(0,0,0,0.12);
 
   /* Legacy aliases */
   --bg:           var(--color-canvas-default);
@@ -325,13 +326,14 @@
    ========================================================================== */
 
 @layer utilities {
-  /* GitHub Box component */
+  /* Card — white on gray (light) / elevated dark (dark) with shadow lift */
   .card {
-    background-color: var(--color-canvas-default);
+    background-color: var(--color-canvas-subtle);
     border: 1px solid var(--color-border-default);
-    border-radius: 6px;
+    border-radius: 8px;
     overflow: hidden;
     padding: 16px;
+    box-shadow: var(--shadow-small);
   }
 
   .card-hover { transition: background-color 80ms ease; }

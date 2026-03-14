@@ -67,13 +67,27 @@ const Navbar = () => {
         <div className="flex justify-between items-center h-16">
 
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2.5 flex-shrink-0">
-            <div className="w-9 h-9 rounded-md flex items-center justify-center" style={{ backgroundColor: 'var(--color-accent-emphasis)' }}>
-              <svg className="w-[18px] h-[18px] text-white" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7H3a7 7 0 0 1 7-7h1V5.73A2 2 0 0 1 10 4a2 2 0 0 1 2-2m-4 9.5a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1m8 0a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1M3 15h18v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1Z" />
+          <Link to="/" className="flex items-center gap-2 flex-shrink-0">
+            {/* Logomark — bold "Hi" stack with coral accent dot */}
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#FF634A' }}>
+              <svg className="w-[18px] h-[18px]" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                {/* Ticket outline */}
+                <rect x="1" y="4" width="18" height="12" rx="2" stroke="white" strokeWidth="1.6" fill="none"/>
+                {/* Perforation notches */}
+                <circle cx="1" cy="10" r="2" fill="#FF634A"/>
+                <circle cx="19" cy="10" r="2" fill="#FF634A"/>
+                <line x1="1" y1="10" x2="3" y2="10" stroke="white" strokeWidth="1.6"/>
+                <line x1="17" y1="10" x2="19" y2="10" stroke="white" strokeWidth="1.6"/>
+                {/* Center dashed perforation line */}
+                <line x1="3" y1="10" x2="17" y2="10" stroke="white" strokeWidth="1" strokeDasharray="2 2" opacity="0.5"/>
+                {/* Hi text mark */}
+                <text x="5.5" y="9" fontSize="5" fontWeight="700" fill="white" fontFamily="system-ui">Hi</text>
               </svg>
             </div>
-            <span className="text-[16px] font-bold text-white tracking-tight">TicketFlow</span>
+            {/* Wordmark */}
+            <span className="text-[17px] font-bold tracking-tight" style={{ color: '#ffffff', letterSpacing: '-0.3px' }}>
+              Hi<span style={{ color: '#FF634A' }}>Ticket</span>
+            </span>
           </Link>
 
           {/* Desktop Nav */}
