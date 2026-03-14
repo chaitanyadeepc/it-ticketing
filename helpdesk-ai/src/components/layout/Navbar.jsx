@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useScrollHide } from '../../hooks/useScrollHide';
 import { useTheme } from '../../context/ThemeContext';
 import api from '../../api/api';
+import LogoMark from '../ui/LogoMark';
 
 const SunIcon = () => (
   <svg className="w-[17px] h-[17px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -119,28 +120,7 @@ const Navbar = () => {
         <div className="flex justify-between items-center h-16">
 
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 flex-shrink-0">
-            {/* Logomark — bold "Hi" stack with coral accent dot */}
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#FF634A' }}>
-              <svg className="w-[18px] h-[18px]" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                {/* Ticket outline */}
-                <rect x="1" y="4" width="18" height="12" rx="2" stroke="white" strokeWidth="1.6" fill="none"/>
-                {/* Perforation notches */}
-                <circle cx="1" cy="10" r="2" fill="#FF634A"/>
-                <circle cx="19" cy="10" r="2" fill="#FF634A"/>
-                <line x1="1" y1="10" x2="3" y2="10" stroke="white" strokeWidth="1.6"/>
-                <line x1="17" y1="10" x2="19" y2="10" stroke="white" strokeWidth="1.6"/>
-                {/* Center dashed perforation line */}
-                <line x1="3" y1="10" x2="17" y2="10" stroke="white" strokeWidth="1" strokeDasharray="2 2" opacity="0.5"/>
-                {/* Hi text mark */}
-                <text x="5.5" y="9" fontSize="5" fontWeight="700" fill="white" fontFamily="system-ui">Hi</text>
-              </svg>
-            </div>
-            {/* Wordmark */}
-            <span className="text-[17px] font-bold tracking-tight" style={{ color: '#ffffff', letterSpacing: '-0.3px' }}>
-              Hi<span style={{ color: '#FF634A' }}>Ticket</span>
-            </span>
-          </Link>
+          <Link to="/"><LogoMark size="lg" /></Link>
 
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center gap-1">

@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import Button from '../components/ui/Button';
 import OTPInput from '../components/OTPInput';
 import api from '../api/api';
+import LogoMark from '../components/ui/LogoMark';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -110,13 +111,8 @@ const Login = () => {
       {/* Left panel */}
       <div className="hidden lg:flex lg:w-[55%] flex-col justify-between p-8 xl:p-10 border-r border-[#27272a] relative overflow-hidden">
         <div className="absolute inset-0 opacity-[0.025]" style={{ backgroundImage: 'linear-gradient(#fafafa 1px, transparent 1px), linear-gradient(90deg, #fafafa 1px, transparent 1px)', backgroundSize: '48px 48px' }} />
-        <div className="relative flex items-center gap-3">
-          <div className="w-9 h-9 bg-[#3b82f6] rounded-xl flex items-center justify-center flex-shrink-0">
-            <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
-            </svg>
-          </div>
-          <span className="text-[17px] font-semibold text-[#fafafa]">HiTicket</span>
+        <div className="relative">
+          <LogoMark size="lg" />
         </div>
         <div className="relative">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#3b82f6]/10 border border-[#3b82f6]/20 rounded-full text-[12px] font-medium text-[#3b82f6] mb-4">
@@ -158,13 +154,8 @@ const Login = () => {
       {/* Right panel */}
       <div className="w-full lg:w-[45%] flex items-center justify-center p-6 sm:p-8">
         <div className="w-full max-w-[380px]">
-          <div className="lg:hidden flex items-center gap-2 mb-6">
-            <div className="w-8 h-8 bg-[#3b82f6] rounded-lg flex items-center justify-center flex-shrink-0">
-              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
-            </div>
-            <span className="text-[15px] font-semibold text-[#fafafa]">HiTicket</span>
+          <div className="lg:hidden mb-6">
+            <LogoMark size="md" />
           </div>
 
           {/* ── Inactivity banner ── */}
