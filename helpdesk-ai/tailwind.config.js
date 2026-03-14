@@ -7,13 +7,11 @@ export default {
   theme: {
     extend: {
       colors: {
-        brand:    '#8c63c5',
-        'brand-hover': '#7a52b0',
-        p900:     '#110b3d',
-        p800:     '#1c1450',
-        p700:     '#312171',
-        p500:     '#5e409c',
-        p300:     '#8c63c5',
+        brand:    '#FF634A',
+        'brand-hover': '#e84e35',
+        surf1:    '#F4F4F6',
+        surf2:    '#E7E7E7',
+        surf3:    '#D2D2D4',
         success:  '#52b47d',
         error:    '#e07070',
         risk:     '#d4aa40',

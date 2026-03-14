@@ -86,8 +86,8 @@ const Navbar = () => {
                   to={link.path}
                   className={`px-3 py-1.5 rounded-md text-[13px] font-medium transition-all duration-75 ${
                     isActive
-                      ? 'text-[#8c63c5] font-semibold'
-                      : 'text-[rgba(237,233,255,0.7)] hover:text-[#ede9ff] hover:bg-[rgba(140,99,197,0.15)]'
+                      ? 'text-[#FF634A] font-semibold'
+                      : 'text-[rgba(255,255,255,0.7)] hover:text-white hover:bg-[rgba(255,255,255,0.08)]'
                   }`}
                 >
                   {link.name}

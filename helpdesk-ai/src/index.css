@@ -3,40 +3,38 @@
 @tailwind utilities;
 
 /* ==========================================================================
-   DESIGN SYSTEM — Deep Violet Palette
-   #110b3d · #1c1450 · #312171 · #5e409c · #8c63c5
+   DESIGN SYSTEM — #F4F4F6 · #E7E7E7 · #D2D2D4 · #FF634A
    Attribute selector: [data-color-mode="dark"] / [data-color-mode="light"]
    ========================================================================== */
 
-/* ── Dark mode ─────────────────────────────────────────────────────────────
-   #110b3d → deepest / header    #1c1450 → page canvas
-   #312171 → surfaces / cards    #5e409c → borders / muted accents
-   #8c63c5 → accent fg / primary button
+/* ── Dark mode ──────────────────────────────────────────────────────────────
+   Surfaces are darkened versions of the gray palette tones.
+   #FF634A coral used as the primary accent in both modes.
    ── */
 :root,
 [data-color-mode="dark"] {
   /* Canvas */
-  --color-canvas-default:    #1c1450;   /* page background */
-  --color-canvas-subtle:     #312171;   /* cards / surfaces */
-  --color-canvas-inset:      #110b3d;   /* deepest / recessed */
-  --color-canvas-overlay:    #2a1b66;   /* floating panels */
+  --color-canvas-default:    #1c1c1e;   /* dark analog of #D2D2D4 */
+  --color-canvas-subtle:     #252527;   /* card / surface */
+  --color-canvas-inset:      #111113;   /* deepest / recessed */
+  --color-canvas-overlay:    #2e2e30;   /* floating panels */
 
   /* Border */
-  --color-border-default:    #5e409c;   /* visible dividers */
-  --color-border-muted:      rgba(94,64,156,0.45);  /* softer separator */
-  --color-border-subtle:     rgba(140,99,197,0.15);
+  --color-border-default:    #3a3a3c;
+  --color-border-muted:      #2c2c2e;
+  --color-border-subtle:     rgba(255,255,255,0.06);
 
   /* Foreground */
-  --color-fg-default:        #ede9ff;   /* near-white with purple tint */
-  --color-fg-muted:          #b8aee0;   /* secondary text */
-  --color-fg-subtle:         #8c79cc;   /* placeholder / tertiary */
-  --color-fg-on-emphasis:    #ffffff;   /* text on accent button */
+  --color-fg-default:        #F4F4F6;   /* exact palette — crisp text */
+  --color-fg-muted:          #9a9a9e;
+  --color-fg-subtle:         #6a6a6e;
+  --color-fg-on-emphasis:    #ffffff;   /* text on coral button */
 
-  /* Accent — #8c63c5 (lightest palette step) */
-  --color-accent-fg:         #8c63c5;
-  --color-accent-emphasis:   #5e409c;
-  --color-accent-muted:      rgba(140,99,197,0.3);
-  --color-accent-subtle:     rgba(140,99,197,0.12);
+  /* Accent — coral */
+  --color-accent-fg:         #FF634A;
+  --color-accent-emphasis:   #FF634A;
+  --color-accent-muted:      rgba(255,99,74,0.25);
+  --color-accent-subtle:     rgba(255,99,74,0.10);
 
   /* Success */
   --color-success-fg:        #52b47d;
@@ -56,42 +54,42 @@
   --color-attention-muted:   rgba(212,170,64,0.2);
   --color-attention-subtle:  rgba(212,170,64,0.08);
 
-  /* Done — use lighter purple from palette */
-  --color-done-fg:           #8c63c5;
-  --color-done-emphasis:     #5e409c;
-  --color-done-muted:        rgba(140,99,197,0.25);
-  --color-done-subtle:       rgba(140,99,197,0.10);
+  /* Done */
+  --color-done-fg:           #a08ad4;
+  --color-done-emphasis:     #7c64b0;
+  --color-done-muted:        rgba(160,138,212,0.2);
+  --color-done-subtle:       rgba(160,138,212,0.08);
 
   /* Neutral */
-  --color-neutral-emphasis-plus: #8c79cc;
-  --color-neutral-emphasis:  #5e409c;
-  --color-neutral-muted:     rgba(140,99,197,0.2);
-  --color-neutral-subtle:    rgba(140,99,197,0.08);
+  --color-neutral-emphasis-plus: #6a6a6e;
+  --color-neutral-emphasis:  #4a4a4e;
+  --color-neutral-muted:     rgba(255,255,255,0.1);
+  --color-neutral-subtle:    rgba(255,255,255,0.05);
 
   /* Buttons */
-  --color-btn-bg:            #312171;   /* card-level surface */
-  --color-btn-border:        rgba(140,99,197,0.4);
-  --color-btn-hover-bg:      #3d2888;
-  --color-btn-primary-bg:    #8c63c5;   /* lightest palette step */
-  --color-btn-primary-hover-bg: #7a52b0;
+  --color-btn-bg:            #252527;
+  --color-btn-border:        rgba(255,255,255,0.12);
+  --color-btn-hover-bg:      #333335;
+  --color-btn-primary-bg:    #FF634A;
+  --color-btn-primary-hover-bg: #e84e35;
   --color-btn-danger-bg:     #b84040;
   --color-btn-danger-hover-bg: #8f2e2e;
 
   /* Inputs */
-  --color-input-bg:          #1c1450;
-  --color-input-border:      #5e409c;
-  --color-input-contrast-bg: #312171;
+  --color-input-bg:          #1c1c1e;
+  --color-input-border:      #3a3a3c;
+  --color-input-contrast-bg: #252527;
 
-  /* Header — always the deepest shade */
-  --color-header-bg:         #110b3d;
-  --color-header-divider:    rgba(94,64,156,0.5);
-  --color-header-text:       #ede9ff;
+  /* Header — always near-black */
+  --color-header-bg:         #111113;
+  --color-header-divider:    #2c2c2e;
+  --color-header-text:       #F4F4F6;
 
   /* Shadows */
   --shadow-small:      0 0 transparent;
-  --shadow-medium:     0 3px 6px rgba(17,11,61,0.6);
-  --shadow-large:      0 8px 24px rgba(17,11,61,0.8);
-  --shadow-extra-large:0 12px 28px rgba(17,11,61,0.9);
+  --shadow-medium:     0 3px 6px rgba(0,0,0,0.5);
+  --shadow-large:      0 8px 24px rgba(0,0,0,0.7);
+  --shadow-extra-large:0 12px 28px rgba(0,0,0,0.85);
 
   /* Legacy aliases */
   --bg:           var(--color-canvas-default);
@@ -111,32 +109,33 @@
 }
 
 /* ── Light mode ─────────────────────────────────────────────────────────────
-   Pale purple tints derived from the same hue family.
-   Header stays #110b3d (always dark) for consistency.
+   Exact palette values used directly as surface layers.
+   #F4F4F6 → page bg  │  #E7E7E7 → cards  │  #D2D2D4 → borders
+   #FF634A → accent throughout. Header stays near-black for contrast.
    ── */
 [data-color-mode="light"] {
-  /* Canvas */
-  --color-canvas-default:    #f4f0ff;   /* lightest purple tint — page bg */
-  --color-canvas-subtle:     #ebe4ff;   /* card / surface */
-  --color-canvas-inset:      #ddd4ff;   /* recessed */
-  --color-canvas-overlay:    #ffffff;   /* dropdowns / modals */
+  /* Canvas — exact palette */
+  --color-canvas-default:    #F4F4F6;
+  --color-canvas-subtle:     #E7E7E7;
+  --color-canvas-inset:      #dcdcde;
+  --color-canvas-overlay:    #ffffff;
 
-  /* Border */
-  --color-border-default:    #c4b5e8;   /* light purple border */
-  --color-border-muted:      #ddd4ff;
-  --color-border-subtle:     rgba(94,64,156,0.1);
+  /* Border — exact palette */
+  --color-border-default:    #D2D2D4;
+  --color-border-muted:      #e0e0e2;
+  --color-border-subtle:     rgba(0,0,0,0.06);
 
   /* Foreground */
-  --color-fg-default:        #110b3d;   /* darkest palette — body text */
-  --color-fg-muted:          #312171;   /* secondary text */
-  --color-fg-subtle:         #5e409c;   /* placeholder / tertiary */
+  --color-fg-default:        #1a1a1c;
+  --color-fg-muted:          #5a5a5e;
+  --color-fg-subtle:         #8a8a8e;
   --color-fg-on-emphasis:    #ffffff;
 
-  /* Accent — same palette */
-  --color-accent-fg:         #5e409c;
-  --color-accent-emphasis:   #312171;
-  --color-accent-muted:      rgba(94,64,156,0.2);
-  --color-accent-subtle:     rgba(94,64,156,0.08);
+  /* Accent — coral */
+  --color-accent-fg:         #FF634A;
+  --color-accent-emphasis:   #e84e35;
+  --color-accent-muted:      rgba(255,99,74,0.2);
+  --color-accent-subtle:     rgba(255,99,74,0.08);
 
   /* Success */
   --color-success-fg:        #1e8a4a;
@@ -145,53 +144,53 @@
   --color-success-subtle:    rgba(30,138,74,0.08);
 
   /* Danger */
-  --color-danger-fg:         #b83a3a;
-  --color-danger-emphasis:   #8f2c2c;
-  --color-danger-muted:      rgba(184,58,58,0.2);
-  --color-danger-subtle:     rgba(184,58,58,0.08);
+  --color-danger-fg:         #c23a3a;
+  --color-danger-emphasis:   #9e2c2c;
+  --color-danger-muted:      rgba(194,58,58,0.2);
+  --color-danger-subtle:     rgba(194,58,58,0.08);
 
   /* Attention */
-  --color-attention-fg:      #8a6c00;
-  --color-attention-emphasis:#6e5600;
-  --color-attention-muted:   rgba(138,108,0,0.2);
-  --color-attention-subtle:  rgba(138,108,0,0.08);
+  --color-attention-fg:      #b08a00;
+  --color-attention-emphasis:#8a6c00;
+  --color-attention-muted:   rgba(176,138,0,0.2);
+  --color-attention-subtle:  rgba(176,138,0,0.08);
 
   /* Done */
-  --color-done-fg:           #5e409c;
-  --color-done-emphasis:     #312171;
-  --color-done-muted:        rgba(94,64,156,0.2);
-  --color-done-subtle:       rgba(94,64,156,0.08);
+  --color-done-fg:           #7c64b0;
+  --color-done-emphasis:     #6450a0;
+  --color-done-muted:        rgba(124,100,176,0.2);
+  --color-done-subtle:       rgba(124,100,176,0.08);
 
   /* Neutral */
-  --color-neutral-emphasis-plus: #1c1450;
-  --color-neutral-emphasis:  #5e409c;
-  --color-neutral-muted:     rgba(94,64,156,0.12);
-  --color-neutral-subtle:    rgba(94,64,156,0.06);
+  --color-neutral-emphasis-plus: #1a1a1c;
+  --color-neutral-emphasis:  #5a5a5e;
+  --color-neutral-muted:     rgba(0,0,0,0.08);
+  --color-neutral-subtle:    rgba(0,0,0,0.04);
 
   /* Buttons */
-  --color-btn-bg:            #ebe4ff;
-  --color-btn-border:        #c4b5e8;
-  --color-btn-hover-bg:      #ddd4ff;
-  --color-btn-primary-bg:    #5e409c;   /* palette mid — high contrast on white */
-  --color-btn-primary-hover-bg: #312171;
-  --color-btn-danger-bg:     #b83a3a;
-  --color-btn-danger-hover-bg: #8f2c2c;
+  --color-btn-bg:            #E7E7E7;
+  --color-btn-border:        #D2D2D4;
+  --color-btn-hover-bg:      #D2D2D4;
+  --color-btn-primary-bg:    #FF634A;
+  --color-btn-primary-hover-bg: #e84e35;
+  --color-btn-danger-bg:     #c23a3a;
+  --color-btn-danger-hover-bg: #9e2c2c;
 
   /* Inputs */
   --color-input-bg:          #ffffff;
-  --color-input-border:      #c4b5e8;
-  --color-input-contrast-bg: #f4f0ff;
+  --color-input-border:      #D2D2D4;
+  --color-input-contrast-bg: #F4F4F6;
 
-  /* Header — always the darkest palette shade */
-  --color-header-bg:         #110b3d;
-  --color-header-divider:    rgba(94,64,156,0.5);
-  --color-header-text:       #ede9ff;
+  /* Header — always near-black even in light mode */
+  --color-header-bg:         #1a1a1c;
+  --color-header-divider:    rgba(255,255,255,0.1);
+  --color-header-text:       #F4F4F6;
 
   /* Shadows */
-  --shadow-small:      0 1px 0 rgba(94,64,156,0.06);
-  --shadow-medium:     0 3px 6px rgba(94,64,156,0.12);
-  --shadow-large:      0 8px 24px rgba(94,64,156,0.15);
-  --shadow-extra-large:0 12px 28px rgba(94,64,156,0.18);
+  --shadow-small:      0 1px 0 rgba(0,0,0,0.05);
+  --shadow-medium:     0 3px 6px rgba(0,0,0,0.08);
+  --shadow-large:      0 8px 24px rgba(0,0,0,0.1);
+  --shadow-extra-large:0 12px 28px rgba(0,0,0,0.12);
 
   /* Legacy aliases */
   --bg:           var(--color-canvas-default);
