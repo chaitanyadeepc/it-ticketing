@@ -39,12 +39,34 @@ const ticketSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Auto-generate ticketId before save
+// Auto-generate ticketId before save — uses last existing ID, not count,
+// so deletions / gaps never break the sequence.
 ticketSchema.pre('save', async function (next) {
   if (this.isNew) {
-    const count = await mongoose.model('Ticket').countDocuments();
-    this.ticketId = `TKT-${String(count + 1).padStart(4, '0')}`;
-    this.history.push({ action: 'Ticket created', field: 'created', to: 'Open', by: this.createdBy, byName: 'System' });
+    try {
+      const lastTicket = await mongoose.model('Ticket')
+        .findOne({ ticketId: { $regex: /^TKT-\d+$/ } })
+        .sort({ createdAt: -1 })
+        .select('ticketId');
+
+      let nextNum = 1;
+      if (lastTicket?.ticketId) {
+        const m = lastTicket.ticketId.match(/TKT-(\d+)/);
+        if (m) nextNum = parseInt(m[1], 10) + 1;
+      }
+
+      this.ticketId = `TKT-${String(nextNum).padStart(4, '0')}`;
+    } catch (e) {
+      return next(e);
+    }
+
+    this.history.push({
+      action: 'Ticket created',
+      field: 'created',
+      to: 'Open',
+      by: this.createdBy,
+      byName: 'System',
+    });
   }
   if (this.isModified('status') && this.status === 'Resolved' && !this.resolvedAt) {
     this.resolvedAt = new Date();

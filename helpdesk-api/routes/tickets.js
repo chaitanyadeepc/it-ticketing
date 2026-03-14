@@ -65,18 +65,34 @@ router.post('/', async (req, res) => {
     if (!title || !description || !category)
       return res.status(400).json({ error: 'Title, description and category are required' });
 
-    const ticket = await Ticket.create({
-      title,
-      description,
-      category,
-      subType: subType || '',
-      priority: priority || 'Medium',
-      createdBy: req.user._id,
-    });
+    let ticket;
+    let attempts = 3;
+
+    while (attempts > 0) {
+      try {
+        ticket = await Ticket.create({
+          title,
+          description,
+          category,
+          subType: subType || '',
+          priority: priority || 'Medium',
+          createdBy: req.user._id,
+        });
+        break; // success
+      } catch (createErr) {
+        // Retry on duplicate ticketId (race condition between concurrent requests)
+        if (createErr.code === 11000 && createErr.keyPattern?.ticketId && attempts > 1) {
+          attempts--;
+          continue;
+        }
+        throw createErr;
+      }
+    }
 
     await ticket.populate('createdBy', 'name email');
     res.status(201).json({ ticket });
   } catch (err) {
+    console.error('Ticket create error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
