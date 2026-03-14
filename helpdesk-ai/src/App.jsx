@@ -4,6 +4,7 @@ import Navbar from './components/layout/Navbar';
 import BottomNav from './components/layout/BottomNav';
 import ScrollToTop from './components/layout/ScrollToTop';
 import useInactivityLogout from './hooks/useInactivityLogout';
+import CommandPalette from './components/CommandPalette';
 
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -34,27 +35,43 @@ const AdminRoute = ({ children }) => {
 function App() {
   const location = useLocation();
   const isLogin = location.pathname === '/login';
+  const [cmdOpen, setCmdOpen] = React.useState(false);
   useInactivityLogout();
+
+  React.useEffect(() => {
+    const handler = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setCmdOpen(v => !v);
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, []);
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--bg)', color: 'var(--text-primary)' }}>
       <Navbar />
       <main className={`relative ${isLogin ? '' : 'pt-16 pb-16 md:pb-0'}`}>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/chatbot" element={<ProtectedRoute><Chatbot /></ProtectedRoute>} />
-          <Route path="/raise-ticket" element={<ProtectedRoute><Chatbot /></ProtectedRoute>} />
-          <Route path="/my-tickets" element={<ProtectedRoute><MyTickets /></ProtectedRoute>} />
-          <Route path="/tickets/:id" element={<ProtectedRoute><TicketDetail /></ProtectedRoute>} />
-          <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-          <Route path="/admin/users" element={<AdminRoute><UserManagement /></AdminRoute>} />
-          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-          <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <div key={location.pathname} className="page-enter">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/chatbot" element={<ProtectedRoute><Chatbot /></ProtectedRoute>} />
+            <Route path="/raise-ticket" element={<ProtectedRoute><Chatbot /></ProtectedRoute>} />
+            <Route path="/my-tickets" element={<ProtectedRoute><MyTickets /></ProtectedRoute>} />
+            <Route path="/tickets/:id" element={<ProtectedRoute><TicketDetail /></ProtectedRoute>} />
+            <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+            <Route path="/admin/users" element={<AdminRoute><UserManagement /></AdminRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </div>
       </main>
       <BottomNav />
       <ScrollToTop />
+      {cmdOpen && <CommandPalette onClose={() => setCmdOpen(false)} />}
     </div>
   );
 }

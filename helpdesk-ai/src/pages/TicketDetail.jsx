@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/api';
 import { useToast } from '../context/ToastContext';
@@ -15,6 +15,51 @@ const STATUS_COLOR = {
   'In Progress': 'bg-yellow-500/20 text-yellow-400',
   Resolved: 'bg-green-500/20 text-green-400',
   Closed: 'bg-zinc-500/20 text-zinc-400',
+};
+
+// Simple CSS confetti
+const Confetti = () => {
+  const particles = Array.from({ length: 60 }, (_, i) => ({
+    id: i,
+    left: `${Math.random() * 100}%`,
+    color: ['#FF634A', '#22c55e', '#3b82f6', '#f59e0b', '#8b5cf6', '#06b6d4'][i % 6],
+    delay: `${Math.random() * 1.5}s`,
+    duration: `${1.5 + Math.random() * 2}s`,
+    size: `${6 + Math.random() * 8}px`,
+    shape: Math.random() > 0.5 ? '50%' : '2px',
+  }));
+  return (
+    <div className="fixed inset-0 pointer-events-none z-[9999] overflow-hidden">
+      {particles.map(p => (
+        <div
+          key={p.id}
+          className="confetti-particle"
+          style={{
+            left: p.left,
+            top: '-10px',
+            width: p.size,
+            height: p.size,
+            backgroundColor: p.color,
+            borderRadius: p.shape,
+            animationDuration: p.duration,
+            animationDelay: p.delay,
+          }}
+        />
+      ))}
+    </div>
+  );
+};
+
+// Simple markdown renderer (bold, italic, code, links)
+const renderMarkdown = (text) => {
+  if (!text) return '';
+  return text
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/`([^`]+)`/g, '<code style="background:#27272a;padding:1px 4px;border-radius:3px;font-family:monospace;font-size:12px">$1</code>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/_(.+?)_/g, '<em>$1</em>')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:#3b82f6;text-decoration:underline">$1</a>');
 };
 
 export default function TicketDetail() {
@@ -37,6 +82,7 @@ export default function TicketDetail() {
   const [csatFeedback, setCsatFeedback] = useState('');
   const [csatSubmitting, setCsatSubmitting] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
   const fileInputRef = React.useRef(null);
 
   useEffect(() => {
@@ -108,6 +154,10 @@ export default function TicketDetail() {
       const { data } = await api.patch(`/tickets/${id}`, { status: newStatus });
       setTicket(data.ticket);
       addToast(`Status updated to "${newStatus}"`);
+      if (newStatus === 'Resolved') {
+        setShowConfetti(true);
+        setTimeout(() => setShowConfetti(false), 4000);
+      }
     } catch {
       addToast('Failed to update status', 'error');
     } finally {
@@ -167,8 +217,46 @@ export default function TicketDetail() {
   };
 
   if (loading) return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+    <div className="w-full px-4 sm:px-6 lg:px-8 py-5">
+      <div className="skeleton h-4 w-16 rounded mb-5" />
+      <div className="rounded-2xl border border-[#27272a] bg-[#18181b] p-6 mb-5 space-y-4">
+        <div className="skeleton h-3 w-24 rounded" />
+        <div className="skeleton h-7 w-2/3 rounded" />
+        <div className="flex gap-2">
+          <div className="skeleton h-7 w-20 rounded-full" />
+          <div className="skeleton h-7 w-24 rounded-full" />
+        </div>
+        <div className="skeleton h-16 w-full rounded-lg" />
+        <div className="grid grid-cols-4 gap-3 pt-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="space-y-1">
+              <div className="skeleton h-2.5 w-16 rounded" />
+              <div className="skeleton h-4 w-20 rounded" />
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="grid lg:grid-cols-3 gap-5">
+        <div className="lg:col-span-2 space-y-4">
+          <div className="rounded-xl border border-[#27272a] bg-[#18181b] p-5">
+            <div className="skeleton h-5 w-28 rounded mb-4" />
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="skeleton h-16 w-full rounded-lg mb-3" />
+            ))}
+          </div>
+        </div>
+        <div className="space-y-4">
+          <div className="rounded-xl border border-[#27272a] bg-[#18181b] p-5">
+            <div className="skeleton h-5 w-24 rounded mb-3" />
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="flex justify-between mb-2">
+                <div className="skeleton h-3 w-20 rounded" />
+                <div className="skeleton h-3 w-16 rounded" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 
@@ -185,6 +273,7 @@ export default function TicketDetail() {
   const statusColor   = STATUS_ACCENT[ticket.status]   || '#a1a1aa';
 
   return (
+    <>
     <div className="w-full px-4 sm:px-6 lg:px-8 py-5">
       {/* Back */}
       <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-[13px] text-[#a1a1aa] hover:text-[#fafafa] mb-5 transition-colors">
@@ -256,29 +345,43 @@ export default function TicketDetail() {
               <p className="text-[13px] text-[#52525b] mb-4">No comments yet. Be the first to comment.</p>
             )}
             <div className="space-y-3 mb-4">
-              {ticket.comments?.map((c, i) => (
-                <div key={i} className="rounded-lg bg-[#27272a] border border-[#3f3f46] p-3.5">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[12px] font-semibold text-[#8b5cf6]">{c.authorName || 'User'}</span>
-                    <span className="text-[11px] text-[#52525b]">{new Date(c.createdAt).toLocaleDateString()}</span>
+              {ticket.comments?.map((c, i) => {
+                const isMe = c.authorName === localStorage.getItem('userName');
+                return (
+                  <div key={i} className={`rounded-lg border p-3.5 ${isMe ? 'bg-[#8b5cf6]/8 border-[#8b5cf6]/20' : 'bg-[#27272a] border-[#3f3f46]'}`}>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0"
+                        style={{ backgroundColor: isMe ? '#8b5cf6' : '#3f3f46' }}>
+                        {(c.authorName || 'U').slice(0, 2).toUpperCase()}
+                      </div>
+                      <span className={`text-[12px] font-semibold ${isMe ? 'text-[#8b5cf6]' : 'text-[#a1a1aa]'}`}>{c.authorName || 'User'}</span>
+                      <span className="text-[11px] text-[#52525b] ml-auto">{new Date(c.createdAt).toLocaleDateString()}</span>
+                    </div>
+                    <div
+                      className="text-[13px] text-[#a1a1aa] leading-relaxed"
+                      dangerouslySetInnerHTML={{ __html: renderMarkdown(c.text) }}
+                    />
                   </div>
-                  <p className="text-[13px] text-[#a1a1aa] leading-relaxed">{c.text}</p>
-                </div>
-              ))}
+                );
+              })}
             </div>
             {ticket.status !== 'Closed' && (
-              <form onSubmit={handleComment} className="flex gap-2">
-                <input
-                  type="text"
+              <form onSubmit={handleComment} className="space-y-2">
+                <textarea
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
-                  placeholder="Add a comment..."
-                  className="flex-1 bg-[#27272a] border border-[#3f3f46] text-[#fafafa] text-[13px] rounded-lg px-3.5 py-2.5 focus:outline-none focus:border-[#8b5cf6] focus:ring-2 focus:ring-[#8b5cf6]/15 placeholder-[#52525b]"
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (comment.trim()) handleComment(e); } }}
+                  placeholder="Add a comment… (supports **bold**, *italic*, `code`)"
+                  rows={3}
+                  className="w-full bg-[#27272a] border border-[#3f3f46] text-[#fafafa] text-[13px] rounded-lg px-3.5 py-2.5 focus:outline-none focus:border-[#8b5cf6] focus:ring-2 focus:ring-[#8b5cf6]/15 placeholder-[#52525b] resize-none"
                 />
-                <button type="submit" disabled={commentLoading || !comment.trim()}
-                  className="px-4 py-2 bg-[#8b5cf6] hover:bg-[#7c3aed] disabled:opacity-50 text-white text-[13px] rounded-lg transition-colors font-medium">
-                  {commentLoading ? '...' : 'Post'}
-                </button>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-[#52525b]">Supports **bold**, *italic*, `code` · Shift+Enter for new line</span>
+                  <button type="submit" disabled={commentLoading || !comment.trim()}
+                    className="px-4 py-2 bg-[#8b5cf6] hover:bg-[#7c3aed] disabled:opacity-50 text-white text-[13px] rounded-lg transition-colors font-medium">
+                    {commentLoading ? '...' : 'Post'}
+                  </button>
+                </div>
               </form>
             )}
           </div>
@@ -498,5 +601,7 @@ export default function TicketDetail() {
         </div>
       </div>
     </div>
+    {showConfetti && <Confetti />}
+    </>
   );
 }

@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend,
+  PieChart, Pie, Cell, Legend, LineChart, Line, CartesianGrid,
 } from 'recharts';
 import PageWrapper from '../components/layout/PageWrapper';
 import Breadcrumb from '../components/layout/Breadcrumb';
@@ -176,6 +176,71 @@ const AdminDashboard = () => {
     return h < 48 ? `${h}h` : `${Math.floor(h / 24)}d`;
   })();
 
+  // 30-day line chart data
+  const thirtyDayData = (() => {
+    const days = [];
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      days.push({ date: d.toISOString().slice(0, 10), label: d.toLocaleDateString([], { month: 'short', day: 'numeric' }), count: 0 });
+    }
+    tickets.forEach(t => {
+      const day = new Date(t.createdAt).toISOString().slice(0, 10);
+      const entry = days.find(d => d.date === day);
+      if (entry) entry.count++;
+    });
+    return days;
+  })();
+
+  // Agent leaderboard — top agents by resolved tickets
+  const agentLeaderboard = (() => {
+    const map = {};
+    tickets.forEach(t => {
+      if ((t.status === 'Resolved' || t.status === 'Closed') && t.assignedTo && t.assignedTo !== 'Unassigned') {
+        map[t.assignedTo] = (map[t.assignedTo] || 0) + 1;
+      }
+    });
+    return Object.entries(map)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([name, count]) => ({ name, count }));
+  })();
+
+  // KPI trend arrows — this week vs last week
+  const now = Date.now();
+  const thisWeekTickets  = tickets.filter(t => now - new Date(t.createdAt) < 7  * 86400000).length;
+  const lastWeekTickets  = tickets.filter(t => { const age = now - new Date(t.createdAt); return age >= 7 * 86400000 && age < 14 * 86400000; }).length;
+  const thisWeekResolved = tickets.filter(t => t.status === 'Resolved' && now - new Date(t.createdAt) <  7 * 86400000).length;
+  const lastWeekResolved = tickets.filter(t => t.status === 'Resolved' && (() => { const age = now - new Date(t.createdAt); return age >= 7 * 86400000 && age < 14 * 86400000; })()).length;
+
+  const getTrend = (curr, prev) => {
+    if (prev === 0) return null;
+    const pct = Math.round(((curr - prev) / prev) * 100);
+    return { pct: Math.abs(pct), up: pct >= 0 };
+  };
+
+  // Count-up hook
+  const useCountUp = (target) => {
+    const [val, setVal] = useState(0);
+    const ref = useRef(null);
+    useEffect(() => {
+      if (typeof target !== 'number') { setVal(target); return; }
+      const duration = 800;
+      const steps = 30;
+      const inc = target / steps;
+      let current = 0;
+      let step = 0;
+      ref.current = setInterval(() => {
+        step++;
+        current = Math.round(Math.min(inc * step, target));
+        setVal(current);
+        if (step >= steps) clearInterval(ref.current);
+      }, duration / steps);
+      return () => clearInterval(ref.current);
+    }, [target]);
+    return val;
+  };
+
   const getStatusDotColor = (status) => ({
     'Open': 'bg-[#22c55e]',
     'In Progress': 'bg-[#f59e0b]',
@@ -187,12 +252,32 @@ const AdminDashboard = () => {
 
   if (loading) return (
     <PageWrapper>
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <svg className="w-6 h-6 text-[#3b82f6] animate-spin" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-        </svg>
-        <span className="ml-3 text-[#a1a1aa] text-[14px]">Loading dashboard…</span>
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-5">
+        {/* Header skeleton */}
+        <div className="skeleton h-6 w-48 rounded mb-2" />
+        <div className="skeleton h-4 w-64 rounded mb-6" />
+        {/* Stat cards skeleton */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-5">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="rounded-xl border border-[#27272a] bg-[#18181b] p-5 space-y-3">
+              <div className="flex justify-between">
+                <div className="skeleton w-9 h-9 rounded-xl" />
+                <div className="skeleton h-5 w-20 rounded-full" />
+              </div>
+              <div className="skeleton h-8 w-16 rounded" />
+              <div className="skeleton h-4 w-24 rounded" />
+            </div>
+          ))}
+        </div>
+        {/* Charts skeleton */}
+        <div className="grid lg:grid-cols-3 gap-4 mb-5">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="rounded-xl border border-[#27272a] bg-[#18181b] p-5">
+              <div className="skeleton h-4 w-32 rounded mb-4" />
+              <div className="skeleton h-48 w-full rounded-lg" />
+            </div>
+          ))}
+        </div>
       </div>
     </PageWrapper>
   );
@@ -245,75 +330,160 @@ const AdminDashboard = () => {
         {/* Stat cards */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-5">
           {[
-            { label: 'Total Tickets', value: stats.total,      color: '#3b82f6', sub: 'All time',        icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
-            { label: 'Open',         value: stats.open,       color: '#22c55e', sub: 'Needs attention', icon: 'M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4' },
-            { label: 'In Progress',  value: stats.inProgress, color: '#f59e0b', sub: 'Being handled',   icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
-            { label: 'Resolved',     value: stats.resolved,   color: '#06b6d4', sub: 'Completed',       icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
-            { label: 'Avg Resolution', value: fmtAvgRes,      color: '#8b5cf6', sub: `${resolvedWithTime.length} resolved`, icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
-          ].map(({ label, value, color, sub, icon }) => (
-            <div key={label} className="rounded-xl border p-5 relative overflow-hidden" style={{ borderColor: `${color}30`, background: `linear-gradient(135deg, ${color}0d 0%, transparent 65%)` }}>
-              <div className="flex items-start justify-between mb-3">
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${color}18` }}>
-                  <svg className="w-5 h-5" style={{ color }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d={icon} />
-                  </svg>
+            { label: 'Total Tickets', value: stats.total,      color: '#3b82f6', sub: 'All time',        trend: getTrend(thisWeekTickets, lastWeekTickets), icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
+            { label: 'Open',         value: stats.open,       color: '#22c55e', sub: 'Needs attention', trend: null, icon: 'M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4' },
+            { label: 'In Progress',  value: stats.inProgress, color: '#f59e0b', sub: 'Being handled',   trend: null, icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
+            { label: 'Resolved',     value: stats.resolved,   color: '#06b6d4', sub: 'Completed',       trend: getTrend(thisWeekResolved, lastWeekResolved), icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
+            { label: 'Avg Resolution', value: fmtAvgRes,      color: '#8b5cf6', sub: `${resolvedWithTime.length} resolved`, trend: null, icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
+          ].map(({ label, value, color, sub, icon, trend }) => {
+            const AnimatedValue = () => {
+              const [displayed, setDisplayed] = React.useState(0);
+              const timerRef = React.useRef(null);
+              React.useEffect(() => {
+                if (typeof value !== 'number') return;
+                const steps = 30;
+                const duration = 800;
+                let step = 0;
+                timerRef.current = setInterval(() => {
+                  step++;
+                  setDisplayed(Math.round(Math.min((value / steps) * step, value)));
+                  if (step >= steps) clearInterval(timerRef.current);
+                }, duration / steps);
+                return () => clearInterval(timerRef.current);
+              }, []);
+              return <>{typeof value === 'number' ? displayed : value}</>;
+            };
+            return (
+              <div key={label} className="rounded-xl border p-5 relative overflow-hidden stat-count-enter" style={{ borderColor: `${color}30`, background: `linear-gradient(135deg, ${color}0d 0%, transparent 65%)` }}>
+                <div className="flex items-start justify-between mb-3">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${color}18` }}>
+                    <svg className="w-5 h-5" style={{ color }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d={icon} />
+                    </svg>
+                  </div>
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ color, backgroundColor: `${color}15` }}>{sub}</span>
                 </div>
-                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ color, backgroundColor: `${color}15` }}>{sub}</span>
+                <div className="text-[34px] font-bold leading-none mb-1 text-[#fafafa]">
+                  <AnimatedValue />
+                </div>
+                <div className="flex items-center justify-between gap-1">
+                  <div className="text-[13px] text-[#a1a1aa]">{label}</div>
+                  {trend && (
+                    <span className={`flex items-center gap-0.5 text-[11px] font-medium ${trend.up ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>
+                      {trend.up ? '↑' : '↓'} {trend.pct}%
+                    </span>
+                  )}
+                </div>
+                <div className="absolute -right-4 -bottom-4 w-16 h-16 rounded-full blur-2xl opacity-20" style={{ backgroundColor: color }} />
               </div>
-              <div className="text-[34px] font-bold leading-none mb-1 text-[#fafafa]">{value}</div>
-              <div className="text-[13px] text-[#a1a1aa]">{label}</div>
-              <div className="absolute -right-4 -bottom-4 w-16 h-16 rounded-full blur-2xl opacity-20" style={{ backgroundColor: color }} />
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Charts row */}
         {tickets.length > 0 && (
-          <div className="grid lg:grid-cols-3 gap-4 mb-5">
-            {/* Status pie */}
-            <Card className="p-5 border-t-[3px]" style={{ borderTopColor: '#3b82f6' }}>
-              <h2 className="text-[14px] font-semibold text-[#fafafa] mb-4">Status Breakdown</h2>
-              <ResponsiveContainer width="100%" height={200}>
-                <PieChart>
-                  <Pie data={statusData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value">
-                    {statusData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                  </Pie>
-                  <Tooltip contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: 8, fontSize: 12 }} />
-                  <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, color: '#a1a1aa' }} />
-                </PieChart>
-              </ResponsiveContainer>
-            </Card>
+          <>
+            {/* Line chart + leaderboard row */}
+            <div className="grid lg:grid-cols-3 gap-4 mb-4">
+              {/* 30-day line chart */}
+              <Card className="lg:col-span-2 p-5 border-t-[3px]" style={{ borderTopColor: '#22c55e' }}>
+                <h2 className="text-[14px] font-semibold text-[#fafafa] mb-4">Tickets Created — Last 30 Days</h2>
+                <ResponsiveContainer width="100%" height={180}>
+                  <LineChart data={thirtyDayData} margin={{ left: -10, right: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                    <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#71717a' }} axisLine={false} tickLine={false}
+                      interval={Math.floor(thirtyDayData.length / 6)} />
+                    <YAxis tick={{ fontSize: 10, fill: '#71717a' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                    <Tooltip contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: 8, fontSize: 12 }} />
+                    <Line type="monotone" dataKey="count" stroke="#22c55e" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: '#22c55e' }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </Card>
 
-            {/* Category bar */}
-            <Card className="p-5 border-t-[3px]" style={{ borderTopColor: '#6366f1' }}>
-              <h2 className="text-[14px] font-semibold text-[#fafafa] mb-4">Tickets by Category</h2>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={categoryData} layout="vertical" margin={{ left: 0, right: 16 }}>
-                  <XAxis type="number" tick={{ fontSize: 11, fill: '#71717a' }} axisLine={false} tickLine={false} />
-                  <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#a1a1aa' }} axisLine={false} tickLine={false} width={72} />
-                  <Tooltip contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: 8, fontSize: 12 }} />
-                  <Bar dataKey="count" fill="#3b82f6" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </Card>
+              {/* Agent leaderboard */}
+              <Card className="p-5 border-t-[3px]" style={{ borderTopColor: '#f59e0b' }}>
+                <h2 className="text-[14px] font-semibold text-[#fafafa] mb-4 flex items-center gap-2">
+                  <svg className="w-4 h-4 text-[#f59e0b]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
+                  Agent Leaderboard
+                </h2>
+                {agentLeaderboard.length === 0 ? (
+                  <p className="text-[12px] text-[#52525b]">No resolved tickets assigned yet.</p>
+                ) : (
+                  <ol className="space-y-2.5">
+                    {agentLeaderboard.map(({ name, count }, i) => {
+                      const medals = ['🥇', '🥈', '🥉'];
+                      const initials = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+                      const barColors = ['#f59e0b', '#a1a1aa', '#cd7f32', '#6366f1', '#22c55e'];
+                      const pct = Math.round((count / (agentLeaderboard[0]?.count || 1)) * 100);
+                      return (
+                        <li key={name} className="flex items-center gap-2">
+                          <span className="text-[13px] w-5 text-center">{medals[i] || `${i + 1}`}</span>
+                          <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
+                            style={{ backgroundColor: barColors[i] || '#6366f1' }}>{initials}</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-center mb-0.5">
+                              <span className="text-[12px] text-[#fafafa] truncate">{name}</span>
+                              <span className="text-[11px] text-[#a1a1aa] ml-2 flex-shrink-0">{count}</span>
+                            </div>
+                            <div className="h-1.5 rounded-full bg-[#27272a] overflow-hidden">
+                              <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, backgroundColor: barColors[i] || '#6366f1' }} />
+                            </div>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                )}
+              </Card>
+            </div>
 
-            {/* Priority bar */}
-            <Card className="p-5 border-t-[3px]" style={{ borderTopColor: '#f59e0b' }}>
-              <h2 className="text-[14px] font-semibold text-[#fafafa] mb-4">Tickets by Priority</h2>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={priorityData} margin={{ left: 0, right: 16 }}>
-                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#a1a1aa' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: '#71717a' }} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: 8, fontSize: 12 }} />
-                  <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                    {priorityData.map((_, i) => (
-                      <Cell key={i} fill={['#3b82f6','#f59e0b','#f97316','#ef4444'][i]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </Card>
-          </div>
+            {/* Status / Category / Priority charts */}
+            <div className="grid lg:grid-cols-3 gap-4 mb-5">
+              {/* Status pie */}
+              <Card className="p-5 border-t-[3px]" style={{ borderTopColor: '#3b82f6' }}>
+                <h2 className="text-[14px] font-semibold text-[#fafafa] mb-4">Status Breakdown</h2>
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie data={statusData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value">
+                      {statusData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                    </Pie>
+                    <Tooltip contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: 8, fontSize: 12 }} />
+                    <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, color: '#a1a1aa' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </Card>
+
+              {/* Category bar */}
+              <Card className="p-5 border-t-[3px]" style={{ borderTopColor: '#6366f1' }}>
+                <h2 className="text-[14px] font-semibold text-[#fafafa] mb-4">Tickets by Category</h2>
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={categoryData} layout="vertical" margin={{ left: 0, right: 16 }}>
+                    <XAxis type="number" tick={{ fontSize: 11, fill: '#71717a' }} axisLine={false} tickLine={false} />
+                    <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#a1a1aa' }} axisLine={false} tickLine={false} width={72} />
+                    <Tooltip contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: 8, fontSize: 12 }} />
+                    <Bar dataKey="count" fill="#3b82f6" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </Card>
+
+              {/* Priority bar */}
+              <Card className="p-5 border-t-[3px]" style={{ borderTopColor: '#f59e0b' }}>
+                <h2 className="text-[14px] font-semibold text-[#fafafa] mb-4">Tickets by Priority</h2>
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={priorityData} margin={{ left: 0, right: 16 }}>
+                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#a1a1aa' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: '#71717a' }} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: 8, fontSize: 12 }} />
+                    <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                      {priorityData.map((_, i) => (
+                        <Cell key={i} fill={['#3b82f6','#f59e0b','#f97316','#ef4444'][i]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </Card>
+            </div>
+          </>
         )}
 
         {/* Tickets table */}
@@ -394,61 +564,101 @@ const AdminDashboard = () => {
               {hasTableFilters ? 'No tickets match your filters.' : 'No tickets yet'}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="text-left text-[12px] text-[#52525b] border-b border-[#27272a]">
-                    <th className="pb-3 w-8">
-                      <input
-                        type="checkbox"
-                        checked={allPageSelected}
-                        onChange={toggleSelectAll}
-                        className="rounded border-[#3f3f46] bg-[#18181b] accent-[#FF634A] cursor-pointer"
-                      />
-                    </th>
-                    <th className="pb-3 font-medium">Ticket ID</th>
-                    <th className="pb-3 font-medium">Title</th>
-                    <th className="pb-3 font-medium">Priority</th>
-                    <th className="pb-3 font-medium">Status</th>
-                    <th className="pb-3 font-medium">Submitted by</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentTickets.map((ticket) => (
-                    <tr
-                      key={ticket._id}
-                      onClick={() => navigate(`/tickets/${ticket._id}`)}
-                      className="border-b border-[#27272a] hover:bg-[#27272a] transition-colors cursor-pointer"
-                    >
-                      <td className="py-4 w-8" onClick={e => e.stopPropagation()}>
+            <>
+              {/* Desktop table */}
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="text-left text-[12px] text-[#52525b] border-b border-[#27272a]">
+                      <th className="pb-3 w-8">
                         <input
                           type="checkbox"
-                          checked={selectedIds.has(ticket._id)}
-                          onChange={() => toggleSelect(ticket._id)}
+                          checked={allPageSelected}
+                          onChange={toggleSelectAll}
                           className="rounded border-[#3f3f46] bg-[#18181b] accent-[#FF634A] cursor-pointer"
                         />
-                      </td>
-                      <td className="py-4 font-['JetBrains_Mono'] text-[12px] text-[#3b82f6]">
-                        {ticket.ticketId || ticket._id.slice(-6).toUpperCase()}
-                      </td>
-                      <td className="py-4 text-[#fafafa] text-[14px] max-w-xs truncate">{ticket.title}</td>
-                      <td className="py-4">
-                        <Badge variant={getPriorityVariant(ticket.priority)}>{ticket.priority}</Badge>
-                      </td>
-                      <td className="py-4">
-                        <div className="flex items-center gap-2">
-                          <span className={`w-2 h-2 rounded-full ${getStatusDotColor(ticket.status)} animate-blink`} />
-                          <span className="text-[13px] text-[#a1a1aa]">{ticket.status}</span>
-                        </div>
-                      </td>
-                      <td className="py-4 text-[#a1a1aa] text-[13px]">
-                        {ticket.createdBy?.name || ticket.createdBy?.email || 'Unknown'}
-                      </td>
+                      </th>
+                      <th className="pb-3 font-medium">Ticket ID</th>
+                      <th className="pb-3 font-medium">Title</th>
+                      <th className="pb-3 font-medium">Priority</th>
+                      <th className="pb-3 font-medium">Status</th>
+                      <th className="pb-3 font-medium">Submitted by</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {recentTickets.map((ticket) => (
+                      <tr
+                        key={ticket._id}
+                        onClick={() => navigate(`/tickets/${ticket._id}`)}
+                        className="border-b border-[#27272a] hover:bg-[#27272a] transition-colors cursor-pointer"
+                      >
+                        <td className="py-4 w-8" onClick={e => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(ticket._id)}
+                            onChange={() => toggleSelect(ticket._id)}
+                            className="rounded border-[#3f3f46] bg-[#18181b] accent-[#FF634A] cursor-pointer"
+                          />
+                        </td>
+                        <td className="py-4 font-['JetBrains_Mono'] text-[12px] text-[#3b82f6]">
+                          {ticket.ticketId || ticket._id.slice(-6).toUpperCase()}
+                        </td>
+                        <td className="py-4 text-[#fafafa] text-[14px] max-w-xs truncate">{ticket.title}</td>
+                        <td className="py-4">
+                          <Badge variant={getPriorityVariant(ticket.priority)}>{ticket.priority}</Badge>
+                        </td>
+                        <td className="py-4">
+                          <div className="flex items-center gap-2">
+                            <span className={`w-2 h-2 rounded-full ${getStatusDotColor(ticket.status)} animate-blink`} />
+                            <span className="text-[13px] text-[#a1a1aa]">{ticket.status}</span>
+                          </div>
+                        </td>
+                        <td className="py-4 text-[#a1a1aa] text-[13px]">
+                          {ticket.createdBy?.name || ticket.createdBy?.email || 'Unknown'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile stacked cards */}
+              <div className="sm:hidden space-y-3">
+                {recentTickets.map((ticket) => {
+                  const PRIMAP = { Critical: '#ef4444', High: '#f97316', Medium: '#3b82f6', Low: '#22c55e' };
+                  const STMAP = { 'Open': '#22c55e', 'In Progress': '#f59e0b', 'Resolved': '#06b6d4', 'Closed': '#71717a' };
+                  const pc = PRIMAP[ticket.priority] || '#a1a1aa';
+                  const sc = STMAP[ticket.status] || '#a1a1aa';
+                  return (
+                    <div key={ticket._id}
+                      onClick={() => navigate(`/tickets/${ticket._id}`)}
+                      className="rounded-xl border border-[#27272a] bg-[#18181b] p-4 cursor-pointer active:scale-[0.99] transition-transform"
+                      style={{ borderLeft: `3px solid ${pc}` }}>
+                      <div className="flex items-start gap-2 mb-2">
+                        <input type="checkbox" checked={selectedIds.has(ticket._id)}
+                          onChange={(e) => { e.stopPropagation(); toggleSelect(ticket._id); }}
+                          onClick={e => e.stopPropagation()}
+                          className="mt-0.5 rounded border-[#3f3f46] bg-[#18181b] accent-[#FF634A] cursor-pointer flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] font-mono text-[#3b82f6] mb-0.5">
+                            {ticket.ticketId || ticket._id.slice(-6).toUpperCase()}
+                          </p>
+                          <p className="text-[14px] font-medium text-[#fafafa] leading-tight">{ticket.title}</p>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 mt-2">
+                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ color: pc, backgroundColor: `${pc}18` }}>{ticket.priority}</span>
+                        <span className="flex items-center gap-1 text-[11px]" style={{ color: sc }}>
+                          <span className="w-1.5 h-1.5 rounded-full animate-blink" style={{ backgroundColor: sc }} />
+                          {ticket.status}
+                        </span>
+                        <span className="text-[11px] text-[#52525b] ml-auto">{ticket.createdBy?.name || ticket.createdBy?.email || 'Unknown'}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           )}
           {tablePageCount > 1 && (
             <div className="flex items-center justify-between mt-6 pt-4 border-t border-[#27272a]">

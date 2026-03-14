@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useScrollHide } from '../../hooks/useScrollHide';
 import { useTheme } from '../../context/ThemeContext';
+import api from '../../api/api';
 
 const SunIcon = () => (
   <svg className="w-[17px] h-[17px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -19,16 +20,67 @@ const MoonIcon = () => (
 const Navbar = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isBellOpen, setIsBellOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const dropdownRef = useRef(null);
+  const bellRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
   const isVisible = useScrollHide();
   const { theme, toggleTheme, isDark } = useTheme();
 
+  // Fetch recent ticket updates for notifications
+  useEffect(() => {
+    const isAuth = !!localStorage.getItem('token') && localStorage.getItem('isAuthenticated') === 'true';
+    if (!isAuth) return;
+    const fetchNotifications = async () => {
+      try {
+        const res = await api.get('/tickets?limit=5');
+        const tickets = res.data.tickets || [];
+        const recent = tickets
+          .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
+          .slice(0, 5)
+          .map(t => ({
+            id: t._id,
+            title: t.title,
+            status: t.status,
+            ticketId: t.ticketId || t._id.slice(-6).toUpperCase(),
+            updatedAt: t.updatedAt,
+          }));
+        const stored = JSON.parse(sessionStorage.getItem('hd_read_notifs') || '[]');
+        setNotifications(recent);
+        setUnreadCount(recent.filter(n => !stored.includes(n.id)).length);
+      } catch { /* silent */ }
+    };
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 60000);
+    return () => clearInterval(interval);
+  }, [location.pathname]);
+
+  const markAllRead = () => {
+    const ids = notifications.map(n => n.id);
+    sessionStorage.setItem('hd_read_notifs', JSON.stringify(ids));
+    setUnreadCount(0);
+  };
+
+  const timeAgo = (date) => {
+    const diff = Date.now() - new Date(date);
+    const m = Math.floor(diff / 60000);
+    if (m < 1) return 'just now';
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h ago`;
+    return `${Math.floor(h / 24)}d ago`;
+  };
+
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setIsDropdownOpen(false);
+      }
+      if (bellRef.current && !bellRef.current.contains(e.target)) {
+        setIsBellOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -122,13 +174,78 @@ const Navbar = () => {
               {isDark ? <SunIcon /> : <MoonIcon />}
             </button>
 
-            {/* Bell */}
-            <button className="relative p-2 rounded-md text-[rgba(255,255,255,0.7)] hover:text-white hover:bg-[rgba(255,255,255,0.1)] transition-colors">
-              <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            {/* Command palette hint */}
+            <button
+              onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true }))}
+              title="Open command palette (⌘K)"
+              className="hidden md:flex items-center gap-1.5 px-2 py-1.5 rounded-md text-[rgba(255,255,255,0.5)] hover:text-white hover:bg-[rgba(255,255,255,0.08)] transition-colors text-[11px]"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
               </svg>
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--color-danger-fg)' }} />
+              <kbd className="font-mono">⌘K</kbd>
             </button>
+
+            {/* Bell */}
+            <div className="relative" ref={bellRef}>
+              <button
+                onClick={() => { setIsBellOpen(v => !v); if (!isBellOpen) markAllRead(); }}
+                className="relative p-2 rounded-md text-[rgba(255,255,255,0.7)] hover:text-white hover:bg-[rgba(255,255,255,0.1)] transition-colors"
+              >
+                <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                {unreadCount > 0 && (
+                  <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#ef4444] text-white text-[9px] font-bold flex items-center justify-center">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+                {unreadCount === 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--color-danger-fg)' }} />
+                )}
+              </button>
+
+              {isBellOpen && (
+                <div className="absolute right-0 top-10 w-72 rounded-xl shadow-2xl shadow-black/50 border notif-enter z-50 overflow-hidden"
+                  style={{ backgroundColor: 'var(--color-canvas-overlay)', borderColor: 'var(--color-border-default)' }}>
+                  <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--color-border-muted)' }}>
+                    <span className="text-[13px] font-semibold" style={{ color: 'var(--color-fg-default)' }}>Recent Updates</span>
+                    <span className="text-[11px]" style={{ color: 'var(--color-fg-subtle)' }}>Last 5 tickets</span>
+                  </div>
+                  {notifications.length === 0 ? (
+                    <div className="px-4 py-6 text-center text-[12px]" style={{ color: 'var(--color-fg-subtle)' }}>No recent activity</div>
+                  ) : (
+                    <div className="divide-y" style={{ borderColor: 'var(--color-border-muted)' }}>
+                      {notifications.map(n => {
+                        const STATUS_COLOR = { 'Open': '#22c55e', 'In Progress': '#f59e0b', 'Resolved': '#06b6d4', 'Closed': '#71717a' };
+                        const col = STATUS_COLOR[n.status] || '#a1a1aa';
+                        return (
+                          <button key={n.id}
+                            onClick={() => { navigate(`/tickets/${n.id}`); setIsBellOpen(false); }}
+                            className="w-full text-left px-4 py-3 hover:bg-[rgba(255,255,255,0.04)] transition-colors">
+                            <div className="flex items-start gap-2">
+                              <span className="w-2 h-2 rounded-full flex-shrink-0 mt-1.5" style={{ backgroundColor: col }} />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[12px] font-medium truncate" style={{ color: 'var(--color-fg-default)' }}>{n.title}</p>
+                                <p className="text-[11px] mt-0.5" style={{ color: 'var(--color-fg-subtle)' }}>
+                                  <span style={{ color: col }}>{n.status}</span> · #{n.ticketId} · {timeAgo(n.updatedAt)}
+                                </p>
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <div className="px-4 py-2.5 border-t" style={{ borderColor: 'var(--color-border-muted)' }}>
+                    <button onClick={() => { navigate('/my-tickets'); setIsBellOpen(false); }}
+                      className="text-[12px] w-full text-center" style={{ color: 'var(--color-accent-fg)' }}>
+                      View all tickets →
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Avatar + Dropdown */}
             <div className="relative" ref={dropdownRef}>

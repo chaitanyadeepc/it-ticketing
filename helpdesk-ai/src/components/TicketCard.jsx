@@ -53,10 +53,20 @@ const TicketCard = ({ ticket, onClick }) => {
     return colors[status] || 'bg-gray-500';
   };
 
+  const PRIORITY_COLOR = { Critical: '#ef4444', High: '#f97316', Medium: '#3b82f6', Low: '#22c55e' };
+  const priorityStrip = PRIORITY_COLOR[ticket.priority] || '#3b82f6';
+
+  // Avatar initials helper
+  const getInitials = (name) => {
+    if (!name || name === 'Unassigned') return '?';
+    return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  };
+
   return (
     <div
       onClick={onClick}
-      className="card cursor-pointer"
+      className="card cursor-pointer relative overflow-hidden"
+      style={{ borderLeft: `3px solid ${priorityStrip}` }}
     >
       {/* Header */}
       <div className="flex justify-between items-start mb-3">
@@ -103,6 +113,15 @@ const TicketCard = ({ ticket, onClick }) => {
       <div className="flex justify-between items-center text-[12px] text-[#52525b] font-['JetBrains_Mono'] pt-4 border-t border-[#27272a]">
         <span>Created {getTimeAgo(ticket.createdAt)}</span>
         <div className="flex items-center gap-2">
+          {ticket.assignedTo && ticket.assignedTo !== 'Unassigned' && (
+            <div
+              title={`Assigned to ${ticket.assignedTo}`}
+              className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white flex-shrink-0"
+              style={{ backgroundColor: '#6366f1' }}
+            >
+              {getInitials(ticket.assignedTo)}
+            </div>
+          )}
           <span className={`w-2 h-2 rounded-full ${getStatusDotColor(ticket.status)} animate-blink`} />
           <span>{ticket.status}</span>
         </div>

@@ -172,12 +172,22 @@ const MyTickets = () => {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-24">
-            <svg className="w-6 h-6 text-[#3b82f6] animate-spin" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-            </svg>
-            <span className="ml-3 text-[#a1a1aa] text-[14px]">Loading tickets…</span>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="rounded-xl border border-[#27272a] bg-[#18181b] p-5 space-y-3" style={{ borderLeft: '3px solid #27272a' }}>
+                <div className="skeleton h-3 w-20 rounded" />
+                <div className="skeleton h-4 w-3/4 rounded" />
+                <div className="flex gap-2">
+                  <div className="skeleton h-6 w-20 rounded-full" />
+                  <div className="skeleton h-6 w-16 rounded-full" />
+                </div>
+                <div className="skeleton h-7 w-full rounded-lg" />
+                <div className="flex justify-between pt-2 border-t border-[#27272a]">
+                  <div className="skeleton h-3 w-24 rounded" />
+                  <div className="skeleton h-3 w-16 rounded" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : error ? (
           <div className="flex items-center gap-3 p-5 bg-[#ef4444]/10 border border-[#ef4444]/20 rounded-xl text-[#ef4444] text-[14px]">
