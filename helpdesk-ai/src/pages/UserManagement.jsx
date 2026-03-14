@@ -128,6 +128,8 @@ export default function UserManagement() {
                         <span className={`text-[11px] font-medium px-2.5 py-1 rounded-full ${
                           user.role === 'admin'
                             ? 'bg-violet-500/20 text-violet-400'
+                            : user.role === 'agent'
+                            ? 'bg-[#FF634A]/20 text-[#FF634A]'
                             : 'bg-zinc-700/50 text-zinc-400'
                         }`}>
                           {user.role}
@@ -149,14 +151,23 @@ export default function UserManagement() {
                         {isSelf ? (
                           <span className="text-[12px] text-[#52525b] italic">You</span>
                         ) : (
-                          <div className="flex items-center gap-2">
-                            {/* Toggle role */}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {/* Cycle role: user → agent → admin → user (admin only can demote to user) */}
+                            {user.role !== 'admin' && (
+                              <button
+                                disabled={isUpdating}
+                                onClick={() => patch(user._id, { role: user.role === 'agent' ? 'user' : 'agent' })}
+                                className="text-[11px] px-2.5 py-1 rounded-lg border border-[#3f3f46] text-[#a1a1aa] hover:border-[#FF634A] hover:text-[#FF634A] disabled:opacity-40 transition-colors"
+                              >
+                                {isUpdating ? '…' : user.role === 'agent' ? 'Make User' : 'Make Agent'}
+                              </button>
+                            )}
                             <button
                               disabled={isUpdating}
                               onClick={() => patch(user._id, { role: user.role === 'admin' ? 'user' : 'admin' })}
                               className="text-[11px] px-2.5 py-1 rounded-lg border border-[#3f3f46] text-[#a1a1aa] hover:border-violet-500 hover:text-violet-400 disabled:opacity-40 transition-colors"
                             >
-                              {isUpdating ? '…' : user.role === 'admin' ? 'Make User' : 'Make Admin'}
+                              {isUpdating ? '…' : user.role === 'admin' ? 'Revoke Admin' : 'Make Admin'}
                             </button>
                             {/* Toggle active */}
                             <button

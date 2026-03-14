@@ -66,6 +66,8 @@ export default function TicketDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const isAdmin = localStorage.getItem('userRole') === 'admin';
+  const isAgent = localStorage.getItem('userRole') === 'agent';
+  const isStaff = isAdmin || isAgent;
   const { addToast } = useToast();
 
   const [ticket, setTicket] = useState(null);
@@ -83,7 +85,47 @@ export default function TicketDetail() {
   const [csatSubmitting, setCsatSubmitting] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [internalNote, setInternalNote] = useState('');
+  const [noteLoading, setNoteLoading] = useState(false);
+  const [showCanned, setShowCanned] = useState(false);
   const fileInputRef = React.useRef(null);
+
+  // Canned responses stored in localStorage
+  const DEFAULT_CANNED = [
+    { label: 'Acknowledge', text: 'Thank you for reaching out. We have received your ticket and will investigate shortly.' },
+    { label: 'Request Info', text: 'Could you please provide more details about the issue? Any screenshots or error messages would be very helpful.' },
+    { label: 'Escalating', text: 'This issue requires further investigation. We are escalating it to our senior team and will update you soon.' },
+    { label: 'Resolved', text: 'We are pleased to inform you that this issue has been resolved. Please let us know if you experience any further problems.' },
+  ];
+  const [cannedResponses] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('hd_canned') || 'null') || DEFAULT_CANNED; } catch { return DEFAULT_CANNED; }
+  });
+
+  // SLA helper — returns hours remaining and severity
+  const getSLA = (ticket) => {
+    if (!ticket || ['Resolved', 'Closed'].includes(ticket.status)) return null;
+    const SLA_HOURS = { Critical: 4, High: 8, Medium: 24, Low: 72 };
+    const limit = SLA_HOURS[ticket.priority] || 24;
+    const elapsed = (Date.now() - new Date(ticket.createdAt)) / 3600000;
+    const remaining = limit - elapsed;
+    return {
+      remaining: Math.max(0, remaining).toFixed(1),
+      breached: remaining <= 0,
+      warning: remaining > 0 && remaining <= limit * 0.25,
+      pct: Math.min(100, (elapsed / limit) * 100),
+    };
+  };
+
+  // First response time — time from creation to first comment
+  const getFirstResponseTime = (ticket) => {
+    if (!ticket?.comments?.length) return null;
+    const first = ticket.comments[0];
+    const ms = new Date(first.createdAt) - new Date(ticket.createdAt);
+    const mins = Math.round(ms / 60000);
+    if (mins < 60) return `${mins}m`;
+    const hrs = Math.floor(mins / 60);
+    return hrs < 24 ? `${hrs}h ${mins % 60}m` : `${Math.floor(hrs / 24)}d`;
+  };
 
   useEffect(() => {
     api.get(`/tickets/${id}`)
@@ -95,12 +137,12 @@ export default function TicketDetail() {
       .catch(() => { setError('Failed to load ticket.'); setLoading(false); });
   }, [id]);
 
-  // Fetch agents list for admin assignment dropdown
+  // Fetch agents list for staff assignment dropdown
   useEffect(() => {
-    if (isAdmin) {
-      api.get('/users').then(({ data }) => setAgents(data.users?.filter(u => u.isActive) || [])).catch(() => {});
+    if (isStaff) {
+      api.get('/users').then(({ data }) => setAgents(data.users?.filter(u => u.isActive && u.role !== 'user') || [])).catch(() => {});
     }
-  }, [isAdmin]);
+  }, [isStaff]);
 
   const handleCsatSubmit = async (e) => {
     e.preventDefault();
@@ -162,6 +204,22 @@ export default function TicketDetail() {
       addToast('Failed to update status', 'error');
     } finally {
       setStatusUpdating(false);
+    }
+  };
+
+  const handleInternalNote = async (e) => {
+    e.preventDefault();
+    if (!internalNote.trim()) return;
+    setNoteLoading(true);
+    try {
+      const { data } = await api.post(`/tickets/${id}/notes`, { text: internalNote.trim() });
+      setTicket(prev => ({ ...prev, internalNotes: data.internalNotes }));
+      setInternalNote('');
+      addToast('Internal note added');
+    } catch {
+      addToast('Failed to add note', 'error');
+    } finally {
+      setNoteLoading(false);
     }
   };
 
@@ -271,6 +329,8 @@ export default function TicketDetail() {
   const STATUS_ACCENT   = { Open: '#22c55e', 'In Progress': '#f59e0b', Resolved: '#06b6d4', Closed: '#71717a' };
   const priorityColor = PRIORITY_ACCENT[ticket.priority] || '#3b82f6';
   const statusColor   = STATUS_ACCENT[ticket.status]   || '#a1a1aa';
+  const sla = getSLA(ticket);
+  const firstResponseTime = getFirstResponseTime(ticket);
 
   return (
     <>
@@ -282,6 +342,30 @@ export default function TicketDetail() {
         </svg>
         Back
       </button>
+
+      {/* SLA alert banner */}
+      {sla && (
+        <div className={`mb-4 flex items-center gap-3 px-4 py-3 rounded-xl border text-[13px] font-medium ${
+          sla.breached
+            ? 'bg-[#ef4444]/10 border-[#ef4444]/30 text-[#ef4444]'
+            : sla.warning
+            ? 'bg-[#f59e0b]/10 border-[#f59e0b]/30 text-[#f59e0b]'
+            : 'bg-[#22c55e]/10 border-[#22c55e]/30 text-[#22c55e]'
+        }`}>
+          <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <div className="flex-1">
+            <span className="font-semibold">
+              {sla.breached ? 'SLA Breached' : sla.warning ? 'SLA Warning' : 'SLA On Track'}
+            </span>
+            {!sla.breached && <span className="font-normal ml-1 opacity-80">— {sla.remaining}h remaining for {ticket.priority} priority</span>}
+          </div>
+          <div className="w-24 h-1.5 rounded-full bg-current/20 overflow-hidden">
+            <div className="h-full rounded-full bg-current transition-all" style={{ width: `${sla.pct}%` }} />
+          </div>
+        </div>
+      )}
 
       {/* Priority-colored header banner */}
       <div className="rounded-2xl border p-6 mb-5 relative overflow-hidden" style={{ borderColor: `${priorityColor}30`, background: `linear-gradient(135deg, ${priorityColor}0d 0%, transparent 60%)` }}>
@@ -323,7 +407,7 @@ export default function TicketDetail() {
         <div className="lg:col-span-2 space-y-4">
 
           {/* User: Reopen banner */}
-          {!isAdmin && ticket.status === 'Resolved' && (
+          {!isStaff && ticket.status === 'Resolved' && (
             <div className="rounded-xl border border-[#f97316]/25 bg-[#f97316]/8 p-4 flex items-center justify-between gap-4">
               <div>
                 <p className="text-[13px] font-medium text-[#fafafa]">Is your issue still not resolved?</p>
@@ -367,14 +451,37 @@ export default function TicketDetail() {
             </div>
             {ticket.status !== 'Closed' && (
               <form onSubmit={handleComment} className="space-y-2">
-                <textarea
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (comment.trim()) handleComment(e); } }}
-                  placeholder="Add a comment… (supports **bold**, *italic*, `code`)"
-                  rows={3}
-                  className="w-full bg-[#27272a] border border-[#3f3f46] text-[#fafafa] text-[13px] rounded-lg px-3.5 py-2.5 focus:outline-none focus:border-[#8b5cf6] focus:ring-2 focus:ring-[#8b5cf6]/15 placeholder-[#52525b] resize-none"
-                />
+                <div className="relative">
+                  <textarea
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (comment.trim()) handleComment(e); } }}
+                    placeholder="Add a comment… (supports **bold**, *italic*, `code`)"
+                    rows={3}
+                    className="w-full bg-[#27272a] border border-[#3f3f46] text-[#fafafa] text-[13px] rounded-lg px-3.5 py-2.5 focus:outline-none focus:border-[#8b5cf6] focus:ring-2 focus:ring-[#8b5cf6]/15 placeholder-[#52525b] resize-none"
+                  />
+                  {/* Canned responses button (staff only) */}
+                  {isStaff && (
+                    <div className="relative inline-block">
+                      <button type="button" onClick={() => setShowCanned(v => !v)}
+                        className="absolute right-2 bottom-2 text-[11px] px-2 py-1 rounded bg-[#3f3f46] text-[#a1a1aa] hover:text-[#fafafa] transition-colors">
+                        Canned ▾
+                      </button>
+                      {showCanned && (
+                        <div className="absolute right-0 bottom-9 w-64 bg-[#18181b] border border-[#3f3f46] rounded-xl shadow-2xl z-20 overflow-hidden">
+                          {cannedResponses.map((cr, i) => (
+                            <button key={i} type="button"
+                              onClick={() => { setComment(cr.text); setShowCanned(false); }}
+                              className="w-full text-left px-3 py-2.5 text-[12px] hover:bg-[#27272a] transition-colors border-b border-[#27272a] last:border-0">
+                              <p className="font-medium text-[#fafafa]">{cr.label}</p>
+                              <p className="text-[#52525b] truncate mt-0.5">{cr.text}</p>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] text-[#52525b]">Supports **bold**, *italic*, `code` · Shift+Enter for new line</span>
                   <button type="submit" disabled={commentLoading || !comment.trim()}
@@ -385,6 +492,47 @@ export default function TicketDetail() {
               </form>
             )}
           </div>
+
+          {/* Internal Notes — staff only */}
+          {isStaff && (
+            <div className="bg-[#18181b] border border-[#f59e0b]/30 border-t-[3px] rounded-xl p-5" style={{ borderTopColor: '#f59e0b' }}>
+              <h2 className="text-[14px] font-semibold text-[#fafafa] mb-1 flex items-center gap-2">
+                <svg className="w-4 h-4 text-[#f59e0b]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                Internal Notes
+                <span className="text-[11px] font-normal text-[#52525b] ml-1">— visible to agents &amp; admins only</span>
+              </h2>
+              <div className="space-y-2 mb-4 mt-3">
+                {(!ticket.internalNotes || ticket.internalNotes.length === 0) && (
+                  <p className="text-[12px] text-[#52525b]">No internal notes yet.</p>
+                )}
+                {ticket.internalNotes?.map((n, i) => (
+                  <div key={i} className="rounded-lg bg-[#f59e0b]/8 border border-[#f59e0b]/20 px-3.5 py-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="w-5 h-5 rounded-full bg-[#f59e0b]/30 flex items-center justify-center text-[9px] font-bold text-[#f59e0b]">
+                        {(n.authorName || 'A').slice(0, 2).toUpperCase()}
+                      </div>
+                      <span className="text-[12px] font-semibold text-[#f59e0b]">{n.authorName}</span>
+                      <span className="text-[10px] text-[#52525b] px-1.5 py-0.5 rounded-full bg-[#27272a]">{n.authorRole}</span>
+                      <span className="text-[11px] text-[#52525b] ml-auto">{new Date(n.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                    </div>
+                    <p className="text-[13px] text-[#a1a1aa] leading-relaxed">{n.text}</p>
+                  </div>
+                ))}
+              </div>
+              <form onSubmit={handleInternalNote} className="flex gap-2">
+                <input
+                  value={internalNote}
+                  onChange={e => setInternalNote(e.target.value)}
+                  placeholder="Add internal note…"
+                  className="flex-1 bg-[#27272a] border border-[#3f3f46] text-[#fafafa] text-[13px] rounded-lg px-3 py-2 focus:outline-none focus:border-[#f59e0b] placeholder-[#52525b]"
+                />
+                <button type="submit" disabled={noteLoading || !internalNote.trim()}
+                  className="px-4 py-2 bg-[#f59e0b] hover:bg-[#d97706] disabled:opacity-50 text-[#09090b] text-[13px] rounded-lg font-semibold transition-colors whitespace-nowrap">
+                  {noteLoading ? '…' : 'Add Note'}
+                </button>
+              </form>
+            </div>
+          )}
 
           {/* Attachments */}
           {(ticket.attachments?.length > 0 || ticket.status !== 'Closed') && (
@@ -468,12 +616,12 @@ export default function TicketDetail() {
         {/* Sidebar column */}
         <div className="space-y-4">
 
-          {/* Admin controls */}
-          {isAdmin && (
+          {/* Admin / Agent controls */}
+          {isStaff && (
             <div className="bg-[#18181b] border border-[#27272a] border-t-[3px] rounded-xl p-5" style={{ borderTopColor: '#f59e0b' }}>
               <h2 className="text-[13px] font-semibold text-[#fafafa] mb-3 flex items-center gap-2">
                 <svg className="w-4 h-4 text-[#f59e0b]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                Admin Controls
+                {isAdmin ? 'Admin Controls' : 'Agent Controls'}
               </h2>
 
               <p className="text-[11px] uppercase font-semibold text-[#52525b] tracking-wider mb-2">Update Status</p>
@@ -519,6 +667,7 @@ export default function TicketDetail() {
               </form>
 
               <div className="pt-3 border-t border-[#27272a]">
+                {isAdmin && (
                 <button onClick={handleDelete}
                   className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-[#ef4444]/10 hover:bg-[#ef4444]/20 border border-[#ef4444]/25 text-[#ef4444] text-[13px] rounded-lg transition-colors font-medium">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -526,6 +675,7 @@ export default function TicketDetail() {
                   </svg>
                   Delete Ticket
                 </button>
+                )}
               </div>
             </div>
           )}
@@ -541,6 +691,7 @@ export default function TicketDetail() {
                 { label: 'Status',     value: ticket.status,   color: statusColor },
                 { label: 'Raised by',  value: ticket.createdBy?.name || ticket.createdBy?.email || 'Unknown' },
                 { label: 'Created',    value: new Date(ticket.createdAt).toLocaleDateString() },
+                ...(firstResponseTime ? [{ label: 'First Response', value: firstResponseTime, color: '#22c55e' }] : []),
                 ...(ticket.resolvedAt ? [{ label: 'Resolved', value: new Date(ticket.resolvedAt).toLocaleDateString() }] : []),
               ].map(({ label, value, color }) => (
                 <div key={label} className="flex items-center justify-between gap-2">

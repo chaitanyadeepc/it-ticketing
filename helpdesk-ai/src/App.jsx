@@ -16,6 +16,8 @@ import UserManagement from './pages/UserManagement';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import NotFound from './pages/NotFound';
+import TicketStatus from './pages/TicketStatus';
+import KnowledgeBase from './pages/KnowledgeBase';
 
 const ProtectedRoute = ({ children }) => {
   const isAuthenticated = !!localStorage.getItem('token') && localStorage.getItem('isAuthenticated') === 'true';
@@ -29,6 +31,13 @@ const AdminRoute = ({ children }) => {
   const isAuthenticated = !!localStorage.getItem('token') && localStorage.getItem('isAuthenticated') === 'true';
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (localStorage.getItem('userRole') !== 'admin') return <Navigate to="/" replace />;
+  return children;
+};
+
+const StaffRoute = ({ children }) => {
+  const isAuthenticated = !!localStorage.getItem('token') && localStorage.getItem('isAuthenticated') === 'true';
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (!['agent', 'admin'].includes(localStorage.getItem('userRole'))) return <Navigate to="/" replace />;
   return children;
 };
 
@@ -61,7 +70,9 @@ function App() {
             <Route path="/raise-ticket" element={<ProtectedRoute><Chatbot /></ProtectedRoute>} />
             <Route path="/my-tickets" element={<ProtectedRoute><MyTickets /></ProtectedRoute>} />
             <Route path="/tickets/:id" element={<ProtectedRoute><TicketDetail /></ProtectedRoute>} />
-            <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+            <Route path="/status" element={<TicketStatus />} />
+            <Route path="/knowledge-base" element={<ProtectedRoute><KnowledgeBase /></ProtectedRoute>} />
+            <Route path="/admin" element={<StaffRoute><AdminDashboard /></StaffRoute>} />
             <Route path="/admin/users" element={<AdminRoute><UserManagement /></AdminRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />

@@ -34,4 +34,12 @@ const adminOnly = (req, res, next) => {
   next();
 };
 
-module.exports = { protect, adminOnly };
+// Agents and admins can manage tickets
+const agentOrAdmin = (req, res, next) => {
+  if (!['agent', 'admin'].includes(req.user?.role)) {
+    return res.status(403).json({ error: 'Agent or admin access required' });
+  }
+  next();
+};
+
+module.exports = { protect, adminOnly, agentOrAdmin };

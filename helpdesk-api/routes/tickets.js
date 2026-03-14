@@ -1,20 +1,47 @@
 const express = require('express');
 const Ticket = require('../models/Ticket');
 const User = require('../models/User');
-const { protect, adminOnly } = require('../middleware/auth');
+const { protect, adminOnly, agentOrAdmin } = require('../middleware/auth');
 const { sendTicketCreated, sendStatusChanged, sendCommentAdded } = require('../utils/email');
 const { upload, uploadToCloud, deleteFromCloud } = require('../utils/storage');
 
 const router = express.Router();
 
-// All routes require auth
+// ── PUBLIC: ticket status lookup (no auth required) ───────────────────────
+router.get('/public/:ticketId', async (req, res) => {
+  try {
+    const ticket = await Ticket.findOne({ ticketId: req.params.ticketId.toUpperCase() })
+      .select('ticketId title status priority category createdAt updatedAt resolvedAt');
+    if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
+    res.json({ ticket });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// All routes below require authentication
 router.use(protect);
 
-// GET /api/tickets  — user gets own, admin gets all
+// Round-robin auto-assignment helper
+const getNextAgent = async () => {
+  const agents = await User.find({ role: 'agent', isActive: true }).select('_id name').lean();
+  if (!agents.length) return null;
+  const lastCount = await Promise.all(
+    agents.map(async (a) => ({
+      ...a,
+      count: await Ticket.countDocuments({ assignedTo: a.name, status: { $in: ['Open', 'In Progress'] } }),
+    }))
+  );
+  lastCount.sort((a, b) => a.count - b.count);
+  return lastCount[0];
+};
+
+// GET /api/tickets  — user gets own, agent/admin gets all
 router.get('/', async (req, res) => {
   try {
-    const filter = req.user.role === 'admin' ? {} : { createdBy: req.user._id };
-    const { status, priority, category, q } = req.query;
+    const isStaff = ['agent', 'admin'].includes(req.user.role);
+    const filter = isStaff ? {} : { createdBy: req.user._id };
+    const { status, priority, category, q, limit } = req.query;
     if (status)   filter.status = status;
     if (priority) filter.priority = priority;
     if (category) filter.category = category;
@@ -23,18 +50,17 @@ router.get('/', async (req, res) => {
       filter.$or = [{ title: re }, { description: re }];
     }
 
-    const tickets = await Ticket.find(filter)
-      .populate('createdBy', 'name email')
-      .sort({ createdAt: -1 });
-
+    let query = Ticket.find(filter).populate('createdBy', 'name email').sort({ createdAt: -1 });
+    if (limit) query = query.limit(Number(limit));
+    const tickets = await query;
     res.json({ tickets });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// GET /api/tickets/stats  (admin only)
-router.get('/stats', adminOnly, async (req, res) => {
+// GET /api/tickets/stats  (agent or admin)
+router.get('/stats', agentOrAdmin, async (req, res) => {
   try {
     const [open, inProgress, resolved, closed, total] = await Promise.all([
       Ticket.countDocuments({ status: 'Open' }),
@@ -52,12 +78,19 @@ router.get('/stats', adminOnly, async (req, res) => {
 // GET /api/tickets/:id
 router.get('/:id', async (req, res) => {
   try {
+    const isStaff = ['agent', 'admin'].includes(req.user.role);
     const ticket = await Ticket.findById(req.params.id).populate('createdBy', 'name email');
     if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
 
-    // Non-admin can only view own tickets
-    if (req.user.role !== 'admin' && ticket.createdBy._id.toString() !== req.user._id.toString())
+    if (!isStaff && ticket.createdBy._id.toString() !== req.user._id.toString())
       return res.status(403).json({ error: 'Access denied' });
+
+    // Strip internal notes for regular users
+    if (!isStaff) {
+      const t = ticket.toObject();
+      delete t.internalNotes;
+      return res.json({ ticket: t });
+    }
 
     res.json({ ticket });
   } catch (err) {
@@ -72,9 +105,11 @@ router.post('/', async (req, res) => {
     if (!title || !description || !category)
       return res.status(400).json({ error: 'Title, description and category are required' });
 
+    // Round-robin auto-assign to least-loaded agent
+    const autoAgent = await getNextAgent();
+
     let ticket;
     let attempts = 3;
-
     while (attempts > 0) {
       try {
         ticket = await Ticket.create({
@@ -84,10 +119,10 @@ router.post('/', async (req, res) => {
           subType: subType || '',
           priority: priority || 'Medium',
           createdBy: req.user._id,
+          assignedTo: autoAgent ? autoAgent.name : '',
         });
-        break; // success
+        break;
       } catch (createErr) {
-        // Retry on duplicate ticketId (race condition between concurrent requests)
         if (createErr.code === 11000 && createErr.keyPattern?.ticketId && attempts > 1) {
           attempts--;
           continue;
@@ -98,8 +133,6 @@ router.post('/', async (req, res) => {
 
     await ticket.populate('createdBy', 'name email');
     res.status(201).json({ ticket });
-
-    // Fire email asynchronously — do not await so it never blocks the response
     User.findById(req.user._id).then((user) => sendTicketCreated(ticket, user)).catch(() => {});
   } catch (err) {
     console.error('Ticket create error:', err.message);
@@ -110,23 +143,25 @@ router.post('/', async (req, res) => {
 // PATCH /api/tickets/:id — update status / assign / add comment
 router.patch('/:id', async (req, res) => {
   try {
+    const isStaff = ['agent', 'admin'].includes(req.user.role);
     const ticket = await Ticket.findById(req.params.id);
     if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
 
-    // Only admin can change status/assign; user can only add comments on own ticket
-    if (req.user.role !== 'admin' && ticket.createdBy.toString() !== req.user._id.toString())
+    // Users can only interact with their own tickets; staff can access all
+    if (!isStaff && ticket.createdBy.toString() !== req.user._id.toString())
       return res.status(403).json({ error: 'Access denied' });
 
     const { status, assignedTo, comment, satisfaction } = req.body;
-    // Capture these BEFORE populate() converts createdBy into an object
     const createdById = ticket.createdBy;
-
     let oldStatus = ticket.status;
+
     if (status && status !== ticket.status) {
+      // Users can only reopen; agents/admins can set any status
+      if (!isStaff && status !== 'Open') return res.status(403).json({ error: 'Users can only reopen tickets' });
       ticket.history.push({ action: `Status changed to "${status}"`, field: 'status', from: ticket.status, to: status, by: req.user._id, byName: req.user.name });
       ticket.status = status;
     }
-    if (assignedTo !== undefined && assignedTo !== ticket.assignedTo) {
+    if (assignedTo !== undefined && assignedTo !== ticket.assignedTo && isStaff) {
       const prev = ticket.assignedTo || 'Unassigned';
       ticket.history.push({ action: `Assigned to ${assignedTo || 'Unassigned'}`, field: 'assignedTo', from: prev, to: assignedTo || 'Unassigned', by: req.user._id, byName: req.user.name });
       ticket.assignedTo = assignedTo;
@@ -140,27 +175,51 @@ router.patch('/:id', async (req, res) => {
 
     await ticket.save();
     await ticket.populate('createdBy', 'name email');
-    res.json({ ticket });
 
-    // Async email notifications — never block the response
+    // Strip internal notes for users
+    if (!isStaff) {
+      const t = ticket.toObject();
+      delete t.internalNotes;
+      res.json({ ticket: t });
+    } else {
+      res.json({ ticket });
+    }
+
     if (status && status !== oldStatus) {
-      User.findById(createdById)
-        .then((user) => sendStatusChanged(ticket, user, oldStatus, status))
-        .catch((e) => console.error('[email] status change notify failed:', e.message));
+      User.findById(createdById).then((user) => sendStatusChanged(ticket, user, oldStatus, status)).catch(() => {});
     }
     if (comment) {
       const postedComment = ticket.comments[ticket.comments.length - 1];
-      User.findById(createdById)
-        .then((user) => sendCommentAdded(ticket, user, postedComment))
-        .catch((e) => console.error('[email] comment notify failed:', e.message));
+      User.findById(createdById).then((user) => sendCommentAdded(ticket, user, postedComment)).catch(() => {});
     }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// PATCH /api/tickets/bulk — batch status update (admin only)
-router.patch('/bulk', adminOnly, async (req, res) => {
+// POST /api/tickets/:id/notes — internal note (agent or admin only)
+router.post('/:id/notes', agentOrAdmin, async (req, res) => {
+  try {
+    const { text } = req.body;
+    if (!text?.trim()) return res.status(400).json({ error: 'Note text is required' });
+    const ticket = await Ticket.findById(req.params.id);
+    if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
+
+    ticket.internalNotes.push({
+      text: text.trim(),
+      author: req.user._id,
+      authorName: req.user.name,
+      authorRole: req.user.role,
+    });
+    await ticket.save();
+    res.json({ internalNotes: ticket.internalNotes });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PATCH /api/tickets/bulk — batch status update (agent or admin)
+router.patch('/bulk', agentOrAdmin, async (req, res) => {
   try {
     const { ids, status } = req.body;
     if (!Array.isArray(ids) || ids.length === 0 || !status)
@@ -195,12 +254,13 @@ router.delete('/bulk', adminOnly, async (req, res) => {
   }
 });
 
-// POST /api/tickets/:id/attachments — upload files (owner or admin)
+// POST /api/tickets/:id/attachments
 router.post('/:id/attachments', upload.array('files', 5), async (req, res) => {
   try {
+    const isStaff = ['agent', 'admin'].includes(req.user.role);
     const ticket = await Ticket.findById(req.params.id);
     if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
-    if (req.user.role !== 'admin' && ticket.createdBy.toString() !== req.user._id.toString())
+    if (!isStaff && ticket.createdBy.toString() !== req.user._id.toString())
       return res.status(403).json({ error: 'Access denied' });
     if (!req.files || req.files.length === 0)
       return res.status(400).json({ error: 'No files received' });
@@ -210,15 +270,7 @@ router.post('/:id/attachments', upload.array('files', 5), async (req, res) => {
         const result = await uploadToCloud(file.buffer, {
           public_id: `ticket_${ticket.ticketId}_${Date.now()}_${file.originalname.replace(/[^a-zA-Z0-9]/g, '_')}`,
         });
-        return {
-          url: result.secure_url,
-          publicId: result.public_id,
-          filename: file.originalname,
-          mimetype: file.mimetype,
-          size: file.size,
-          uploadedBy: req.user._id,
-          uploaderName: req.user.name,
-        };
+        return { url: result.secure_url, publicId: result.public_id, filename: file.originalname, mimetype: file.mimetype, size: file.size, uploadedBy: req.user._id, uploaderName: req.user.name };
       })
     );
 
@@ -230,12 +282,13 @@ router.post('/:id/attachments', upload.array('files', 5), async (req, res) => {
   }
 });
 
-// DELETE /api/tickets/:id/attachments/:attachmentId (owner or admin)
+// DELETE /api/tickets/:id/attachments/:attachmentId
 router.delete('/:id/attachments/:attachmentId', async (req, res) => {
   try {
+    const isStaff = ['agent', 'admin'].includes(req.user.role);
     const ticket = await Ticket.findById(req.params.id);
     if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
-    if (req.user.role !== 'admin' && ticket.createdBy.toString() !== req.user._id.toString())
+    if (!isStaff && ticket.createdBy.toString() !== req.user._id.toString())
       return res.status(403).json({ error: 'Access denied' });
 
     const att = ticket.attachments.id(req.params.attachmentId);

@@ -8,6 +8,7 @@ import { Link, useLocation } from 'react-router-dom';
 const BottomNav = () => {
   const location = useLocation();
   const isAdmin = localStorage.getItem('userRole') === 'admin';
+  const isStaff = ['agent', 'admin'].includes(localStorage.getItem('userRole'));
 
   // Hide on login page
   if (location.pathname === '/login') {
@@ -42,8 +43,8 @@ const BottomNav = () => {
         </svg>
       )
     },
-    ...(isAdmin ? [{
-      name: 'Admin',
+    ...(isStaff ? [{
+      name: isAdmin ? 'Admin' : 'Board',
       path: '/admin',
       icon: (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

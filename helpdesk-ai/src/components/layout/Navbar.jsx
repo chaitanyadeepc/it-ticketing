@@ -101,12 +101,15 @@ const Navbar = () => {
   if (location.pathname === '/login') return null;
 
   const isAdmin = localStorage.getItem('userRole') === 'admin';
+  const isAgent = localStorage.getItem('userRole') === 'agent';
+  const isStaff = isAdmin || isAgent;
 
   const navLinks = [
     { name: 'Home', path: '/' },
     { name: 'Raise Ticket', path: '/raise-ticket' },
     { name: 'My Tickets', path: '/my-tickets' },
-    ...(isAdmin ? [{ name: 'Admin', path: '/admin' }] : []),
+    { name: 'Knowledge Base', path: '/knowledge-base' },
+    ...(isStaff ? [{ name: isAdmin ? 'Admin' : 'Dashboard', path: '/admin' }] : []),
   ];
 
   const handleLogout = () => {

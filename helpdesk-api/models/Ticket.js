@@ -9,6 +9,16 @@ const commentSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+const internalNoteSchema = new mongoose.Schema(
+  {
+    text:       { type: String, required: true },
+    author:     { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    authorName: String,
+    authorRole: String,
+  },
+  { timestamps: true }
+);
+
 const historySchema = new mongoose.Schema(
   {
     action:     { type: String, required: true },
@@ -46,6 +56,7 @@ const ticketSchema = new mongoose.Schema(
     createdBy:   { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     assignedTo:  { type: String, default: '' },
     comments:    [commentSchema],
+    internalNotes: [internalNoteSchema],
     history:     [historySchema],
     attachments: [attachmentSchema],
     satisfaction: {

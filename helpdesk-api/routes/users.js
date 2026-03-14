@@ -58,7 +58,8 @@ router.patch('/:id', adminOnly, async (req, res) => {
   try {
     const { role, isActive } = req.body;
     const allowed = {};
-    if (role !== undefined && ['user', 'admin'].includes(role)) allowed.role = role;
+    // Admin can assign 'user' or 'agent'. Only admin can assign 'admin' role.
+    if (role !== undefined && ['user', 'agent', 'admin'].includes(role)) allowed.role = role;
     if (isActive !== undefined) allowed.isActive = !!isActive;
 
     const user = await User.findByIdAndUpdate(req.params.id, allowed, { new: true }).select('-password');
