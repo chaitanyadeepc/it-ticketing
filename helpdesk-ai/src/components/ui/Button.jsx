@@ -20,11 +20,20 @@ const Button = ({
   const baseStyles = 'inline-flex items-center justify-center gap-2 font-medium transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]';
   
   const variants = {
-    primary: 'bg-[#3b82f6] text-white hover:bg-[#2563eb] rounded-md',
-    secondary: 'bg-[#27272a] text-[#fafafa] border border-[#3f3f46] hover:bg-[#3f3f46] rounded-md',
-    ghost: 'bg-transparent text-[#a1a1aa] hover:bg-[#18181b] hover:text-[#fafafa] rounded-md',
-    danger: 'bg-[#ef4444] text-white hover:bg-[#dc2626] rounded-md',
-    outline: 'bg-transparent border border-[#3b82f6] text-[#3b82f6] hover:bg-[rgba(31,111,235,0.1)] rounded-md'
+    primary:   'text-white rounded-md border border-[#2ea043] hover:border-[#3fb950]',
+    secondary: 'rounded-md border',
+    ghost:     'bg-transparent rounded-md border border-transparent',
+    danger:    'rounded-md border',
+    outline:   'bg-transparent rounded-md border border-[var(--color-accent-emphasis)] text-[var(--color-accent-fg)] hover:bg-[var(--color-accent-subtle)]'
+  };
+
+  // Inline styles for variants that need CSS custom properties
+  const variantStyles = {
+    primary:   { backgroundColor: 'var(--color-btn-primary-bg)', color: 'var(--color-fg-on-emphasis)' },
+    secondary: { backgroundColor: 'var(--color-btn-bg)', borderColor: 'var(--color-btn-border)', color: 'var(--color-fg-default)' },
+    ghost:     { color: 'var(--color-fg-muted)' },
+    danger:    { backgroundColor: 'var(--color-btn-bg)', borderColor: 'var(--color-btn-border)', color: 'var(--color-danger-fg)' },
+    outline:   {},
   };
   
   const sizes = {
@@ -36,6 +45,7 @@ const Button = ({
   return (
     <button
       type={type}
+      style={variantStyles[variant]}
       className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
       disabled={disabled || loading}
       onClick={onClick}

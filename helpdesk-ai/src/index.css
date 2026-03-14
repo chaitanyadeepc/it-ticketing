@@ -1,254 +1,332 @@
-/* Import Inter and JetBrains Mono from Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ==========================================================================
-   GITHUB DESIGN SYSTEM — Dark (default) + Light mode via html.light class
+   GITHUB PRIMER DESIGN SYSTEM
+   All colors defined as CSS custom properties matching github.com exactly.
+   Attribute selector: [data-color-mode="dark"] / [data-color-mode="light"]
    ========================================================================== */
 
-:root {
-  --bg: #0d1117;
-  --surface-1: #161b22;
-  --surface-2: #21262d;
-  --surface-3: #30363d;
-  --border: #30363d;
-  --border-strong: #484f58;
-  --text-primary: #e6edf3;
-  --text-secondary: #8b949e;
-  --text-muted: #6e7681;
-  --accent-blue: #58a6ff;
-  --accent-hover: #388bfd;
-  --success: #3fb950;
-  --warning: #d29922;
-  --error: #f85149;
-  --info: #39c5cf;
+/* ── Dark mode tokens (default) ── */
+:root,
+[data-color-mode="dark"] {
+  /* Canvas */
+  --color-canvas-default:    #0d1117;
+  --color-canvas-subtle:     #161b22;
+  --color-canvas-inset:      #010409;
+  --color-canvas-overlay:    #161b22;
+
+  /* Border */
+  --color-border-default:    #30363d;
+  --color-border-muted:      #21262d;
+  --color-border-subtle:     rgba(240,246,252,0.1);
+
+  /* Foreground */
+  --color-fg-default:        #e6edf3;
+  --color-fg-muted:          #848d97;
+  --color-fg-subtle:         #6e7681;
+  --color-fg-on-emphasis:    #ffffff;
+
+  /* Accent (blue) */
+  --color-accent-fg:         #58a6ff;
+  --color-accent-emphasis:   #1f6feb;
+  --color-accent-muted:      rgba(56,139,253,0.4);
+  --color-accent-subtle:     rgba(56,139,253,0.15);
+
+  /* Success (green) */
+  --color-success-fg:        #3fb950;
+  --color-success-emphasis:  #238636;
+  --color-success-muted:     rgba(46,160,67,0.4);
+  --color-success-subtle:    rgba(46,160,67,0.15);
+
+  /* Danger (red) */
+  --color-danger-fg:         #f85149;
+  --color-danger-emphasis:   #da3633;
+  --color-danger-muted:      rgba(248,81,73,0.4);
+  --color-danger-subtle:     rgba(248,81,73,0.15);
+
+  /* Attention (amber) */
+  --color-attention-fg:      #d29922;
+  --color-attention-emphasis:#9e6a03;
+  --color-attention-muted:   rgba(187,128,9,0.4);
+  --color-attention-subtle:  rgba(187,128,9,0.15);
+
+  /* Done (purple) */
+  --color-done-fg:           #a371f7;
+  --color-done-emphasis:     #8957e5;
+  --color-done-muted:        rgba(163,113,247,0.4);
+  --color-done-subtle:       rgba(163,113,247,0.15);
+
+  /* Neutral */
+  --color-neutral-emphasis-plus: #6e7681;
+  --color-neutral-emphasis:  #6e7681;
+  --color-neutral-muted:     rgba(110,118,129,0.4);
+  --color-neutral-subtle:    rgba(110,118,129,0.1);
+
+  /* Buttons */
+  --color-btn-bg:            #21262d;
+  --color-btn-border:        rgba(240,246,252,0.1);
+  --color-btn-hover-bg:      #30363d;
+  --color-btn-primary-bg:    #238636;
+  --color-btn-primary-hover-bg: #2ea043;
+  --color-btn-danger-bg:     #da3633;
+  --color-btn-danger-hover-bg: #b91c1c;
+
+  /* Inputs */
+  --color-input-bg:          #0d1117;
+  --color-input-border:      #30363d;
+  --color-input-contrast-bg: #161b22;
+
+  /* Header — always close to #161b22 in dark */
+  --color-header-bg:         #161b22;
+  --color-header-divider:    #21262d;
+  --color-header-text:       #e6edf3;
+
+  /* Shadows */
+  --shadow-small:      0 0 transparent;
+  --shadow-medium:     0 3px 6px rgba(0,0,0,0.4);
+  --shadow-large:      0 8px 24px rgba(1,4,9,0.8);
+  --shadow-extra-large:0 12px 28px rgba(1,4,9,0.9);
+
+  /* Legacy aliases (used by var(--bg) references in existing JSX) */
+  --bg:           var(--color-canvas-default);
+  --surface-1:    var(--color-canvas-subtle);
+  --surface-2:    var(--color-border-muted);
+  --surface-3:    var(--color-border-default);
+  --border:       var(--color-border-default);
+  --border-strong:var(--color-border-subtle);
+  --text-primary: var(--color-fg-default);
+  --text-secondary:var(--color-fg-muted);
+  --text-muted:   var(--color-fg-subtle);
+  --accent-blue:  var(--color-accent-fg);
+  --accent-hover: var(--color-accent-emphasis);
+  --success:      var(--color-success-fg);
+  --warning:      var(--color-attention-fg);
+  --error:        var(--color-danger-fg);
 }
 
-/* ── GitHub Light-mode variable overrides ── */
-html.light {
-  --bg: #ffffff;
-  --surface-1: #f6f8fa;
-  --surface-2: #eaeef2;
-  --surface-3: #d0d7de;
-  --border: #d0d7de;
-  --border-strong: #afb8c1;
-  --text-primary: #1f2328;
-  --text-secondary: #656d76;
-  --text-muted: #9198a1;
-  --accent-blue: #0969da;
-  --accent-hover: #0860ca;
-  --success: #1a7f37;
-  --warning: #9a6700;
-  --error: #cf222e;
-  --info: #0969da;
+/* ── Light mode tokens ── */
+[data-color-mode="light"] {
+  --color-canvas-default:    #ffffff;
+  --color-canvas-subtle:     #f6f8fa;
+  --color-canvas-inset:      #f6f8fa;
+  --color-canvas-overlay:    #ffffff;
+
+  --color-border-default:    #d0d7de;
+  --color-border-muted:      hsla(210,18%,87%,1);
+  --color-border-subtle:     rgba(31,35,40,0.15);
+
+  --color-fg-default:        #1f2328;
+  --color-fg-muted:          #636c76;
+  --color-fg-subtle:         #6e7781;
+  --color-fg-on-emphasis:    #ffffff;
+
+  --color-accent-fg:         #0969da;
+  --color-accent-emphasis:   #0969da;
+  --color-accent-muted:      rgba(84,174,255,0.4);
+  --color-accent-subtle:     #ddf4ff;
+
+  --color-success-fg:        #1a7f37;
+  --color-success-emphasis:  #1f883d;
+  --color-success-muted:     rgba(74,194,107,0.4);
+  --color-success-subtle:    #dafbe1;
+
+  --color-danger-fg:         #d1242f;
+  --color-danger-emphasis:   #cf222e;
+  --color-danger-muted:      rgba(255,129,130,0.4);
+  --color-danger-subtle:     #ffebe9;
+
+  --color-attention-fg:      #9a6700;
+  --color-attention-emphasis:#bf8700;
+  --color-attention-muted:   rgba(212,167,44,0.4);
+  --color-attention-subtle:  #fff8c5;
+
+  --color-done-fg:           #8250df;
+  --color-done-emphasis:     #8250df;
+  --color-done-muted:        rgba(194,151,255,0.4);
+  --color-done-subtle:       #fbefff;
+
+  --color-neutral-emphasis-plus: #24292f;
+  --color-neutral-emphasis:  #6e7781;
+  --color-neutral-muted:     rgba(175,184,193,0.2);
+  --color-neutral-subtle:    rgba(234,238,242,0.5);
+
+  --color-btn-bg:            #f6f8fa;
+  --color-btn-border:        rgba(31,35,40,0.15);
+  --color-btn-hover-bg:      #f3f4f6;
+  --color-btn-primary-bg:    #1f883d;
+  --color-btn-primary-hover-bg: #1a7f37;
+  --color-btn-danger-bg:     #cf222e;
+  --color-btn-danger-hover-bg: #a40e26;
+
+  --color-input-bg:          #ffffff;
+  --color-input-border:      #d0d7de;
+  --color-input-contrast-bg: #f6f8fa;
+
+  /* GitHub light header is still dark (#24292f) */
+  --color-header-bg:         #24292f;
+  --color-header-divider:    rgba(255,255,255,0.15);
+  --color-header-text:       rgba(255,255,255,0.7);
+
+  --shadow-small:      0 1px 0 rgba(31,35,40,0.04);
+  --shadow-medium:     0 3px 6px rgba(140,149,159,0.15);
+  --shadow-large:      0 8px 24px rgba(140,149,159,0.2);
+  --shadow-extra-large:0 12px 28px rgba(140,149,159,0.25);
+
+  /* Legacy aliases */
+  --bg:           var(--color-canvas-default);
+  --surface-1:    var(--color-canvas-subtle);
+  --surface-2:    var(--color-border-muted);
+  --surface-3:    var(--color-border-default);
+  --border:       var(--color-border-default);
+  --border-strong:var(--color-border-subtle);
+  --text-primary: var(--color-fg-default);
+  --text-secondary:var(--color-fg-muted);
+  --text-muted:   var(--color-fg-subtle);
+  --accent-blue:  var(--color-accent-fg);
+  --accent-hover: var(--color-accent-emphasis);
+  --success:      var(--color-success-fg);
+  --warning:      var(--color-attention-fg);
+  --error:        var(--color-danger-fg);
 }
 
-/* ── Smooth theme transitions ── */
-*, *::before, *::after {
-  transition-property: background-color, border-color, color;
-  transition-duration: 0.18s;
-  transition-timing-function: ease;
-}
+/* ==========================================================================
+   GITHUB-EXACT TAILWIND CLASS REMAPS
+   Each hardcoded Tailwind arbitrary-value class in JSX files is mapped to
+   the corresponding GitHub CSS token here — covering both color modes.
+   ========================================================================== */
 
-/* ══════════════════════════════════════════════════════════════════════════
-   GITHUB DARK THEME — remap old zinc/blue values → GitHub dark palette.
-   Every hardcoded Tailwind arbitrary-value class is covered here so the
-   JSX files do not need to be individually edited.
-   ══════════════════════════════════════════════════════════════════════════ */
+/* ── Dark mode remaps (applied globally, light overrides below) ── */
 
 /* Backgrounds */
-.bg-\[\#09090b\]             { background-color: #0d1117 !important; }
-.bg-\[\#18181b\]             { background-color: #161b22 !important; }
-.bg-\[\#27272a\]             { background-color: #21262d !important; }
-.bg-\[\#1c1c1f\]             { background-color: #161b22 !important; }
-.bg-\[\#3f3f46\]             { background-color: #30363d !important; }
-.bg-\[\#1f0e0e\]             { background-color: #2d1315 !important; }
-.bg-\[\#0e1f0e\]             { background-color: #0d2119 !important; }
-.bg-\[\#0e131f\]             { background-color: #0d1b2e !important; }
+.bg-\[\#09090b\]  { background-color: var(--color-canvas-default) !important; }
+.bg-\[\#18181b\]  { background-color: var(--color-canvas-subtle) !important; }
+.bg-\[\#27272a\]  { background-color: var(--color-border-muted) !important; }
+.bg-\[\#1c1c1f\]  { background-color: var(--color-canvas-subtle) !important; }
+.bg-\[\#3f3f46\]  { background-color: var(--color-border-default) !important; }
+.bg-\[\#1f0e0e\]  { background-color: var(--color-danger-subtle) !important; }
+.bg-\[\#0e1f0e\]  { background-color: var(--color-success-subtle) !important; }
+.bg-\[\#0e131f\]  { background-color: var(--color-accent-subtle) !important; }
 
 /* Hover backgrounds */
-.hover\:bg-\[\#09090b\]:hover  { background-color: #0d1117 !important; }
-.hover\:bg-\[\#18181b\]:hover  { background-color: #161b22 !important; }
-.hover\:bg-\[\#27272a\]:hover  { background-color: #21262d !important; }
-.hover\:bg-\[\#3f3f46\]:hover  { background-color: #30363d !important; }
-.hover\:bg-\[\#2a1010\]:hover  { background-color: #391717 !important; }
+.hover\:bg-\[\#09090b\]:hover { background-color: var(--color-canvas-default) !important; }
+.hover\:bg-\[\#18181b\]:hover { background-color: var(--color-neutral-subtle) !important; }
+.hover\:bg-\[\#27272a\]:hover { background-color: var(--color-neutral-subtle) !important; }
+.hover\:bg-\[\#3f3f46\]:hover { background-color: var(--color-btn-hover-bg) !important; }
+.hover\:bg-\[\#2a1010\]:hover { background-color: var(--color-danger-subtle) !important; }
 
 /* Borders */
-.border-\[\#27272a\]         { border-color: #30363d !important; }
-.border-\[\#3f3f46\]         { border-color: #484f58 !important; }
-.border-\[\#52525b\]         { border-color: #484f58 !important; }
+.border-\[\#27272a\]  { border-color: var(--color-border-default) !important; }
+.border-\[\#3f3f46\]  { border-color: var(--color-border-strong, #484f58) !important; }
+.border-\[\#52525b\]  { border-color: var(--color-border-default) !important; }
 
 /* Text */
-.text-\[\#fafafa\]           { color: #e6edf3 !important; }
-.text-\[\#e4e4e7\]           { color: #c9d1d9 !important; }
-.text-\[\#a1a1aa\]           { color: #8b949e !important; }
-.text-\[\#71717a\]           { color: #8b949e !important; }
-.text-\[\#52525b\]           { color: #6e7681 !important; }
-.hover\:text-\[\#fafafa\]:hover { color: #e6edf3 !important; }
+.text-\[\#fafafa\]  { color: var(--color-fg-default)   !important; }
+.text-\[\#e4e4e7\]  { color: var(--color-fg-default)   !important; }
+.text-\[\#a1a1aa\]  { color: var(--color-fg-muted)     !important; }
+.text-\[\#71717a\]  { color: var(--color-fg-muted)     !important; }
+.text-\[\#52525b\]  { color: var(--color-fg-subtle)    !important; }
+.hover\:text-\[\#fafafa\]:hover { color: var(--color-fg-default) !important; }
 
-/* Accent text */
-.text-\[\#3b82f6\]           { color: #58a6ff !important; }
-.text-\[\#2563eb\]           { color: #388bfd !important; }
-.text-\[\#22c55e\]           { color: #3fb950 !important; }
-.text-\[\#f59e0b\]           { color: #d29922 !important; }
-.text-\[\#ef4444\]           { color: #f85149 !important; }
-.text-\[\#06b6d4\]           { color: #39c5cf !important; }
-.text-\[\#6366f1\]           { color: #a371f7 !important; }
-.text-\[\#8b5cf6\]           { color: #a371f7 !important; }
-.text-\[\#a855f7\]           { color: #d2a8ff !important; }
-.text-\[\#f97316\]           { color: #f0883e !important; }
-.text-\[\#ec4899\]           { color: #db61a2 !important; }
+/* Accent colours */
+.text-\[\#3b82f6\]  { color: var(--color-accent-fg)       !important; }
+.text-\[\#2563eb\]  { color: var(--color-accent-emphasis)  !important; }
+.text-\[\#22c55e\]  { color: var(--color-success-fg)       !important; }
+.text-\[\#f59e0b\]  { color: var(--color-attention-fg)     !important; }
+.text-\[\#ef4444\]  { color: var(--color-danger-fg)        !important; }
+.text-\[\#06b6d4\]  { color: var(--color-accent-fg)        !important; }
+.text-\[\#6366f1\]  { color: var(--color-done-fg)          !important; }
+.text-\[\#8b5cf6\]  { color: var(--color-done-fg)          !important; }
+.text-\[\#a855f7\]  { color: var(--color-done-fg)          !important; }
+.text-\[\#f97316\]  { color: var(--color-attention-fg)     !important; }
+.text-\[\#ec4899\]  { color: var(--color-done-fg)          !important; }
 
 /* Solid accent backgrounds */
-.bg-\[\#3b82f6\]             { background-color: #1f6feb !important; }
-.bg-\[\#2563eb\]             { background-color: #388bfd !important; }
-.bg-\[\#22c55e\]             { background-color: #238636 !important; }
-.bg-\[\#ef4444\]             { background-color: #da3633 !important; }
-.hover\:bg-\[\#2563eb\]:hover  { background-color: #388bfd !important; }
-.hover\:bg-\[\#dc2626\]:hover  { background-color: #b91c1c !important; }
-.hover\:bg-\[\#3f3f46\]:hover  { background-color: #30363d !important; }
+.bg-\[\#3b82f6\]  { background-color: var(--color-accent-emphasis)  !important; }
+.bg-\[\#2563eb\]  { background-color: var(--color-accent-emphasis)  !important; }
+.bg-\[\#22c55e\]  { background-color: var(--color-success-emphasis) !important; }
+.bg-\[\#ef4444\]  { background-color: var(--color-danger-emphasis)  !important; }
+.hover\:bg-\[\#2563eb\]:hover { background-color: var(--color-accent-emphasis) !important; }
+.hover\:bg-\[\#dc2626\]:hover { background-color: var(--color-danger-emphasis) !important; }
+.hover\:bg-\[\#3f3f46\]:hover { background-color: var(--color-btn-hover-bg)   !important; }
 
-/* Gradient stops */
-.from-\[\#3b82f6\]  { --tw-gradient-from: #1f6feb var(--tw-gradient-from-position) !important; }
-.from-\[\#6366f1\]  { --tw-gradient-from: #a371f7 var(--tw-gradient-from-position) !important; }
-.from-\[\#8b5cf6\]  { --tw-gradient-from: #a371f7 var(--tw-gradient-from-position) !important; }
-.from-\[\#a855f7\]  { --tw-gradient-from: #d2a8ff var(--tw-gradient-from-position) !important; }
-.to-\[\#6366f1\]    { --tw-gradient-to: #a371f7 var(--tw-gradient-to-position) !important; }
-.to-\[\#2563eb\]    { --tw-gradient-to: #388bfd var(--tw-gradient-to-position) !important; }
-.via-\[\#3b82f6\]   { --tw-gradient-via: #1f6feb var(--tw-gradient-via-position) !important; }
-.via-\[\#6366f1\]   { --tw-gradient-via: #a371f7 var(--tw-gradient-via-position) !important; }
+/* Focus ring remaps to GitHub accent muted */
+.focus\:border-\[\#3b82f6\]:focus  { border-color: var(--color-accent-fg) !important; }
+.focus\:ring-\[\#3b82f6\]\/20:focus { box-shadow: 0 0 0 3px var(--color-accent-muted) !important; }
+.focus\:border-\[\#ef4444\]:focus  { border-color: var(--color-danger-fg) !important; }
+.focus\:ring-\[\#ef4444\]\/20:focus { box-shadow: 0 0 0 3px var(--color-danger-muted) !important; }
 
-/* Ring / shadow accent */
-.ring-\[\#3b82f6\]\/20  { --tw-ring-color: rgba(31,111,235,0.2) !important; }
-.shadow-\[\#3b82f6\]\/20 { --tw-shadow-color: rgba(31,111,235,0.2) !important; }
-.shadow-\[\#3b82f6\]\/25 { --tw-shadow-color: rgba(31,111,235,0.25) !important; }
+/* Gradient stops → GitHub-aligned */
+.from-\[\#3b82f6\]  { --tw-gradient-from: var(--color-accent-emphasis)  var(--tw-gradient-from-position) !important; }
+.from-\[\#6366f1\]  { --tw-gradient-from: var(--color-done-emphasis)     var(--tw-gradient-from-position) !important; }
+.from-\[\#8b5cf6\]  { --tw-gradient-from: var(--color-done-emphasis)     var(--tw-gradient-from-position) !important; }
+.from-\[\#a855f7\]  { --tw-gradient-from: var(--color-done-emphasis)     var(--tw-gradient-from-position) !important; }
+.to-\[\#6366f1\]    { --tw-gradient-to:   var(--color-done-emphasis)     var(--tw-gradient-to-position)   !important; }
+.to-\[\#2563eb\]    { --tw-gradient-to:   var(--color-accent-emphasis)   var(--tw-gradient-to-position)   !important; }
+.via-\[\#3b82f6\]   { --tw-gradient-via:  var(--color-accent-emphasis)   var(--tw-gradient-via-position)  !important; }
+.via-\[\#6366f1\]   { --tw-gradient-via:  var(--color-done-emphasis)     var(--tw-gradient-via-position)  !important; }
 
 /* Placeholder */
-.placeholder-\[\#52525b\]::placeholder { color: #6e7681 !important; }
+.placeholder-\[\#52525b\]::placeholder { color: var(--color-fg-subtle) !important; }
 
-/* ══════════════════════════════════════════════════════════════════════════
-   GITHUB LIGHT THEME — same classes remapped to GitHub light palette.
-   html.light prefix gives higher specificity → always wins over dark remaps.
-   ══════════════════════════════════════════════════════════════════════════ */
+/* Scrollbar */
+::-webkit-scrollbar       { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--color-canvas-subtle); }
+::-webkit-scrollbar-thumb { background: var(--color-border-default); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-border-strong, #484f58); }
 
-html.light .bg-\[\#09090b\]            { background-color: #ffffff !important; }
-html.light .bg-\[\#18181b\]            { background-color: #f6f8fa !important; }
-html.light .bg-\[\#27272a\]            { background-color: #eaeef2 !important; }
-html.light .bg-\[\#1c1c1f\]            { background-color: #f6f8fa !important; }
-html.light .bg-\[\#3f3f46\]            { background-color: #d0d7de !important; }
-html.light .bg-\[\#1f0e0e\]            { background-color: #ffebe9 !important; }
-html.light .bg-\[\#0e1f0e\]            { background-color: #dafbe1 !important; }
-html.light .bg-\[\#0e131f\]            { background-color: #ddf4ff !important; }
+/* ==========================================================================
+   BASE STYLES
+   ========================================================================== */
 
-html.light .hover\:bg-\[\#09090b\]:hover { background-color: #f6f8fa !important; }
-html.light .hover\:bg-\[\#18181b\]:hover { background-color: #f6f8fa !important; }
-html.light .hover\:bg-\[\#27272a\]:hover { background-color: #eaeef2 !important; }
-html.light .hover\:bg-\[\#3f3f46\]:hover { background-color: #d0d7de !important; }
-html.light .hover\:bg-\[\#2a1010\]:hover { background-color: #ffebe9 !important; }
-
-html.light .border-\[\#27272a\]        { border-color: #d0d7de !important; }
-html.light .border-\[\#3f3f46\]        { border-color: #afb8c1 !important; }
-html.light .border-\[\#52525b\]        { border-color: #8c959f !important; }
-
-html.light .text-\[\#fafafa\]          { color: #1f2328 !important; }
-html.light .text-\[\#e4e4e7\]          { color: #1f2328 !important; }
-html.light .text-\[\#a1a1aa\]          { color: #57606a !important; }
-html.light .text-\[\#71717a\]          { color: #656d76 !important; }
-html.light .text-\[\#52525b\]          { color: #9198a1 !important; }
-html.light .hover\:text-\[\#fafafa\]:hover { color: #1f2328 !important; }
-
-html.light .text-\[\#3b82f6\]          { color: #0969da !important; }
-html.light .text-\[\#22c55e\]          { color: #1a7f37 !important; }
-html.light .text-\[\#f59e0b\]          { color: #9a6700 !important; }
-html.light .text-\[\#ef4444\]          { color: #cf222e !important; }
-html.light .text-\[\#06b6d4\]          { color: #0969da !important; }
-html.light .text-\[\#6366f1\]          { color: #8250df !important; }
-html.light .text-\[\#8b5cf6\]          { color: #8250df !important; }
-html.light .text-\[\#a855f7\]          { color: #8250df !important; }
-html.light .text-\[\#f97316\]          { color: #bc4c00 !important; }
-html.light .text-\[\#ec4899\]          { color: #bf3989 !important; }
-
-html.light .bg-\[\#3b82f6\]            { background-color: #0969da !important; }
-html.light .bg-\[\#2563eb\]            { background-color: #0860ca !important; }
-html.light .bg-\[\#22c55e\]            { background-color: #1a7f37 !important; }
-html.light .bg-\[\#ef4444\]            { background-color: #cf222e !important; }
-html.light .hover\:bg-\[\#2563eb\]:hover { background-color: #0860ca !important; }
-html.light .hover\:bg-\[\#dc2626\]:hover { background-color: #a40e26 !important; }
-
-html.light .from-\[\#3b82f6\]  { --tw-gradient-from: #0969da var(--tw-gradient-from-position) !important; }
-html.light .from-\[\#6366f1\]  { --tw-gradient-from: #8250df var(--tw-gradient-from-position) !important; }
-html.light .from-\[\#8b5cf6\]  { --tw-gradient-from: #8250df var(--tw-gradient-from-position) !important; }
-html.light .from-\[\#a855f7\]  { --tw-gradient-from: #8250df var(--tw-gradient-from-position) !important; }
-html.light .to-\[\#6366f1\]    { --tw-gradient-to: #8250df var(--tw-gradient-to-position) !important; }
-html.light .to-\[\#2563eb\]    { --tw-gradient-to: #0860ca var(--tw-gradient-to-position) !important; }
-html.light .via-\[\#3b82f6\]   { --tw-gradient-via: #0969da var(--tw-gradient-via-position) !important; }
-html.light .via-\[\#6366f1\]   { --tw-gradient-via: #8250df var(--tw-gradient-via-position) !important; }
-
-html.light .placeholder-\[\#52525b\]::placeholder { color: #9198a1 !important; }
-
-/* Scrollbar - light mode */
-html.light ::-webkit-scrollbar-track  { background: #f6f8fa; }
-html.light ::-webkit-scrollbar-thumb  { background: #d0d7de; }
-html.light ::-webkit-scrollbar-thumb:hover { background: #afb8c1; }
-
-/* Base Styles */
 @layer base {
-  * {
-    box-sizing: border-box;
-  }
+  * { box-sizing: border-box; }
 
   body {
-    background-color: var(--bg);
-    color: var(--text-primary);
-    font-family: 'Inter', sans-serif;
+    background-color: var(--color-canvas-default);
+    color: var(--color-fg-default);
+    /* GitHub's exact system font stack */
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans",
+                 Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
     -webkit-font-smoothing: antialiased;
     font-size: 14px;
-    line-height: 1.6;
+    line-height: 1.5;
     min-height: 100vh;
   }
 
-  .display {
-    @apply font-bold text-[36px] leading-[1.15];
-    color: var(--text-primary);
-  }
-
-  h1 { @apply text-[24px] font-semibold leading-[1.3]; color: var(--text-primary); }
-  h2 { @apply text-[18px] font-semibold leading-[1.4]; color: var(--text-primary); }
-  h3 { @apply text-[15px] font-medium leading-[1.5];  color: var(--text-primary); }
+  h1 { font-size: 24px; font-weight: 600; line-height: 1.25; color: var(--color-fg-default); }
+  h2 { font-size: 20px; font-weight: 600; line-height: 1.25; color: var(--color-fg-default); }
+  h3 { font-size: 16px; font-weight: 600; line-height: 1.25; color: var(--color-fg-default); }
 
   * { scroll-margin-top: 64px; }
 }
 
-/* Utility Classes */
+/* ==========================================================================
+   UTILITY CLASSES — GitHub box / card system
+   ========================================================================== */
+
 @layer utilities {
+  /* GitHub Box component */
   .card {
-    background-color: var(--surface-1);
-    border: 1px solid var(--border);
-    @apply rounded-lg p-5;
+    background-color: var(--color-canvas-default);
+    border: 1px solid var(--color-border-default);
+    border-radius: 6px;
+    overflow: hidden;
+    padding: 16px;
   }
 
-  .card-hover { @apply transition-colors duration-150; }
-  .card-hover:hover {
-    border-color: var(--border-strong);
-    background-color: var(--surface-2);
-  }
+  .card-hover { transition: background-color 80ms ease; }
+  .card-hover:hover { background-color: var(--color-neutral-subtle); }
 
-  .label   { @apply font-medium text-[12px] uppercase tracking-wider; color: var(--text-muted); }
-  .body-sm { @apply text-[13px] leading-[1.5]; color: var(--text-secondary); }
-  .caption { @apply text-[11px]; color: var(--text-muted); }
-  .code    { @apply font-['JetBrains_Mono'] font-medium text-[12px]; color: var(--text-secondary); }
-
-  ::-webkit-scrollbar       { width: 8px; height: 8px; }
-  ::-webkit-scrollbar-track { background: var(--surface-1); }
-  ::-webkit-scrollbar-thumb { background: var(--surface-2); border-radius: 4px; }
-  ::-webkit-scrollbar-thumb:hover { background: var(--surface-3); }
+  .label    { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-fg-muted); }
+  .body-sm  { font-size: 13px; line-height: 1.5; color: var(--color-fg-muted); }
+  .caption  { font-size: 12px; color: var(--color-fg-subtle); }
+  .code     { font-family: ui-monospace, SFMono-Regular, SF\ Mono, Menlo, Consolas, "Liberation Mono", monospace; font-size: 12px; color: var(--color-fg-muted); }
 }
 
 /* ==========================================================================
-   ANIMATIONS
+   ANIMATIONS — keep functional ones, remove decorative ones per GitHub style
    ========================================================================== */
 
 @keyframes fadeIn       { from { opacity: 0; } to { opacity: 1; } }
@@ -256,10 +334,9 @@ html.light ::-webkit-scrollbar-thumb:hover { background: #afb8c1; }
 @keyframes slideInLeft  { from { transform: translateX(-100%); } to { transform: translateX(0); } }
 @keyframes shake        { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
 @keyframes blink        { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
-@keyframes pulse        { 0%,100% { opacity: 0.3; } 50% { opacity: 1; } }
+@keyframes pulse-dot    { 0%,100% { opacity: 0.3; } 50% { opacity: 1; } }
 @keyframes scaleIn      { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
-
-@keyframes slideInUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes slideInUp    { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 
 .animate-fade-in    { animation: fadeIn 0.18s ease-out; }
 .animate-slide-in   { animation: slideInUp 0.2s ease-out; }
@@ -267,5 +344,6 @@ html.light ::-webkit-scrollbar-thumb:hover { background: #afb8c1; }
 .animate-slide-left { animation: slideInLeft 0.22s ease-out; }
 .animate-shake      { animation: shake 0.3s ease-in-out; }
 .animate-blink      { animation: blink 2s infinite; }
-.animate-pulse      { animation: pulse 1.5s infinite; }
+.animate-pulse      { animation: pulse-dot 1.5s infinite; }
 .animate-scale-in   { animation: scaleIn 0.18s ease-out; }
+.animate-tab-underline { animation: fadeIn 0.12s ease-out; }
