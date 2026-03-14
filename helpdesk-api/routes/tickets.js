@@ -130,6 +130,42 @@ router.patch('/:id', async (req, res) => {
   }
 });
 
+// PATCH /api/tickets/bulk — batch status update (admin only)
+router.patch('/bulk', adminOnly, async (req, res) => {
+  try {
+    const { ids, status } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0 || !status)
+      return res.status(400).json({ error: 'ids[] and status are required' });
+    const validStatuses = ['Open', 'In Progress', 'Resolved', 'Closed'];
+    if (!validStatuses.includes(status))
+      return res.status(400).json({ error: 'Invalid status value' });
+
+    const result = await Ticket.updateMany(
+      { _id: { $in: ids } },
+      {
+        $set: { status },
+        $push: { history: { action: `Bulk status changed to "${status}"`, field: 'status', to: status, by: req.user._id, byName: req.user.name } },
+      }
+    );
+    res.json({ updated: result.modifiedCount });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/tickets/bulk — batch delete (admin only)
+router.delete('/bulk', adminOnly, async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0)
+      return res.status(400).json({ error: 'ids[] is required' });
+    const result = await Ticket.deleteMany({ _id: { $in: ids } });
+    res.json({ deleted: result.deletedCount });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // DELETE /api/tickets/:id (admin only)
 router.delete('/:id', adminOnly, async (req, res) => {
   try {

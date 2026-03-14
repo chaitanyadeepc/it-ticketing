@@ -2,6 +2,21 @@ import React from 'react';
 import Badge from './ui/Badge';
 import { getTimeAgo } from '../data/mockTickets';
 
+const SLA_HOURS = { Critical: 4, High: 8, Medium: 24, Low: 72 };
+
+const getSLA = (ticket) => {
+  if (ticket.status === 'Resolved' || ticket.status === 'Closed') return null;
+  const slaMs = (SLA_HOURS[ticket.priority] || 24) * 3600000;
+  const deadline = new Date(ticket.createdAt).getTime() + slaMs;
+  const remaining = deadline - Date.now();
+  if (isNaN(deadline)) return null;
+  if (remaining <= 0) return { breached: true, label: 'SLA Breached' };
+  const h = Math.floor(remaining / 3600000);
+  const m = Math.floor((remaining % 3600000) / 60000);
+  const pct = remaining / slaMs;
+  return { breached: false, urgent: pct < 0.25, label: h > 0 ? `${h}h ${m}m left` : `${m}m left` };
+};
+
 /**
  * TicketCard Component
  * Card displaying ticket summary
@@ -68,6 +83,21 @@ const TicketCard = ({ ticket, onClick }) => {
         <Badge variant={priorityVariant}>{ticket.priority}</Badge>
         <Badge variant={statusVariant}>{ticket.status}</Badge>
       </div>
+
+      {/* SLA indicator */}
+      {(() => {
+        const sla = getSLA(ticket);
+        if (!sla) return null;
+        const color = sla.breached ? '#ef4444' : sla.urgent ? '#f97316' : '#22c55e';
+        return (
+          <div className="flex items-center gap-1.5 mb-3 px-2.5 py-1.5 rounded-lg" style={{ backgroundColor: `${color}12`, border: `1px solid ${color}30` }}>
+            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+            <span className="text-[11px] font-medium font-['JetBrains_Mono'] tracking-wide" style={{ color }}>
+              {sla.label}
+            </span>
+          </div>
+        );
+      })()}
 
       {/* Footer */}
       <div className="flex justify-between items-center text-[12px] text-[#52525b] font-['JetBrains_Mono'] pt-4 border-t border-[#27272a]">

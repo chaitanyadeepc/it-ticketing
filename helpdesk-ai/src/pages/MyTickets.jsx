@@ -18,20 +18,23 @@ const MyTickets = () => {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [lastUpdated, setLastUpdated] = useState(null);
 
-  const fetchTickets = async () => {
+  const fetchTickets = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const { data } = await api.get('/tickets');
       setTickets(data.tickets);
+      setLastUpdated(new Date());
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to load tickets');
+      if (!silent) setError(err.response?.data?.error || 'Failed to load tickets');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => { fetchTickets(); }, []);
+  useEffect(() => { const timer = setInterval(() => fetchTickets(true), 30000); return () => clearInterval(timer); }, []);
   useEffect(() => { setPage(1); }, [activeTab, priority, category, search]);
 
   const counts = {
@@ -69,7 +72,6 @@ const MyTickets = () => {
     ...t,
     id: t.ticketId || t._id,
     assignedTo: t.assignedTo || 'Unassigned',
-    createdAt: t.createdAt ? new Date(t.createdAt).toLocaleDateString() : '',
   });
 
   return (
@@ -80,6 +82,12 @@ const MyTickets = () => {
           <div>
             <h1 className="text-[24px] font-bold text-[#fafafa] mb-0.5">My Tickets</h1>
             <p className="text-[13px] text-[#a1a1aa]">Track and manage your support requests</p>
+          {lastUpdated && (
+            <span className="flex items-center gap-1.5 text-[11px] text-[#52525b] mt-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-blink" />
+              Updated {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
           </div>
           <div className="flex gap-3">
             {[

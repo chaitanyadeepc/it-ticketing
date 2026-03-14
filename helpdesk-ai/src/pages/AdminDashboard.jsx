@@ -50,24 +50,29 @@ const AdminDashboard = () => {
   const [filterPriority, setFilterPriority] = useState('All');
   const [filterCategory, setFilterCategory] = useState('All');
   const [tablePage, setTablePage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
-  const fetchData = async () => {
+  const fetchData = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const [ticketsRes, statsRes] = await Promise.all([
         api.get('/tickets'),
         api.get('/tickets/stats'),
       ]);
       setTickets(ticketsRes.data.tickets);
       setStats(statsRes.data);
+      setLastUpdated(new Date());
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to load dashboard data');
+      if (!silent) setError(err.response?.data?.error || 'Failed to load dashboard data');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => { fetchData(); }, []);
+  useEffect(() => { const timer = setInterval(() => fetchData(true), 30000); return () => clearInterval(timer); }, []);
   useEffect(() => { setTablePage(1); }, [search, filterStatus, filterPriority, filterCategory]);
 
   const filteredTableTickets = tickets
@@ -108,6 +113,44 @@ const AdminDashboard = () => {
   const priorityData = ['Low', 'Medium', 'High', 'Critical'].map((p) => ({
     name: p, count: priorityCount[p] || 0,
   }));
+
+  const toggleSelect = (id) => setSelectedIds(prev => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
+  const allPageSelected = recentTickets.length > 0 && recentTickets.every(t => selectedIds.has(t._id));
+  const toggleSelectAll = () => allPageSelected
+    ? setSelectedIds(prev => { const s = new Set(prev); recentTickets.forEach(t => s.delete(t._id)); return s; })
+    : setSelectedIds(prev => { const s = new Set(prev); recentTickets.forEach(t => s.add(t._id)); return s; });
+
+  const handleBulkStatus = async (status) => {
+    setBulkLoading(true);
+    try {
+      await api.patch('/tickets/bulk', { ids: [...selectedIds], status });
+      setSelectedIds(new Set());
+      await fetchData(true);
+    } catch { /* ignore */ } finally { setBulkLoading(false); }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!window.confirm(`Permanently delete ${selectedIds.size} ticket(s)? This cannot be undone.`)) return;
+    setBulkLoading(true);
+    try {
+      await api.delete('/tickets/bulk', { data: { ids: [...selectedIds] } });
+      setSelectedIds(new Set());
+      await fetchData(true);
+    } catch { /* ignore */ } finally { setBulkLoading(false); }
+  };
+
+  const resolvedWithTime = tickets.filter(t => t.resolvedAt);
+  const avgResMs = resolvedWithTime.length
+    ? resolvedWithTime.reduce((s, t) => s + (new Date(t.resolvedAt) - new Date(t.createdAt)), 0) / resolvedWithTime.length
+    : null;
+  const fmtAvgRes = avgResMs == null ? '—' : (() => {
+    const h = Math.floor(avgResMs / 3600000);
+    return h < 48 ? `${h}h` : `${Math.floor(h / 24)}d`;
+  })();
 
   const getStatusDotColor = (status) => ({
     'Open': 'bg-[#22c55e]',
@@ -155,10 +198,16 @@ const AdminDashboard = () => {
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
               Export CSV
             </button>
-            <button onClick={fetchData} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#18181b] border border-[#27272a] text-[13px] text-[#a1a1aa] hover:text-[#fafafa] hover:border-[#3f3f46] transition-colors">
+            <button onClick={() => fetchData(true)} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#18181b] border border-[#27272a] text-[13px] text-[#a1a1aa] hover:text-[#fafafa] hover:border-[#3f3f46] transition-colors">
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
               Refresh
             </button>
+            {lastUpdated && (
+              <span className="flex items-center gap-1.5 text-[12px] text-[#52525b]">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-blink" />
+                {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            )}
           </div>
         </div>
 
@@ -170,12 +219,13 @@ const AdminDashboard = () => {
         )}
 
         {/* Stat cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-5">
           {[
             { label: 'Total Tickets', value: stats.total,      color: '#3b82f6', sub: 'All time',        icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
             { label: 'Open',         value: stats.open,       color: '#22c55e', sub: 'Needs attention', icon: 'M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
             { label: 'In Progress',  value: stats.inProgress, color: '#f59e0b', sub: 'Being handled',   icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
             { label: 'Resolved',     value: stats.resolved,   color: '#06b6d4', sub: 'Completed',       icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
+            { label: 'Avg Resolution', value: fmtAvgRes,      color: '#8b5cf6', sub: `${resolvedWithTime.length} resolved`, icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
           ].map(({ label, value, color, sub, icon }) => (
             <div key={label} className="rounded-xl border p-5 relative overflow-hidden" style={{ borderColor: `${color}30`, background: `linear-gradient(135deg, ${color}0d 0%, transparent 65%)` }}>
               <div className="flex items-start justify-between mb-3">
@@ -299,6 +349,14 @@ const AdminDashboard = () => {
               <table className="w-full">
                 <thead>
                   <tr className="text-left text-[12px] text-[#52525b] border-b border-[#27272a]">
+                    <th className="pb-3 w-8">
+                      <input
+                        type="checkbox"
+                        checked={allPageSelected}
+                        onChange={toggleSelectAll}
+                        className="rounded border-[#3f3f46] bg-[#18181b] accent-[#FF634A] cursor-pointer"
+                      />
+                    </th>
                     <th className="pb-3 font-medium">Ticket ID</th>
                     <th className="pb-3 font-medium">Title</th>
                     <th className="pb-3 font-medium">Priority</th>
@@ -313,6 +371,14 @@ const AdminDashboard = () => {
                       onClick={() => navigate(`/tickets/${ticket._id}`)}
                       className="border-b border-[#27272a] hover:bg-[#27272a] transition-colors cursor-pointer"
                     >
+                      <td className="py-4 w-8" onClick={e => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(ticket._id)}
+                          onChange={() => toggleSelect(ticket._id)}
+                          className="rounded border-[#3f3f46] bg-[#18181b] accent-[#FF634A] cursor-pointer"
+                        />
+                      </td>
                       <td className="py-4 font-['JetBrains_Mono'] text-[12px] text-[#3b82f6]">
                         {ticket.ticketId || ticket._id.slice(-6).toUpperCase()}
                       </td>
@@ -373,6 +439,44 @@ const AdminDashboard = () => {
           )}
         </Card>
       </div>
+
+      {/* Floating bulk action bar */}
+      {selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl bg-[#18181b] border border-[#3f3f46] shadow-2xl">
+          <span className="text-[13px] font-semibold text-[#fafafa]">{selectedIds.size} selected</span>
+          <div className="w-px h-4 bg-[#3f3f46]" />
+          <button
+            onClick={() => handleBulkStatus('Resolved')}
+            disabled={bulkLoading}
+            className="px-3 py-1.5 rounded-lg bg-[#06b6d4]/15 border border-[#06b6d4]/30 text-[#06b6d4] text-[12px] font-medium hover:bg-[#06b6d4]/25 disabled:opacity-50 transition-colors"
+          >
+            Mark Resolved
+          </button>
+          <button
+            onClick={() => handleBulkStatus('Closed')}
+            disabled={bulkLoading}
+            className="px-3 py-1.5 rounded-lg bg-[#71717a]/15 border border-[#71717a]/30 text-[#a1a1aa] text-[12px] font-medium hover:bg-[#71717a]/25 disabled:opacity-50 transition-colors"
+          >
+            Close
+          </button>
+          <button
+            onClick={handleBulkDelete}
+            disabled={bulkLoading}
+            className="px-3 py-1.5 rounded-lg bg-[#ef4444]/15 border border-[#ef4444]/30 text-[#ef4444] text-[12px] font-medium hover:bg-[#ef4444]/25 disabled:opacity-50 transition-colors"
+          >
+            Delete
+          </button>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="text-[#52525b] hover:text-[#a1a1aa] transition-colors ml-1"
+            title="Deselect all"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
     </PageWrapper>
   );
 };
