@@ -12,7 +12,7 @@ const UserAvatar = () => {
   const email = localStorage.getItem('userEmail') || '';
   const initials = email ? email.slice(0, 2).toUpperCase() : 'U';
   return (
-    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[#3f3f46] border border-[#52525b] flex items-center justify-center text-[11px] font-semibold text-[#fafafa]">
+    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[#21262d] border border-[#30363d] flex items-center justify-center text-[11px] font-semibold text-[#e6edf3]">
       {initials}
     </div>
   );

@@ -10,21 +10,21 @@ const Badge = ({ children, variant = 'default', className = '' }) => {
   const baseClasses = 'inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium uppercase tracking-wide font-[\'Inter\']';
   
   const variants = {
-    // Status variants
-    'open': 'bg-[rgba(34,197,94,0.1)] text-[#22c55e] border border-[rgba(34,197,94,0.2)]',
-    'in-progress': 'bg-[rgba(245,158,11,0.1)] text-[#f59e0b] border border-[rgba(245,158,11,0.2)]',
-    'resolved': 'bg-[rgba(6,182,212,0.1)] text-[#06b6d4] border border-[rgba(6,182,212,0.2)]',
-    'closed': 'bg-[rgba(82,82,91,0.2)] text-[#71717a] border border-[rgba(82,82,91,0.3)]',
-    
-    // Priority variants
-    'critical': 'bg-[rgba(239,68,68,0.1)] text-[#ef4444] border border-[rgba(239,68,68,0.2)]',
-    'high': 'bg-[rgba(245,158,11,0.1)] text-[#f59e0b] border border-[rgba(245,158,11,0.2)]',
-    'medium': 'bg-[rgba(59,130,246,0.1)] text-[#3b82f6] border border-[rgba(59,130,246,0.2)]',
-    'low': 'bg-[rgba(34,197,94,0.1)] text-[#22c55e] border border-[rgba(34,197,94,0.2)]',
-    
+    // Status variants — GitHub palette
+    'open':        'bg-[rgba(63,185,80,0.12)] text-[#22c55e] border border-[rgba(63,185,80,0.3)]',
+    'in-progress': 'bg-[rgba(210,153,34,0.12)] text-[#f59e0b] border border-[rgba(210,153,34,0.3)]',
+    'resolved':    'bg-[rgba(88,166,255,0.12)] text-[#3b82f6] border border-[rgba(88,166,255,0.3)]',
+    'closed':      'bg-[rgba(110,118,129,0.15)] text-[#71717a] border border-[rgba(110,118,129,0.25)]',
+
+    // Priority variants — GitHub palette
+    'critical': 'bg-[rgba(248,81,73,0.12)] text-[#ef4444] border border-[rgba(248,81,73,0.3)]',
+    'high':     'bg-[rgba(210,153,34,0.12)] text-[#f59e0b] border border-[rgba(210,153,34,0.3)]',
+    'medium':   'bg-[rgba(88,166,255,0.12)] text-[#3b82f6] border border-[rgba(88,166,255,0.3)]',
+    'low':      'bg-[rgba(63,185,80,0.12)] text-[#22c55e] border border-[rgba(63,185,80,0.3)]',
+
     // Info variant
-    'info': 'bg-[rgba(6,182,212,0.1)] text-[#06b6d4] border border-[rgba(6,182,212,0.2)]',
-    
+    'info': 'bg-[rgba(57,197,207,0.12)] text-[#06b6d4] border border-[rgba(57,197,207,0.3)]',
+
     // Default
     'default': 'bg-[#27272a] text-[#a1a1aa] border border-[#3f3f46]'
   };

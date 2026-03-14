@@ -24,7 +24,7 @@ const Button = ({
     secondary: 'bg-[#27272a] text-[#fafafa] border border-[#3f3f46] hover:bg-[#3f3f46] rounded-md',
     ghost: 'bg-transparent text-[#a1a1aa] hover:bg-[#18181b] hover:text-[#fafafa] rounded-md',
     danger: 'bg-[#ef4444] text-white hover:bg-[#dc2626] rounded-md',
-    outline: 'bg-transparent border border-[#3b82f6] text-[#3b82f6] hover:bg-[rgba(59,130,246,0.08)] rounded-md'
+    outline: 'bg-transparent border border-[#3b82f6] text-[#3b82f6] hover:bg-[rgba(31,111,235,0.1)] rounded-md'
   };
   
   const sizes = {

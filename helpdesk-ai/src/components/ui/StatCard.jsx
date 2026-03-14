@@ -14,7 +14,7 @@ const StatCard = ({ value, label, subtitle, trend }) => {
         <div className="text-[11px] font-medium font-['JetBrains_Mono'] text-[#52525b] uppercase tracking-wider">{label}</div>
       </div>
       <div className="flex items-baseline gap-2 mb-2">
-        <span className="text-[32px] font-semibold text-[#fafafa]">{value}</span>
+        <span className="text-[32px] font-semibold text-[#e6edf3]">{value}</span>
         {trend && (
           <span className={`text-xl font-medium ${trendColor}`}>{trendIcon}</span>
         )}

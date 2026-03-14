@@ -61,7 +61,7 @@ const Navbar = () => {
   return (
     <nav
       className={`fixed top-0 left-0 right-0 z-50 backdrop-blur-sm border-b border-[#27272a] transition-transform duration-300 ${isVisible ? 'translate-y-0' : '-translate-y-full'}`}
-      style={{ backgroundColor: isDark ? 'rgba(9,9,11,0.97)' : 'rgba(244,244,245,0.97)' }}
+      style={{ backgroundColor: isDark ? 'rgba(13,17,23,0.97)' : 'rgba(255,255,255,0.97)' }}
     >
       <div className="w-full px-6 xl:px-10">
         <div className="flex justify-between items-center h-16">

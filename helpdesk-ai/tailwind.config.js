@@ -7,12 +7,12 @@ export default {
   theme: {
     extend: {
       colors: {
-        pageBg: "#0d0117",
-        purpleAccent: "#a855f7",
-        deepPurple: "#4e0388",
-        success: "#10b981",
-        error: "#ef4444",
-        risk: "#fbbf24",
+        pageBg: "#0d1117",
+        purpleAccent: "#a371f7",
+        deepPurple: "#6639ba",
+        success: "#3fb950",
+        error: "#f85149",
+        risk: "#d29922",
       },
       fontFamily: {
         inter: ["Inter", "sans-serif"],

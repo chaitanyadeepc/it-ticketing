@@ -6,38 +6,44 @@
 @tailwind utilities;
 
 /* ==========================================================================
-   DESIGN SYSTEM — Dark (default) + Light mode via html.light class
+   GITHUB DESIGN SYSTEM — Dark (default) + Light mode via html.light class
    ========================================================================== */
 
 :root {
-  --bg: #09090b;
-  --surface-1: #18181b;
-  --surface-2: #27272a;
-  --surface-3: #3f3f46;
-  --border: #27272a;
-  --border-strong: #52525b;
-  --text-primary: #fafafa;
-  --text-secondary: #a1a1aa;
-  --text-muted: #52525b;
-  --accent-blue: #3b82f6;
-  --accent-hover: #2563eb;
-  --success: #22c55e;
-  --warning: #f59e0b;
-  --error: #ef4444;
-  --info: #06b6d4;
+  --bg: #0d1117;
+  --surface-1: #161b22;
+  --surface-2: #21262d;
+  --surface-3: #30363d;
+  --border: #30363d;
+  --border-strong: #484f58;
+  --text-primary: #e6edf3;
+  --text-secondary: #8b949e;
+  --text-muted: #6e7681;
+  --accent-blue: #58a6ff;
+  --accent-hover: #388bfd;
+  --success: #3fb950;
+  --warning: #d29922;
+  --error: #f85149;
+  --info: #39c5cf;
 }
 
-/* ── Light-mode variable overrides ── */
+/* ── GitHub Light-mode variable overrides ── */
 html.light {
-  --bg: #f4f4f5;
-  --surface-1: #ffffff;
-  --surface-2: #f1f5f9;
-  --surface-3: #e2e8f0;
-  --border: #d4d4d8;
-  --border-strong: #a1a1aa;
-  --text-primary: #09090b;
-  --text-secondary: #52525b;
-  --text-muted: #a1a1aa;
+  --bg: #ffffff;
+  --surface-1: #f6f8fa;
+  --surface-2: #eaeef2;
+  --surface-3: #d0d7de;
+  --border: #d0d7de;
+  --border-strong: #afb8c1;
+  --text-primary: #1f2328;
+  --text-secondary: #656d76;
+  --text-muted: #9198a1;
+  --accent-blue: #0969da;
+  --accent-hover: #0860ca;
+  --success: #1a7f37;
+  --warning: #9a6700;
+  --error: #cf222e;
+  --info: #0969da;
 }
 
 /* ── Smooth theme transitions ── */
@@ -47,25 +53,146 @@ html.light {
   transition-timing-function: ease;
 }
 
-/* ── Light-mode CSS class remappings (covers all hard-coded Tailwind values) ── */
-html.light .bg-\[\#09090b\]          { background-color: #f4f4f5 !important; }
-html.light .bg-\[\#18181b\]          { background-color: #ffffff !important; }
-html.light .bg-\[\#27272a\]          { background-color: #f1f5f9 !important; }
-html.light .bg-\[\#1c1c1f\]          { background-color: #f8fafc !important; }
-html.light .bg-\[\#3f3f46\]          { background-color: #e2e8f0 !important; }
-html.light .border-\[\#27272a\]      { border-color: #d4d4d8 !important; }
-html.light .border-\[\#3f3f46\]      { border-color: #cbd5e1 !important; }
-html.light .text-\[\#fafafa\]        { color: #09090b !important; }
-html.light .text-\[\#e4e4e7\]        { color: #1e293b !important; }
-html.light .text-\[\#a1a1aa\]        { color: #52525b !important; }
-html.light .text-\[\#52525b\]        { color: #94a3b8 !important; }
-html.light .text-\[\#71717a\]        { color: #6b7280 !important; }
-html.light .placeholder-\[\#52525b\]::placeholder { color: #94a3b8 !important; }
+/* ══════════════════════════════════════════════════════════════════════════
+   GITHUB DARK THEME — remap old zinc/blue values → GitHub dark palette.
+   Every hardcoded Tailwind arbitrary-value class is covered here so the
+   JSX files do not need to be individually edited.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Backgrounds */
+.bg-\[\#09090b\]             { background-color: #0d1117 !important; }
+.bg-\[\#18181b\]             { background-color: #161b22 !important; }
+.bg-\[\#27272a\]             { background-color: #21262d !important; }
+.bg-\[\#1c1c1f\]             { background-color: #161b22 !important; }
+.bg-\[\#3f3f46\]             { background-color: #30363d !important; }
+.bg-\[\#1f0e0e\]             { background-color: #2d1315 !important; }
+.bg-\[\#0e1f0e\]             { background-color: #0d2119 !important; }
+.bg-\[\#0e131f\]             { background-color: #0d1b2e !important; }
+
+/* Hover backgrounds */
+.hover\:bg-\[\#09090b\]:hover  { background-color: #0d1117 !important; }
+.hover\:bg-\[\#18181b\]:hover  { background-color: #161b22 !important; }
+.hover\:bg-\[\#27272a\]:hover  { background-color: #21262d !important; }
+.hover\:bg-\[\#3f3f46\]:hover  { background-color: #30363d !important; }
+.hover\:bg-\[\#2a1010\]:hover  { background-color: #391717 !important; }
+
+/* Borders */
+.border-\[\#27272a\]         { border-color: #30363d !important; }
+.border-\[\#3f3f46\]         { border-color: #484f58 !important; }
+.border-\[\#52525b\]         { border-color: #484f58 !important; }
+
+/* Text */
+.text-\[\#fafafa\]           { color: #e6edf3 !important; }
+.text-\[\#e4e4e7\]           { color: #c9d1d9 !important; }
+.text-\[\#a1a1aa\]           { color: #8b949e !important; }
+.text-\[\#71717a\]           { color: #8b949e !important; }
+.text-\[\#52525b\]           { color: #6e7681 !important; }
+.hover\:text-\[\#fafafa\]:hover { color: #e6edf3 !important; }
+
+/* Accent text */
+.text-\[\#3b82f6\]           { color: #58a6ff !important; }
+.text-\[\#2563eb\]           { color: #388bfd !important; }
+.text-\[\#22c55e\]           { color: #3fb950 !important; }
+.text-\[\#f59e0b\]           { color: #d29922 !important; }
+.text-\[\#ef4444\]           { color: #f85149 !important; }
+.text-\[\#06b6d4\]           { color: #39c5cf !important; }
+.text-\[\#6366f1\]           { color: #a371f7 !important; }
+.text-\[\#8b5cf6\]           { color: #a371f7 !important; }
+.text-\[\#a855f7\]           { color: #d2a8ff !important; }
+.text-\[\#f97316\]           { color: #f0883e !important; }
+.text-\[\#ec4899\]           { color: #db61a2 !important; }
+
+/* Solid accent backgrounds */
+.bg-\[\#3b82f6\]             { background-color: #1f6feb !important; }
+.bg-\[\#2563eb\]             { background-color: #388bfd !important; }
+.bg-\[\#22c55e\]             { background-color: #238636 !important; }
+.bg-\[\#ef4444\]             { background-color: #da3633 !important; }
+.hover\:bg-\[\#2563eb\]:hover  { background-color: #388bfd !important; }
+.hover\:bg-\[\#dc2626\]:hover  { background-color: #b91c1c !important; }
+.hover\:bg-\[\#3f3f46\]:hover  { background-color: #30363d !important; }
+
+/* Gradient stops */
+.from-\[\#3b82f6\]  { --tw-gradient-from: #1f6feb var(--tw-gradient-from-position) !important; }
+.from-\[\#6366f1\]  { --tw-gradient-from: #a371f7 var(--tw-gradient-from-position) !important; }
+.from-\[\#8b5cf6\]  { --tw-gradient-from: #a371f7 var(--tw-gradient-from-position) !important; }
+.from-\[\#a855f7\]  { --tw-gradient-from: #d2a8ff var(--tw-gradient-from-position) !important; }
+.to-\[\#6366f1\]    { --tw-gradient-to: #a371f7 var(--tw-gradient-to-position) !important; }
+.to-\[\#2563eb\]    { --tw-gradient-to: #388bfd var(--tw-gradient-to-position) !important; }
+.via-\[\#3b82f6\]   { --tw-gradient-via: #1f6feb var(--tw-gradient-via-position) !important; }
+.via-\[\#6366f1\]   { --tw-gradient-via: #a371f7 var(--tw-gradient-via-position) !important; }
+
+/* Ring / shadow accent */
+.ring-\[\#3b82f6\]\/20  { --tw-ring-color: rgba(31,111,235,0.2) !important; }
+.shadow-\[\#3b82f6\]\/20 { --tw-shadow-color: rgba(31,111,235,0.2) !important; }
+.shadow-\[\#3b82f6\]\/25 { --tw-shadow-color: rgba(31,111,235,0.25) !important; }
+
+/* Placeholder */
+.placeholder-\[\#52525b\]::placeholder { color: #6e7681 !important; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   GITHUB LIGHT THEME — same classes remapped to GitHub light palette.
+   html.light prefix gives higher specificity → always wins over dark remaps.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+html.light .bg-\[\#09090b\]            { background-color: #ffffff !important; }
+html.light .bg-\[\#18181b\]            { background-color: #f6f8fa !important; }
+html.light .bg-\[\#27272a\]            { background-color: #eaeef2 !important; }
+html.light .bg-\[\#1c1c1f\]            { background-color: #f6f8fa !important; }
+html.light .bg-\[\#3f3f46\]            { background-color: #d0d7de !important; }
+html.light .bg-\[\#1f0e0e\]            { background-color: #ffebe9 !important; }
+html.light .bg-\[\#0e1f0e\]            { background-color: #dafbe1 !important; }
+html.light .bg-\[\#0e131f\]            { background-color: #ddf4ff !important; }
+
+html.light .hover\:bg-\[\#09090b\]:hover { background-color: #f6f8fa !important; }
+html.light .hover\:bg-\[\#18181b\]:hover { background-color: #f6f8fa !important; }
+html.light .hover\:bg-\[\#27272a\]:hover { background-color: #eaeef2 !important; }
+html.light .hover\:bg-\[\#3f3f46\]:hover { background-color: #d0d7de !important; }
+html.light .hover\:bg-\[\#2a1010\]:hover { background-color: #ffebe9 !important; }
+
+html.light .border-\[\#27272a\]        { border-color: #d0d7de !important; }
+html.light .border-\[\#3f3f46\]        { border-color: #afb8c1 !important; }
+html.light .border-\[\#52525b\]        { border-color: #8c959f !important; }
+
+html.light .text-\[\#fafafa\]          { color: #1f2328 !important; }
+html.light .text-\[\#e4e4e7\]          { color: #1f2328 !important; }
+html.light .text-\[\#a1a1aa\]          { color: #57606a !important; }
+html.light .text-\[\#71717a\]          { color: #656d76 !important; }
+html.light .text-\[\#52525b\]          { color: #9198a1 !important; }
+html.light .hover\:text-\[\#fafafa\]:hover { color: #1f2328 !important; }
+
+html.light .text-\[\#3b82f6\]          { color: #0969da !important; }
+html.light .text-\[\#22c55e\]          { color: #1a7f37 !important; }
+html.light .text-\[\#f59e0b\]          { color: #9a6700 !important; }
+html.light .text-\[\#ef4444\]          { color: #cf222e !important; }
+html.light .text-\[\#06b6d4\]          { color: #0969da !important; }
+html.light .text-\[\#6366f1\]          { color: #8250df !important; }
+html.light .text-\[\#8b5cf6\]          { color: #8250df !important; }
+html.light .text-\[\#a855f7\]          { color: #8250df !important; }
+html.light .text-\[\#f97316\]          { color: #bc4c00 !important; }
+html.light .text-\[\#ec4899\]          { color: #bf3989 !important; }
+
+html.light .bg-\[\#3b82f6\]            { background-color: #0969da !important; }
+html.light .bg-\[\#2563eb\]            { background-color: #0860ca !important; }
+html.light .bg-\[\#22c55e\]            { background-color: #1a7f37 !important; }
+html.light .bg-\[\#ef4444\]            { background-color: #cf222e !important; }
+html.light .hover\:bg-\[\#2563eb\]:hover { background-color: #0860ca !important; }
+html.light .hover\:bg-\[\#dc2626\]:hover { background-color: #a40e26 !important; }
+
+html.light .from-\[\#3b82f6\]  { --tw-gradient-from: #0969da var(--tw-gradient-from-position) !important; }
+html.light .from-\[\#6366f1\]  { --tw-gradient-from: #8250df var(--tw-gradient-from-position) !important; }
+html.light .from-\[\#8b5cf6\]  { --tw-gradient-from: #8250df var(--tw-gradient-from-position) !important; }
+html.light .from-\[\#a855f7\]  { --tw-gradient-from: #8250df var(--tw-gradient-from-position) !important; }
+html.light .to-\[\#6366f1\]    { --tw-gradient-to: #8250df var(--tw-gradient-to-position) !important; }
+html.light .to-\[\#2563eb\]    { --tw-gradient-to: #0860ca var(--tw-gradient-to-position) !important; }
+html.light .via-\[\#3b82f6\]   { --tw-gradient-via: #0969da var(--tw-gradient-via-position) !important; }
+html.light .via-\[\#6366f1\]   { --tw-gradient-via: #8250df var(--tw-gradient-via-position) !important; }
+
+html.light .placeholder-\[\#52525b\]::placeholder { color: #9198a1 !important; }
 
 /* Scrollbar - light mode */
-html.light ::-webkit-scrollbar-track  { background: #f1f5f9; }
-html.light ::-webkit-scrollbar-thumb  { background: #d4d4d8; }
-html.light ::-webkit-scrollbar-thumb:hover { background: #a1a1aa; }
+html.light ::-webkit-scrollbar-track  { background: #f6f8fa; }
+html.light ::-webkit-scrollbar-thumb  { background: #d0d7de; }
+html.light ::-webkit-scrollbar-thumb:hover { background: #afb8c1; }
 
 /* Base Styles */
 @layer base {
