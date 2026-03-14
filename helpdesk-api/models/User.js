@@ -13,6 +13,12 @@ const userSchema = new mongoose.Schema(
     location:   { type: String, default: '' },
     isActive:      { type: Boolean, default: true },
     tokenVersion:  { type: Number, default: 0 },
+    notificationPrefs: {
+      emailEnabled:  { type: Boolean, default: true },
+      ticketUpdates: { type: Boolean, default: true },
+      newComments:   { type: Boolean, default: true },
+      weeklyDigest:  { type: Boolean, default: false },
+    },
   },
   { timestamps: true }
 );

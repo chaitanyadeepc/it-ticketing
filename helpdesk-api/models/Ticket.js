@@ -11,8 +11,8 @@ const commentSchema = new mongoose.Schema(
 
 const historySchema = new mongoose.Schema(
   {
-    action:     { type: String, required: true }, // e.g. "status:Open→In Progress"
-    field:      { type: String },                 // "status" | "assignedTo" | "comment" | "created"
+    action:     { type: String, required: true },
+    field:      { type: String },
     from:       { type: String },
     to:         { type: String },
     by:         { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
@@ -21,9 +21,22 @@ const historySchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+const attachmentSchema = new mongoose.Schema(
+  {
+    url:        { type: String, required: true },
+    publicId:   { type: String },           // cloudinary public_id for deletion
+    filename:   { type: String },
+    mimetype:   { type: String },
+    size:       { type: Number },
+    uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    uploaderName: { type: String },
+  },
+  { timestamps: true }
+);
+
 const ticketSchema = new mongoose.Schema(
   {
-    ticketId:    { type: String, unique: true },   // e.g. TKT-0001
+    ticketId:    { type: String, unique: true },
     title:       { type: String, required: true, trim: true },
     description: { type: String, required: true },
     category:    { type: String, required: true },
@@ -31,9 +44,15 @@ const ticketSchema = new mongoose.Schema(
     priority:    { type: String, enum: ['Low', 'Medium', 'High', 'Critical'], default: 'Medium' },
     status:      { type: String, enum: ['Open', 'In Progress', 'Resolved', 'Closed'], default: 'Open' },
     createdBy:   { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    assignedTo:  { type: String, default: '' },   // agent name string (simple)
+    assignedTo:  { type: String, default: '' },
     comments:    [commentSchema],
     history:     [historySchema],
+    attachments: [attachmentSchema],
+    satisfaction: {
+      rating:      { type: Number, min: 1, max: 5 },
+      feedback:    { type: String, default: '' },
+      submittedAt: { type: Date },
+    },
     resolvedAt:  { type: Date },
   },
   { timestamps: true }

@@ -26,6 +26,23 @@ router.put('/profile', async (req, res) => {
   }
 });
 
+// PUT /api/users/notifications — save notification preferences
+router.put('/notifications', async (req, res) => {
+  try {
+    const { emailEnabled, ticketUpdates, newComments, weeklyDigest } = req.body;
+    const prefs = {};
+    if (emailEnabled  !== undefined) prefs['notificationPrefs.emailEnabled']  = !!emailEnabled;
+    if (ticketUpdates !== undefined) prefs['notificationPrefs.ticketUpdates'] = !!ticketUpdates;
+    if (newComments   !== undefined) prefs['notificationPrefs.newComments']   = !!newComments;
+    if (weeklyDigest  !== undefined) prefs['notificationPrefs.weeklyDigest']  = !!weeklyDigest;
+
+    const user = await User.findByIdAndUpdate(req.user._id, { $set: prefs }, { new: true }).select('-password');
+    res.json({ user });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/users  (admin only — list all users)
 router.get('/', adminOnly, async (req, res) => {
   try {

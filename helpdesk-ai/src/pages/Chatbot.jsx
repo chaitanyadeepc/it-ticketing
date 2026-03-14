@@ -314,6 +314,41 @@ const CategoryGrid = ({ onSelect }) => (
   </div>
 );
 
+// ── Quick templates ────────────────────────────────────────────────────────────
+const TEMPLATES = [
+  { label: '🔑 Password Reset',         text: 'I need to reset my password for my Windows/Office 365 account. I am locked out and cannot log in.' },
+  { label: '🌐 VPN Not Connecting',     text: 'VPN is not connecting. I am getting an error when trying to connect to the office VPN remotely.' },
+  { label: '💻 Laptop Running Slow',    text: 'My laptop is running very slowly. It takes a long time to boot up and applications are freezing.' },
+  { label: '📧 Outlook Not Syncing',    text: 'Outlook is not syncing my emails. New messages are not appearing and I cannot send emails.' },
+  { label: '🖨️ Printer Offline',        text: 'The printer is showing as offline and I cannot print any documents.' },
+  { label: '🔒 Account Locked Out',     text: 'My account has been locked out. I cannot log into my computer or any work applications.' },
+  { label: '📱 MFA App Lost',           text: 'I lost access to my MFA authenticator app after changing my phone. I cannot complete two-factor login.' },
+  { label: '📁 Cannot Access Files',    text: 'I cannot access files on the shared network drive. I am getting an access denied error.' },
+  { label: '🎤 Microphone Not Working', text: 'My microphone is not working in Teams/Zoom calls. Others cannot hear me during meetings.' },
+  { label: '🔄 Software Installation',  text: 'I need help installing software on my computer. I do not have permission to install applications.' },
+];
+
+const TemplatesPanel = ({ onSelect }) => (
+  <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 shrink-0">
+    <p className="text-[11px] font-semibold text-[#a1a1aa] uppercase tracking-wider mb-3">Quick Templates</p>
+    <div className="space-y-0.5">
+      {TEMPLATES.map((t) => (
+        <button
+          key={t.label}
+          onClick={() => onSelect(t.text)}
+          className="w-full text-left px-3 py-2 rounded-lg hover:bg-[#27272a] transition-colors text-[12px] text-[#71717a] hover:text-[#fafafa] flex items-center gap-2 group"
+        >
+          <span className="text-[13px]">{t.label.split(' ')[0]}</span>
+          <span className="flex-1 truncate">{t.label.split(' ').slice(1).join(' ')}</span>
+          <svg className="w-3 h-3 text-[#3f3f46] group-hover:text-[#3b82f6] ml-auto transition-colors flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      ))}
+    </div>
+  </div>
+);
+
 // ── Main Chatbot component ────────────────────────────────────────────────────
 const Chatbot = () => {
   const navigate = useNavigate();
@@ -343,6 +378,9 @@ const Chatbot = () => {
   const [submitted, setSubmitted] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const [similarTickets, setSimilarTickets] = useState([]);
+  const [dupeChecking, setDupeChecking] = useState(false);
+  const dupeTimerRef = useRef(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -394,6 +432,23 @@ const Chatbot = () => {
       const priority = detectPriority(text, detected, null);
       setTicketData((prev) => ({ ...prev, category: detected, priority, description: text }));
       setFlowStep(2);
+
+      // Background duplicate check (only for free-text, not category picks)
+      if (!pickedCat && text.length > 15) {
+        setDupeChecking(true);
+        clearTimeout(dupeTimerRef.current);
+        dupeTimerRef.current = setTimeout(() => {
+          const words = text.split(/\s+/).filter(w => w.length > 4).slice(0, 6).join(' ');
+          api.get(`/tickets?q=${encodeURIComponent(words)}`)
+            .then(({ data }) => {
+              const similar = (data.tickets || []).filter(t => ['Open', 'In Progress'].includes(t.status));
+              setSimilarTickets(similar.slice(0, 3));
+            })
+            .catch(() => {})
+            .finally(() => setDupeChecking(false));
+        }, 600);
+      }
+
       const cfg = CATEGORIES[detected];
       botReply(
         `Got it — I've identified this as a **${detected}** issue.\n\n${cfg.subTypeQuestion}`,
@@ -657,6 +712,33 @@ const Chatbot = () => {
 
           {/* ── Sidebar ── */}
           <div className="hidden lg:flex flex-col gap-4" style={{ maxHeight: 'calc(100vh - 200px)', overflowY: 'auto' }}>
+            {/* Duplicate ticket warning */}
+            {similarTickets.length > 0 && flowStep >= 2 && !submitted && (
+              <div className="bg-[#18181b] border border-[#f59e0b]/40 rounded-xl p-4 shrink-0">
+                <div className="flex items-center gap-2 mb-3">
+                  <svg className="w-3.5 h-3.5 text-[#f59e0b] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                  <p className="text-[11px] font-semibold text-[#f59e0b] uppercase tracking-wider">Similar Open Tickets</p>
+                </div>
+                <p className="text-[11.5px] text-[#71717a] mb-2">You may already have an open ticket for this issue:</p>
+                <div className="space-y-1.5">
+                  {similarTickets.map((t) => (
+                    <a key={t._id} href={`/tickets/${t._id}`}
+                      className="flex items-start gap-2 px-2.5 py-2 rounded-lg bg-[#27272a] hover:bg-[#3f3f46] transition-colors block"
+                    >
+                      <span className="text-[10px] font-mono text-[#3b82f6] shrink-0 mt-0.5">{t.ticketId}</span>
+                      <span className="text-[11.5px] text-[#a1a1aa] leading-tight line-clamp-2">{t.title}</span>
+                    </a>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setSimilarTickets([])}
+                  className="mt-2 text-[11px] text-[#52525b] hover:text-[#a1a1aa] underline"
+                >
+                  Dismiss — raise a new ticket anyway
+                </button>
+              </div>
+            )}
+
             {/* Progress */}
             <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 shrink-0">
               <p className="text-[11px] font-semibold text-[#a1a1aa] uppercase tracking-wider mb-4">Ticket Progress</p>
@@ -710,6 +792,7 @@ const Chatbot = () => {
 
             {/* Browse all categories */}
             {flowStep === 1 && (
+              <>
               <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 shrink-0">
                 <p className="text-[11px] font-semibold text-[#a1a1aa] uppercase tracking-wider mb-3">Browse Categories</p>
                 <div className="space-y-0.5">
@@ -731,6 +814,8 @@ const Chatbot = () => {
                   })}
                 </div>
               </div>
+              <TemplatesPanel onSelect={userSend} />
+              </>
             )}
 
             {/* Tips */}
@@ -754,7 +839,7 @@ const Chatbot = () => {
               </div>
             )}
 
-            {/* Quick actions */}
+            {/* Quick Actions */}
             <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 shrink-0">
               <p className="text-[11px] font-semibold text-[#a1a1aa] uppercase tracking-wider mb-3">Quick Actions</p>
               <div className="space-y-1">

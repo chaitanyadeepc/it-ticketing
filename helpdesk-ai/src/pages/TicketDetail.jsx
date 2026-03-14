@@ -32,6 +32,12 @@ export default function TicketDetail() {
   const [assigning, setAssigning] = useState(false);
   const [comment, setComment] = useState('');
   const [commentLoading, setCommentLoading] = useState(false);
+  const [agents, setAgents] = useState([]);
+  const [csatRating, setCsatRating] = useState(0);
+  const [csatFeedback, setCsatFeedback] = useState('');
+  const [csatSubmitting, setCsatSubmitting] = useState(false);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
+  const fileInputRef = React.useRef(null);
 
   useEffect(() => {
     api.get(`/tickets/${id}`)
@@ -42,6 +48,59 @@ export default function TicketDetail() {
       })
       .catch(() => { setError('Failed to load ticket.'); setLoading(false); });
   }, [id]);
+
+  // Fetch agents list for admin assignment dropdown
+  useEffect(() => {
+    if (isAdmin) {
+      api.get('/users').then(({ data }) => setAgents(data.users?.filter(u => u.isActive) || [])).catch(() => {});
+    }
+  }, [isAdmin]);
+
+  const handleCsatSubmit = async (e) => {
+    e.preventDefault();
+    if (!csatRating) return;
+    setCsatSubmitting(true);
+    try {
+      const { data } = await api.patch(`/tickets/${id}`, { satisfaction: { rating: csatRating, feedback: csatFeedback } });
+      setTicket(data.ticket);
+      addToast('Thank you for your feedback!');
+    } catch {
+      addToast('Failed to submit rating', 'error');
+    } finally {
+      setCsatSubmitting(false);
+    }
+  };
+
+  const handleFileUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    setUploadingFiles(true);
+    const form = new FormData();
+    files.forEach(f => form.append('files', f));
+    try {
+      const { data } = await api.post(`/tickets/${id}/attachments`, form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setTicket(prev => ({ ...prev, attachments: data.attachments }));
+      addToast(`${files.length} file(s) uploaded`);
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Upload failed', 'error');
+    } finally {
+      setUploadingFiles(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleDeleteAttachment = async (attId) => {
+    if (!window.confirm('Remove this attachment?')) return;
+    try {
+      await api.delete(`/tickets/${id}/attachments/${attId}`);
+      setTicket(prev => ({ ...prev, attachments: prev.attachments.filter(a => a._id !== attId) }));
+      addToast('Attachment removed');
+    } catch {
+      addToast('Failed to remove attachment', 'error');
+    }
+  };
 
   const handleStatusChange = async (newStatus) => {
     setStatusUpdating(true);
@@ -224,6 +283,63 @@ export default function TicketDetail() {
             )}
           </div>
 
+          {/* Attachments */}
+          {(ticket.attachments?.length > 0 || ticket.status !== 'Closed') && (
+            <div className="bg-[#18181b] border border-[#27272a] border-t-[3px] rounded-xl p-5" style={{ borderTopColor: '#06b6d4' }}>
+              <h2 className="text-[14px] font-semibold text-[#fafafa] mb-4 flex items-center gap-2">
+                <svg className="w-4 h-4 text-[#06b6d4]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                Attachments
+                <span className="text-[12px] text-[#52525b] font-normal">({ticket.attachments?.length || 0})</span>
+              </h2>
+              {ticket.attachments?.length > 0 && (
+                <div className="space-y-2 mb-4">
+                  {ticket.attachments.map((att) => (
+                    <div key={att._id} className="flex items-center gap-3 p-3 rounded-lg bg-[#27272a] border border-[#3f3f46]">
+                      <svg className="w-8 h-8 text-[#52525b] flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+                        {att.mimetype?.startsWith('image') ? (
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3 3.75h18A2.25 2.25 0 0123.25 6v12A2.25 2.25 0 0121 20.25H3A2.25 2.25 0 01.75 18V6A2.25 2.25 0 013 3.75z"/>
+                        ) : (
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        )}
+                      </svg>
+                      <div className="flex-1 min-w-0">
+                        <a href={att.url} target="_blank" rel="noopener noreferrer"
+                          className="text-[13px] text-[#3b82f6] hover:underline truncate block">
+                          {att.filename || 'Attachment'}
+                        </a>
+                        <p className="text-[11px] text-[#52525b]">
+                          {att.uploaderName} · {att.size ? `${Math.round(att.size / 1024)} KB` : ''}
+                        </p>
+                      </div>
+                      {(isAdmin || true) && (
+                        <button onClick={() => handleDeleteAttachment(att._id)}
+                          className="text-[#3f3f46] hover:text-[#ef4444] transition-colors flex-shrink-0">
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {ticket.status !== 'Closed' && (
+                <>
+                  <input ref={fileInputRef} type="file" multiple accept="image/*,.pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.zip" className="hidden" onChange={handleFileUpload} />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingFiles}
+                    className="flex items-center gap-2 px-4 py-2 w-full justify-center rounded-lg border border-dashed border-[#3f3f46] text-[13px] text-[#71717a] hover:text-[#fafafa] hover:border-[#06b6d4]/50 disabled:opacity-50 transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                    {uploadingFiles ? 'Uploading…' : 'Upload Screenshot or File'}
+                  </button>
+                  <p className="text-[10px] text-[#52525b] text-center mt-1.5">Max 8 MB per file · Images, PDF, Office docs, ZIP</p>
+                </>
+              )}
+            </div>
+          )}
+
           {/* Activity timeline */}
           {ticket.history?.length > 0 && (
             <div className="bg-[#18181b] border border-[#27272a] border-t-[3px] rounded-xl p-5" style={{ borderTopColor: '#06b6d4' }}>
@@ -277,9 +393,22 @@ export default function TicketDetail() {
 
               <p className="text-[11px] uppercase font-semibold text-[#52525b] tracking-wider mb-2">Assign to Agent</p>
               <form onSubmit={handleAssign} className="flex flex-col gap-2 mb-4">
-                <input type="text" value={assignValue} onChange={(e) => setAssignValue(e.target.value)}
-                  placeholder="Agent name or email…"
-                  className="w-full bg-[#27272a] border border-[#3f3f46] text-[#fafafa] text-[13px] rounded-lg px-3 py-2 focus:outline-none focus:border-[#f59e0b] placeholder-[#52525b]" />
+                {agents.length > 0 ? (
+                  <select
+                    value={assignValue}
+                    onChange={(e) => setAssignValue(e.target.value)}
+                    className="w-full bg-[#27272a] border border-[#3f3f46] text-[#fafafa] text-[13px] rounded-lg px-3 py-2 focus:outline-none focus:border-[#f59e0b]"
+                  >
+                    <option value="">Unassigned</option>
+                    {agents.map((a) => (
+                      <option key={a._id} value={a.name}>{a.name} ({a.email})</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input type="text" value={assignValue} onChange={(e) => setAssignValue(e.target.value)}
+                    placeholder="Agent name or email…"
+                    className="w-full bg-[#27272a] border border-[#3f3f46] text-[#fafafa] text-[13px] rounded-lg px-3 py-2 focus:outline-none focus:border-[#f59e0b] placeholder-[#52525b]" />
+                )}
                 <button type="submit" disabled={assigning}
                   className="w-full px-4 py-2 bg-[#f59e0b] hover:bg-[#d97706] disabled:opacity-50 text-[#09090b] text-[13px] rounded-lg transition-colors font-semibold">
                   {assigning ? 'Assigning…' : 'Assign'}
@@ -318,6 +447,54 @@ export default function TicketDetail() {
               ))}
             </div>
           </div>
+
+          {/* CSAT widget */}
+          {(ticket.status === 'Resolved' || ticket.status === 'Closed') && (
+            ticket.satisfaction?.rating ? (
+              <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5">
+                <h2 className="text-[13px] font-semibold text-[#fafafa] mb-3">Your Rating</h2>
+                <div className="flex items-center gap-1 mb-2">
+                  {[1,2,3,4,5].map(n => (
+                    <svg key={n} className="w-5 h-5" viewBox="0 0 20 20" fill={n <= ticket.satisfaction.rating ? '#f59e0b' : '#27272a'}>
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                    </svg>
+                  ))}
+                  <span className="text-[12px] text-[#a1a1aa] ml-1">{ticket.satisfaction.rating}/5</span>
+                </div>
+                {ticket.satisfaction.feedback && <p className="text-[12px] text-[#71717a] italic">“{ticket.satisfaction.feedback}”</p>}
+              </div>
+            ) : (
+              <div className="bg-[#18181b] border border-[#27272a] border-t-[3px] rounded-xl p-5" style={{ borderTopColor: '#f59e0b' }}>
+                <h2 className="text-[13px] font-semibold text-[#fafafa] mb-1">How did we do?</h2>
+                <p className="text-[12px] text-[#71717a] mb-3">Rate your support experience</p>
+                <div className="flex items-center gap-1 mb-3">
+                  {[1,2,3,4,5].map(n => (
+                    <button key={n} onClick={() => setCsatRating(n)}
+                      className="focus:outline-none transition-transform hover:scale-110">
+                      <svg className="w-7 h-7" viewBox="0 0 20 20" fill={n <= csatRating ? '#f59e0b' : '#3f3f46'}>
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                      </svg>
+                    </button>
+                  ))}
+                </div>
+                {csatRating > 0 && (
+                  <form onSubmit={handleCsatSubmit}>
+                    <textarea
+                      value={csatFeedback}
+                      onChange={e => setCsatFeedback(e.target.value)}
+                      placeholder="Optional feedback…"
+                      rows={2}
+                      className="w-full bg-[#27272a] border border-[#3f3f46] text-[#fafafa] text-[12px] rounded-lg px-3 py-2 focus:outline-none focus:border-[#f59e0b] placeholder-[#52525b] resize-none mb-2"
+                    />
+                    <button type="submit" disabled={csatSubmitting}
+                      className="w-full py-2 bg-[#f59e0b] hover:bg-[#d97706] disabled:opacity-50 text-[#09090b] text-[13px] rounded-lg font-semibold transition-colors">
+                      {csatSubmitting ? 'Submitting…' : 'Submit Rating'}
+                    </button>
+                  </form>
+                )}
+              </div>
+            )
+          )}
         </div>
       </div>
     </div>

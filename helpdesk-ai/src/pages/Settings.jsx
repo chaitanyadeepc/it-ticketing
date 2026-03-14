@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import PageWrapper from '../components/layout/PageWrapper';
 import Breadcrumb from '../components/layout/Breadcrumb';
 import { useTheme } from '../context/ThemeContext';
+import api from '../api/api';
 
 const Toggle = ({ enabled, onChange }) => (
   <button
@@ -45,6 +46,37 @@ const Settings = () => {
   const [weeklyDigest, setWeeklyDigest] = useState(false);
   const [twoFactor, setTwoFactor] = useState(false);
   const [sessionAlerts, setSessionAlerts] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState('');
+
+  // Load notification prefs from backend on mount
+  useEffect(() => {
+    api.get('/users/profile').then(({ data }) => {
+      const p = data.user?.notificationPrefs;
+      if (!p) return;
+      if (p.emailEnabled  !== undefined) setEmailNotifications(p.emailEnabled);
+      if (p.ticketUpdates !== undefined) setTicketUpdates(p.ticketUpdates);
+      if (p.weeklyDigest  !== undefined) setWeeklyDigest(p.weeklyDigest);
+    }).catch(() => {});
+  }, []);
+
+  const saveNotificationPrefs = async (patch) => {
+    setSaving(true);
+    setSaveMsg('');
+    try {
+      await api.put('/users/notifications', patch);
+      setSaveMsg('Saved');
+      setTimeout(() => setSaveMsg(''), 2000);
+    } catch {
+      setSaveMsg('Failed to save');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleEmailNotif = (v) => { setEmailNotifications(v); saveNotificationPrefs({ emailEnabled: v }); };
+  const handleTicketUpdates = (v) => { setTicketUpdates(v); saveNotificationPrefs({ ticketUpdates: v }); };
+  const handleWeeklyDigest = (v) => { setWeeklyDigest(v); saveNotificationPrefs({ weeklyDigest: v }); };
 
   return (
     <PageWrapper>
@@ -108,12 +140,17 @@ const Settings = () => {
             title="Notifications"
             icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>}
           >
+            {saveMsg && (
+              <div className={`mb-3 px-3 py-2 rounded-lg text-[12px] font-medium ${saveMsg === 'Saved' ? 'bg-[#22c55e]/10 text-[#22c55e]' : 'bg-[#ef4444]/10 text-[#ef4444]'}`}>
+                {saveMsg === 'Saved' ? '✓ Preferences saved' : '✗ ' + saveMsg}
+              </div>
+            )}
             <SettingRow
               icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>}
               title="Email Notifications"
               desc="Receive email updates about your tickets"
             >
-              <Toggle enabled={emailNotifications} onChange={setEmailNotifications} />
+              <Toggle enabled={emailNotifications} onChange={handleEmailNotif} />
             </SettingRow>
             <SettingRow
               icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 01-6-6v-5.25A6 6 0 0112 1.5a6 6 0 016 6v5.25a6 6 0 01-6 6zm0 0v2.25m0 0H9.75m2.25 0H14.25"/></svg>}
@@ -127,14 +164,14 @@ const Settings = () => {
               title="Ticket Status Updates"
               desc="Notify me when my ticket status changes"
             >
-              <Toggle enabled={ticketUpdates} onChange={setTicketUpdates} />
+              <Toggle enabled={ticketUpdates} onChange={handleTicketUpdates} />
             </SettingRow>
             <SettingRow
               icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>}
               title="Weekly Digest"
               desc="Receive a weekly summary of all ticket activity"
             >
-              <Toggle enabled={weeklyDigest} onChange={setWeeklyDigest} />
+              <Toggle enabled={weeklyDigest} onChange={handleWeeklyDigest} />
             </SettingRow>
           </SectionCard>
         </div>

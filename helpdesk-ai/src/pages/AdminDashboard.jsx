@@ -53,6 +53,30 @@ const AdminDashboard = () => {
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [savedFilters, setSavedFilters] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('hd_savedFilters') || '[]'); } catch { return []; }
+  });
+
+  const saveCurrentFilter = () => {
+    const name = window.prompt('Name for this filter preset:');
+    if (!name?.trim()) return;
+    const preset = { name: name.trim(), status: filterStatus, priority: filterPriority, category: filterCategory, savedAt: Date.now() };
+    const updated = [...savedFilters, preset];
+    setSavedFilters(updated);
+    localStorage.setItem('hd_savedFilters', JSON.stringify(updated));
+  };
+
+  const removeSavedFilter = (idx) => {
+    const updated = savedFilters.filter((_, i) => i !== idx);
+    setSavedFilters(updated);
+    localStorage.setItem('hd_savedFilters', JSON.stringify(updated));
+  };
+
+  const applyFilter = (f) => {
+    setFilterStatus(f.status);
+    setFilterPriority(f.priority);
+    setFilterCategory(f.category);
+  };
 
   const fetchData = async (silent = false) => {
     try {
@@ -296,6 +320,20 @@ const AdminDashboard = () => {
         <Card className="p-6">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
             <h2 className="text-[16px] font-medium text-[#fafafa]">All Tickets</h2>
+            {/* Saved filter presets */}
+            {savedFilters.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 items-center">
+                <span className="text-[11px] text-[#52525b] mr-1">Saved:</span>
+                {savedFilters.map((f, i) => (
+                  <div key={i} className="flex items-center gap-1 pl-2.5 pr-1 py-1 rounded-full bg-[#27272a] border border-[#3f3f46] text-[11px]">
+                    <button onClick={() => applyFilter(f)} className="text-[#a1a1aa] hover:text-[#fafafa] transition-colors">{f.name}</button>
+                    <button onClick={() => removeSavedFilter(i)} className="text-[#3f3f46] hover:text-[#ef4444] transition-colors ml-0.5">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="flex flex-wrap gap-2 items-center">
               <div className="relative">
                 <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#52525b]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -336,6 +374,17 @@ const AdminDashboard = () => {
                   className="text-[12px] text-[#a1a1aa] hover:text-[#fafafa] underline"
                 >
                   Clear
+                </button>
+              )}
+              {/* Save current filter */}
+              {hasTableFilters && (
+                <button
+                  onClick={saveCurrentFilter}
+                  title="Save current filter as preset"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[12px] text-[#a1a1aa] hover:text-[#fafafa] hover:border-[#3f3f46] transition-colors"
+                >
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+                  Pin
                 </button>
               )}
             </div>
