@@ -1,7 +1,7 @@
 {
   "name": "helpdesk-api",
   "version": "1.0.0",
-  "description": "HelpDesk AI REST API",
+  "description": "HiTicket REST API",
   "main": "server.js",
   "type": "commonjs",
   "scripts": {

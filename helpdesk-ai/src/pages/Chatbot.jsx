@@ -357,7 +357,7 @@ const Chatbot = () => {
     {
       sender: 'bot',
       message:
-        "👋 Hi! I'm TicketFlow AI.\n\nDescribe your IT issue and I'll classify it automatically — or browse the categories below to find your issue faster.",
+        "👋 Hi! I'm HiTicket AI.\n\nDescribe your IT issue and I'll classify it automatically — or browse the categories below to find your issue faster.",
       timestamp: ts(),
     },
   ]);
@@ -624,7 +624,7 @@ const Chatbot = () => {
                   <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-[#22c55e] rounded-full border-2 border-[#18181b]" />
                 </div>
                 <div>
-                  <p className="text-[13.5px] font-semibold text-[#fafafa]">TicketFlow AI</p>
+                  <p className="text-[13.5px] font-semibold text-[#fafafa]">HiTicket AI</p>
                   <p className="text-[11px] text-[#22c55e]">● Online — typically replies instantly</p>
                 </div>
               </div>
