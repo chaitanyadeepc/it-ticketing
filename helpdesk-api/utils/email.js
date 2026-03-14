@@ -12,6 +12,9 @@ if (process.env.EMAIL_HOST) {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
     },
+    // Force IPv4 — Render's IPv6 connectivity to Gmail SMTP is unreliable
+    family: 4,
+    tls: { rejectUnauthorized: false },
   });
 }
 
