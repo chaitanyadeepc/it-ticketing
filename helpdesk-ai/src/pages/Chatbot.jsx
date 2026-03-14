@@ -4,6 +4,25 @@ import PageWrapper from '../components/layout/PageWrapper';
 import Breadcrumb from '../components/layout/Breadcrumb';
 import ChatBubble, { TypingIndicator } from '../components/ChatBubble';
 import api from '../api/api';
+import {
+  HiComputerDesktop, HiCodeBracket, HiSignal, HiKey, HiEnvelope,
+  HiCircleStack, HiSpeakerWave, HiDevicePhoneMobile, HiPrinter, HiShieldCheck,
+  HiCheckCircle, HiXCircle, HiPencilSquare, HiClipboardDocumentList, HiArrowPath,
+  HiTicket, HiWifi, HiLockClosed,
+} from 'react-icons/hi2';
+
+const CATEGORY_ICONS = {
+  'Hardware':              HiComputerDesktop,
+  'Software & Apps':       HiCodeBracket,
+  'Network & Connectivity':HiSignal,
+  'Access & Identity':     HiKey,
+  'Email & Collaboration': HiEnvelope,
+  'Data & Storage':        HiCircleStack,
+  'Audio & Video':         HiSpeakerWave,
+  'Mobile & Devices':      HiDevicePhoneMobile,
+  'Printing & Scanning':   HiPrinter,
+  'Security & Compliance': HiShieldCheck,
+};
 
 const ts = () =>
   new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -13,180 +32,170 @@ const ts = () =>
 // ─────────────────────────────────────────────────────────────────────────────
 const CATEGORIES = {
   Hardware: {
-    icon: '🖥️',
     color: '#f59e0b',
     keywords: /laptop|desktop|keyboard|mouse|monitor|printer|screen|charger|headset|webcam|docking|battery|power|display|cable|hardware/,
     subTypes: ['Laptop / Desktop', 'Monitor / Display', 'Keyboard or Mouse', 'Printer', 'Headset / Webcam', 'Docking Station / Charger', 'Other Hardware'],
     subTypeQuestion: 'Which type of hardware is affected?\n\nPick one below or type your device:',
     detailQuestions: {
-      'Laptop / Desktop': '🔍 A few quick questions:\n\n• Does it power on? Any error screen or beep codes?\n• When did it last work normally?\n• Any recent physical damage (drop / spill)?',
-      'Monitor / Display': '🔍 Display issue details:\n\n• Screen blank, flickering, or showing artefacts?\n• Laptop screen or external monitor?\n• Does it affect all inputs or just one?',
-      'Keyboard or Mouse': '🔍 Input device info:\n\n• Wired or wireless?\n• All keys/buttons affected or just specific ones?\n• Tried a different USB port or new batteries?',
-      'Printer': '🔍 Printer details:\n\n• Make and model of the printer?\n• Connection issue, paper jam, or print quality?\n• USB or network printer?',
-      'Headset / Webcam': '🔍 Peripheral info:\n\n• Audio input, audio output, or video issue?\n• Appears in Device Manager / System Settings?\n• Which app is affected?',
-      'Docking Station / Charger': '🔍 Power / dock check:\n\n• Is the laptop charging at all?\n• All dock ports affected or specific ones?\n• Tried a different power socket?',
+      'Laptop / Desktop': 'A few quick questions:\n\n• Does it power on? Any error screen or beep codes?\n• When did it last work normally?\n• Any recent physical damage (drop / spill)?',
+      'Monitor / Display': 'Display issue details:\n\n• Screen blank, flickering, or showing artefacts?\n• Laptop screen or external monitor?\n• Does it affect all inputs or just one?',
+      'Keyboard or Mouse': 'Input device info:\n\n• Wired or wireless?\n• All keys/buttons affected or just specific ones?\n• Tried a different USB port or new batteries?',
+      'Printer': 'Printer details:\n\n• Make and model of the printer?\n• Connection issue, paper jam, or print quality?\n• USB or network printer?',
+      'Headset / Webcam': 'Peripheral info:\n\n• Audio input, audio output, or video issue?\n• Appears in Device Manager / System Settings?\n• Which app is affected?',
+      'Docking Station / Charger': 'Power / dock check:\n\n• Is the laptop charging at all?\n• All dock ports affected or specific ones?\n• Tried a different power socket?',
     },
     detailChips: ['Just started today', 'After a drop / spill', 'After OS update', 'Works intermittently', 'Never worked since new'],
     priorityBoost: { 'Laptop / Desktop': 'High' },
   },
 
   'Software & Apps': {
-    icon: '💻',
     color: '#6366f1',
     keywords: /software|app|application|install|crash|update|program|license|office|excel|word|teams app|browser|chrome|edge|firefox|activation|365/,
     subTypes: ['Microsoft Office / 365', 'Web Browser', 'Company / Internal App', 'Operating System', 'Software Installation', 'License / Activation', 'Other Software'],
     subTypeQuestion: 'Which software or application is having issues?\n\nSelect below or type the app name:',
     detailQuestions: {
-      'Microsoft Office / 365': '🔍 Office issue:\n\n• Which app — Word / Excel / Outlook / Teams / PowerPoint?\n• Crashes on open or during use?\n• Any error code shown?',
-      'Web Browser': '🔍 Browser details:\n\n• Which browser and version?\n• All websites or a specific one?\n• Cleared cache & cookies, or tried a different browser?',
-      'Company / Internal App': '🔍 Internal app info:\n\n• Application name?\n• Which action triggers the problem?\n• Are other team members also affected?',
-      'Operating System': '🔍 OS details:\n\n• Windows or macOS? Which version?\n• BSOD / kernel panic, or a specific error message?\n• Started after a system update?',
-      'Software Installation': '🔍 Installation help:\n\n• What are you trying to install?\n• Exact error during installation?\n• Do you have local admin rights?',
-      'License / Activation': '🔍 Licensing info:\n\n• Which product needs a license?\n• Exact message shown (e.g. "product not activated")?\n• New install or reinstall on existing machine?',
+      'Microsoft Office / 365': 'Office issue:\n\n• Which app — Word / Excel / Outlook / Teams / PowerPoint?\n• Crashes on open or during use?\n• Any error code shown?',
+      'Web Browser': 'Browser details:\n\n• Which browser and version?\n• All websites or a specific one?\n• Cleared cache & cookies, or tried a different browser?',
+      'Company / Internal App': 'Internal app info:\n\n• Application name?\n• Which action triggers the problem?\n• Are other team members also affected?',
+      'Operating System': 'OS details:\n\n• Windows or macOS? Which version?\n• BSOD / kernel panic, or a specific error message?\n• Started after a system update?',
+      'Software Installation': 'Installation help:\n\n• What are you trying to install?\n• Exact error during installation?\n• Do you have local admin rights?',
+      'License / Activation': 'Licensing info:\n\n• Which product needs a license?\n• Exact message shown (e.g. "product not activated")?\n• New install or reinstall on existing machine?',
     },
     detailChips: ['Error code shown on screen', 'Crashes on every launch', 'Only affects my account', 'Affects the whole team', 'Regression after update'],
     priorityBoost: { 'Company / Internal App': 'High', 'License / Activation': 'High', 'Operating System': 'High' },
   },
 
   'Network & Connectivity': {
-    icon: '📡',
     color: '#06b6d4',
     keywords: /network|wifi|internet|vpn|connection|disconnect|ethernet|bandwidth|lan|router|firewall|proxy|dns|slow internet|no internet|connectivity/,
     subTypes: ['No Internet / WiFi', 'VPN Not Working', 'Slow Connection', 'Wired / Ethernet', 'Remote Access', 'Firewall / Proxy Block', 'Other Network'],
     subTypeQuestion: 'What type of network issue are you experiencing?\n\nSelect below or describe the problem:',
     detailQuestions: {
-      'No Internet / WiFi': '🔍 Connectivity checks:\n\n• Can you see the WiFi network in the list?\n• Are other devices on the same network affected?\n• Tried forgetting & reconnecting, or restarting your router?',
-      'VPN Not Working': '🔍 VPN details:\n\n• Which VPN client? (Cisco AnyConnect / GlobalProtect / OpenVPN / Other)\n• Failing to connect, or connects then drops?\n• On-site or working remotely?',
-      'Slow Connection': '🔍 Speed info:\n\n• Speed test result at fast.com?\n• Slow on all sites or specific services only?\n• Wired or wireless connection?',
-      'Wired / Ethernet': '🔍 Ethernet issue:\n\n• Port light up on the wall socket and computer?\n• Tried a different cable?\n• Showing "Unidentified Network" or "No Internet"?',
-      'Remote Access': '🔍 Remote access info:\n\n• Tool in use — RDP / Citrix / VPN / VMware Horizon?\n• Specific error message?\n• Local internet working fine?',
-      'Firewall / Proxy Block': '🔍 Firewall / proxy:\n\n• Which site or service is blocked?\n• Browser error shown (e.g. ERR_CONNECTION_REFUSED)?\n• Blocked for all staff or just you?',
+      'No Internet / WiFi': 'Connectivity checks:\n\n• Can you see the WiFi network in the list?\n• Are other devices on the same network affected?\n• Tried forgetting & reconnecting, or restarting your router?',
+      'VPN Not Working': 'VPN details:\n\n• Which VPN client? (Cisco AnyConnect / GlobalProtect / OpenVPN / Other)\n• Failing to connect, or connects then drops?\n• On-site or working remotely?',
+      'Slow Connection': 'Speed info:\n\n• Speed test result at fast.com?\n• Slow on all sites or specific services only?\n• Wired or wireless connection?',
+      'Wired / Ethernet': 'Ethernet issue:\n\n• Port light up on the wall socket and computer?\n• Tried a different cable?\n• Showing "Unidentified Network" or "No Internet"?',
+      'Remote Access': 'Remote access info:\n\n• Tool in use — RDP / Citrix / VPN / VMware Horizon?\n• Specific error message?\n• Local internet working fine?',
+      'Firewall / Proxy Block': 'Firewall / proxy:\n\n• Which site or service is blocked?\n• Browser error shown (e.g. ERR_CONNECTION_REFUSED)?\n• Blocked for all staff or just you?',
     },
     detailChips: ['All devices affected', 'Only my device', 'Started after office move', 'After system update', 'Intermittent drops throughout day'],
     priorityBoost: { 'No Internet / WiFi': 'High', 'VPN Not Working': 'High', 'Remote Access': 'High' },
   },
 
   'Access & Identity': {
-    icon: '🔑',
     color: '#a855f7',
     keywords: /password|access|login|account|lock|permission|reset|mfa|two.factor|2fa|sso|single sign|active directory|okta|locked out|user account/,
     subTypes: ['Password Reset', 'Account Locked Out', 'MFA / 2FA Problem', 'Permission Request', 'New User Onboarding', 'SSO / Single Sign-On', 'Other Access'],
     subTypeQuestion: 'What type of access issue do you have?\n\nSelect below:',
     detailQuestions: {
-      'Password Reset': '🔍 Password reset info:\n\n• Which system / application (Windows login, Office 365, Internal App)?\n• Can you receive emails to your registered address?\n• Is this an urgent lockout right now?',
-      'Account Locked Out': '🚨 Account locked — urgent info needed:\n\n• Which account / system is locked?\n• Do you know your last correct password?\n• When did the lockout happen?',
-      'MFA / 2FA Problem': '🔍 MFA issue:\n\n• Which MFA app or method? (Authenticator / Duo / SMS / Email OTP)\n• New phone or lost access to the app?\n• Code invalid, not arriving, or app deleted?',
-      'Permission Request': '🔍 Permission details:\n\n• Which folder, system, or application?\n• Level of access needed — read / write / admin?\n• Do you have manager approval for this?',
-      'New User Onboarding': '🔍 New user setup:\n\n• Employee name and start date?\n• Which systems and apps are required?\n• Has an onboarding request been raised by HR?',
-      'SSO / Single Sign-On': '🔍 SSO issue:\n\n• Which application is failing SSO?\n• Error message shown (e.g. SAML error, redirect loop)?\n• Does direct (non-SSO) login work?',
+      'Password Reset': 'Password reset info:\n\n• Which system / application (Windows login, Office 365, Internal App)?\n• Can you receive emails to your registered address?\n• Is this an urgent lockout right now?',
+      'Account Locked Out': 'Account locked — urgent info needed:\n\n• Which account / system is locked?\n• Do you know your last correct password?\n• When did the lockout happen?',
+      'MFA / 2FA Problem': 'MFA issue:\n\n• Which MFA app or method? (Authenticator / Duo / SMS / Email OTP)\n• New phone or lost access to the app?\n• Code invalid, not arriving, or app deleted?',
+      'Permission Request': 'Permission details:\n\n• Which folder, system, or application?\n• Level of access needed — read / write / admin?\n• Do you have manager approval for this?',
+      'New User Onboarding': 'New user setup:\n\n• Employee name and start date?\n• Which systems and apps are required?\n• Has an onboarding request been raised by HR?',
+      'SSO / Single Sign-On': 'SSO issue:\n\n• Which application is failing SSO?\n• Error message shown (e.g. SAML error, redirect loop)?\n• Does direct (non-SSO) login work?',
     },
     detailChips: ['Locked out urgently — need help now', 'MFA app lost / changed phone', 'Need folder access for project', 'New joiner device setup', 'SSO redirect loop issue'],
     priorityBoost: { 'Account Locked Out': 'Critical', 'MFA / 2FA Problem': 'High', 'SSO / Single Sign-On': 'High' },
   },
 
   'Email & Collaboration': {
-    icon: '📧',
     color: '#22c55e',
     keywords: /email|mail|outlook|teams|slack|zoom|calendar|meeting|invite|attachment|mailbox|distribution|sharepoint|onedrive|shared mailbox/,
     subTypes: ['Outlook / Email Problem', 'Microsoft Teams', 'Zoom / Video Calls', 'Calendar & Scheduling', 'SharePoint / OneDrive', 'Distribution List', 'Other Collaboration'],
     subTypeQuestion: 'Which collaboration tool is having issues?\n\nSelect below:',
     detailQuestions: {
-      'Outlook / Email Problem': '🔍 Email issue details:\n\n• Can you send, receive, or both affected?\n• Web browser (OWA) or desktop Outlook app?\n• Any sync errors or error messages on screen?',
-      'Microsoft Teams': '🔍 Teams issue:\n\n• Calls, messaging, meetings, or file sharing?\n• Others in your org also affected?\n• Specific error code or action that fails?',
-      'Zoom / Video Calls': '🔍 Video call details:\n\n• Can you join but not host, or both fail?\n• Audio, video, or screen-share issue?\n• Device and OS?',
-      'Calendar & Scheduling': '🔍 Calendar issue:\n\n• Creating, viewing, or sharing calendars?\n• Outlook calendar or another tool?\n• Meeting invites not sending or not appearing?',
-      'SharePoint / OneDrive': '🔍 SharePoint / OneDrive:\n\n• Accessing, syncing, or sharing files affected?\n• Any permission error message?\n• Which site or folder URL?',
-      'Distribution List': '🔍 Distribution list:\n\n• List name?\n• Cannot send to it, or not receiving from it?\n• New list or existing one that stopped working?',
+      'Outlook / Email Problem': 'Email issue details:\n\n• Can you send, receive, or both affected?\n• Web browser (OWA) or desktop Outlook app?\n• Any sync errors or error messages on screen?',
+      'Microsoft Teams': 'Teams issue:\n\n• Calls, messaging, meetings, or file sharing?\n• Others in your org also affected?\n• Specific error code or action that fails?',
+      'Zoom / Video Calls': 'Video call details:\n\n• Can you join but not host, or both fail?\n• Audio, video, or screen-share issue?\n• Device and OS?',
+      'Calendar & Scheduling': 'Calendar issue:\n\n• Creating, viewing, or sharing calendars?\n• Outlook calendar or another tool?\n• Meeting invites not sending or not appearing?',
+      'SharePoint / OneDrive': 'SharePoint / OneDrive:\n\n• Accessing, syncing, or sharing files affected?\n• Any permission error message?\n• Which site or folder URL?',
+      'Distribution List': 'Distribution list:\n\n• List name?\n• Cannot send to it, or not receiving from it?\n• New list or existing one that stopped working?',
     },
     detailChips: ['Outlook not syncing at all', 'Teams calls dropping mid-call', 'Calendar events gone missing', "OneDrive won't sync", "Can't join or schedule meeting"],
     priorityBoost: { 'Outlook / Email Problem': 'High' },
   },
 
   'Data & Storage': {
-    icon: '🗄️',
     color: '#f97316',
     keywords: /file|folder|data|storage|drive|backup|nas|shared drive|lost data|deleted file|corrupt|disk full|usb|external drive|cloud storage/,
     subTypes: ['File / Folder Access Denied', 'Data Lost or Deleted', 'Drive or Disk Full', 'Backup & Restore', 'USB / External Drive', 'Cloud Storage Issue', 'Other Data'],
     subTypeQuestion: 'What type of data or storage issue?\n\nSelect below:',
     detailQuestions: {
-      'File / Folder Access Denied': '🔍 Access denied details:\n\n• Full path of the file or folder?\n• Exact error message shown?\n• Were you able to access this before?',
-      'Data Lost or Deleted': '⚠️ Data recovery — act quickly:\n\n• When was the data last seen?\n• File types affected (documents, emails, etc.)?\n• Checked Recycle Bin / OneDrive version history / Trash?',
-      'Drive or Disk Full': '🔍 Storage audit:\n\n• Which drive? (C: drive, shared network drive, email mailbox)\n• Current used/total capacity shown?\n• Run Disk Cleanup or Storage Sense already?',
-      'Backup & Restore': '🔍 Backup info:\n\n• Which backup solution? (Windows Backup / cloud backup / Veeam)\n• Recovery point needed — which date?\n• Single file restore or full system restore?',
-      'USB / External Drive': '🔍 External drive details:\n\n• Recognised by the OS at all?\n• File system type? (NTFS, exFAT, FAT32)\n• Any unusual sounds (clicking, grinding)?',
-      'Cloud Storage Issue': '🔍 Cloud storage:\n\n• Which service? (OneDrive, Google Drive, Dropbox, SharePoint)\n• Files not syncing, or storage quota exceeded?\n• Error notification shown in the app?',
+      'File / Folder Access Denied': 'Access denied details:\n\n• Full path of the file or folder?\n• Exact error message shown?\n• Were you able to access this before?',
+      'Data Lost or Deleted': 'Data recovery — act quickly:\n\n• When was the data last seen?\n• File types affected (documents, emails, etc.)?\n• Checked Recycle Bin / OneDrive version history / Trash?',
+      'Drive or Disk Full': 'Storage audit:\n\n• Which drive? (C: drive, shared network drive, email mailbox)\n• Current used/total capacity shown?\n• Run Disk Cleanup or Storage Sense already?',
+      'Backup & Restore': 'Backup info:\n\n• Which backup solution? (Windows Backup / cloud backup / Veeam)\n• Recovery point needed — which date?\n• Single file restore or full system restore?',
+      'USB / External Drive': 'External drive details:\n\n• Recognised by the OS at all?\n• File system type? (NTFS, exFAT, FAT32)\n• Any unusual sounds (clicking, grinding)?',
+      'Cloud Storage Issue': 'Cloud storage:\n\n• Which service? (OneDrive, Google Drive, Dropbox, SharePoint)\n• Files not syncing, or storage quota exceeded?\n• Error notification shown in the app?',
     },
     detailChips: ['Critical work files missing', 'Accidentally deleted files', 'Need restore from backup', 'USB drive not showing up', 'Cloud sync paused / failed'],
     priorityBoost: { 'Data Lost or Deleted': 'Critical', 'Backup & Restore': 'High' },
   },
 
   'Audio & Video': {
-    icon: '🎧',
     color: '#ec4899',
     keywords: /audio|sound|microphone|mic|camera|webcam|speaker|headphone|video|screen share|hdmi|bluetooth audio|no sound|echo|feedback|meeting room av/,
     subTypes: ['Microphone / Audio Input', 'Speaker / Audio Output', 'Webcam / Camera', 'Screen Sharing', 'Bluetooth Audio Device', 'Meeting Room AV', 'Other AV'],
     subTypeQuestion: 'Which audio or video component is affected?\n\nSelect below:',
     detailQuestions: {
-      'Microphone / Audio Input': '🔍 Microphone details:\n\n• Detected in sound / system settings?\n• Works in one app but fails in another?\n• Built-in microphone or external (USB / 3.5mm / Bluetooth)?',
-      'Speaker / Audio Output': '🔍 Speaker / audio out:\n\n• No sound at all, or distorted / one-sided?\n• Does the volume slider respond?\n• Checked default playback device in sound settings?',
-      'Webcam / Camera': '🔍 Camera details:\n\n• Appears in Device Manager / System Settings?\n• Works in one app but fails in others?\n• Built-in laptop camera or external USB webcam?',
-      'Screen Sharing': '🔍 Screen sharing issue:\n\n• Which app — Teams / Zoom / Webex / Google Meet?\n• Screen appears black to others, or fails to start sharing?\n• Full desktop share or specific application window?',
-      'Bluetooth Audio Device': '🔍 Bluetooth device:\n\n• Device type — headset, speaker, microphone?\n• Paired but no audio, or will not pair at all?\n• Restarted Bluetooth on both the device and computer?',
-      'Meeting Room AV': '🔍 Meeting room AV:\n\n• Which room name / floor?\n• Which equipment — TV, projector, conference phone, PC?\n• Specific input failing or the whole system down?',
+      'Microphone / Audio Input': 'Microphone details:\n\n• Detected in sound / system settings?\n• Works in one app but fails in another?\n• Built-in microphone or external (USB / 3.5mm / Bluetooth)?',
+      'Speaker / Audio Output': 'Speaker / audio out:\n\n• No sound at all, or distorted / one-sided?\n• Does the volume slider respond?\n• Checked default playback device in sound settings?',
+      'Webcam / Camera': 'Camera details:\n\n• Appears in Device Manager / System Settings?\n• Works in one app but fails in others?\n• Built-in laptop camera or external USB webcam?',
+      'Screen Sharing': 'Screen sharing issue:\n\n• Which app — Teams / Zoom / Webex / Google Meet?\n• Screen appears black to others, or fails to start sharing?\n• Full desktop share or specific application window?',
+      'Bluetooth Audio Device': 'Bluetooth device:\n\n• Device type — headset, speaker, microphone?\n• Paired but no audio, or will not pair at all?\n• Restarted Bluetooth on both the device and computer?',
+      'Meeting Room AV': 'Meeting room AV:\n\n• Which room name / floor?\n• Which equipment — TV, projector, conference phone, PC?\n• Specific input failing or the whole system down?',
     },
     detailChips: ['No sound in video calls', 'Echo or feedback in calls', 'Camera shows black screen', "Can't start screen share", "Bluetooth won't connect"],
     priorityBoost: {},
   },
 
   'Mobile & Devices': {
-    icon: '📱',
     color: '#84cc16',
     keywords: /mobile|phone|tablet|ipad|iphone|android|mdm|intune|work profile|mobile app|byod|device enrol|enroll|company portal/,
     subTypes: ['Work Phone Issue', 'Tablet / iPad', 'MDM / Intune Enrolment', 'Mobile App Problem', 'BYOD Personal Device Setup', 'Lost / Stolen Device', 'Other Mobile'],
     subTypeQuestion: 'What type of mobile or device issue?\n\nSelect below:',
     detailQuestions: {
-      'Work Phone Issue': '🔍 Work phone details:\n\n• Make and model of the device?\n• Calls, email, or a specific app affected?\n• Hardware damage or purely software issue?',
-      'Tablet / iPad': '🔍 Tablet info:\n\n• Device model and OS version?\n• Company-owned or personal device?\n• Which apps or access are affected?',
-      'MDM / Intune Enrolment': '🔍 MDM enrolment info:\n\n• Device OS — iOS / Android / Windows?\n• Error message from Company Portal app?\n• First-time enrolment or re-enrolment after wipe?',
-      'Mobile App Problem': '🔍 Mobile app issue:\n\n• App name?\n• Crashes, login failure, or missing features?\n• App version? Tried uninstalling and reinstalling?',
-      'BYOD Personal Device Setup': '🔍 BYOD setup:\n\n• Device type and OS version?\n• Which corporate apps do you need access to?\n• Company Portal / MDM agent installed yet?',
-      'Lost / Stolen Device': '🚨 Lost / stolen device — urgent:\n\n• When and where was it last seen?\n• Immediate remote wipe needed?\n• Is the device encrypted and passcode-protected?',
+      'Work Phone Issue': 'Work phone details:\n\n• Make and model of the device?\n• Calls, email, or a specific app affected?\n• Hardware damage or purely software issue?',
+      'Tablet / iPad': 'Tablet info:\n\n• Device model and OS version?\n• Company-owned or personal device?\n• Which apps or access are affected?',
+      'MDM / Intune Enrolment': 'MDM enrolment info:\n\n• Device OS — iOS / Android / Windows?\n• Error message from Company Portal app?\n• First-time enrolment or re-enrolment after wipe?',
+      'Mobile App Problem': 'Mobile app issue:\n\n• App name?\n• Crashes, login failure, or missing features?\n• App version? Tried uninstalling and reinstalling?',
+      'BYOD Personal Device Setup': 'BYOD setup:\n\n• Device type and OS version?\n• Which corporate apps do you need access to?\n• Company Portal / MDM agent installed yet?',
+      'Lost / Stolen Device': 'Lost / stolen device — urgent:\n\n• When and where was it last seen?\n• Immediate remote wipe needed?\n• Is the device encrypted and passcode-protected?',
     },
     detailChips: ['MDM enrolment failing', 'Work email not syncing on phone', 'Lost device — remote wipe needed', 'App crashing on mobile', 'BYOD first-time setup help'],
     priorityBoost: { 'Lost / Stolen Device': 'Critical' },
   },
 
   'Printing & Scanning': {
-    icon: '🖨️',
     color: '#64748b',
     keywords: /print|printer|scanner|scan|copier|toner|ink|paper jam|print queue|print job|fax|photocopier/,
     subTypes: ['Print Job Stuck in Queue', 'Printer Shows Offline', 'Poor Print Quality', 'Paper Jam', 'Scanner Not Working', 'Toner / Ink Request', 'Other Printing'],
     subTypeQuestion: 'What type of printing or scanning issue?\n\nSelect below:',
     detailQuestions: {
-      'Print Job Stuck in Queue': '🔍 Print queue info:\n\n• Printer name and location / floor?\n• How many jobs are stuck?\n• Tried clearing the print spooler (services.msc)?',
-      'Printer Shows Offline': '🔍 Offline printer details:\n\n• USB or network (IP) connected printer?\n• Any status lights or error codes on the printer panel?\n• Appears in Devices & Printers settings?',
-      'Poor Print Quality': '🔍 Print quality issue:\n\n• Faded, streaked, smeared, or incorrect colours?\n• Estimated toner / ink level shown?\n• Laser or inkjet printer?',
-      'Paper Jam': '🔍 Paper jam info:\n\n• Paper fully removed from all trays and internal paths?\n• Which area jammed — feed tray, inside, or output?\n• Paper size and weight being used?',
-      'Scanner Not Working': '🔍 Scanner details:\n\n• Standalone scanner or multifunction printer (MFP)?\n• Detected by the scanning software?\n• Error shown, or just no response?',
-      'Toner / Ink Request': '🔍 Consumable request:\n\n• Printer make and full model number?\n• Cartridge part number if shown?\n• Urgent (print quality failing now) or advance replenishment?',
+      'Print Job Stuck in Queue': 'Print queue info:\n\n• Printer name and location / floor?\n• How many jobs are stuck?\n• Tried clearing the print spooler (services.msc)?',
+      'Printer Shows Offline': 'Offline printer details:\n\n• USB or network (IP) connected printer?\n• Any status lights or error codes on the printer panel?\n• Appears in Devices & Printers settings?',
+      'Poor Print Quality': 'Print quality issue:\n\n• Faded, streaked, smeared, or incorrect colours?\n• Estimated toner / ink level shown?\n• Laser or inkjet printer?',
+      'Paper Jam': 'Paper jam info:\n\n• Paper fully removed from all trays and internal paths?\n• Which area jammed — feed tray, inside, or output?\n• Paper size and weight being used?',
+      'Scanner Not Working': 'Scanner details:\n\n• Standalone scanner or multifunction printer (MFP)?\n• Detected by the scanning software?\n• Error shown, or just no response?',
+      'Toner / Ink Request': 'Consumable request:\n\n• Printer make and full model number?\n• Cartridge part number if shown?\n• Urgent (print quality failing now) or advance replenishment?',
     },
     detailChips: ['Printer offline after reboot', 'Print queue stuck / frozen', 'Toner running very low', 'Paper jam removed but error persists', 'Scan-to-email not working'],
     priorityBoost: {},
   },
 
   'Security & Compliance': {
-    icon: '🛡️',
     color: '#ef4444',
     keywords: /virus|malware|phishing|ransomware|suspicious email|hacked|breach|compromise|security alert|spam|scam|antivirus|crowdstrike|defender alert|compliance|gdpr|data leak|unauthorized access/,
     subTypes: ['Phishing / Suspicious Email', 'Malware or Virus Alert', 'Unauthorised Account Access', 'Possible Data Breach', 'Compliance Question', 'Antivirus / EDR Alert', 'Other Security'],
-    subTypeQuestion: '⚠️ What type of security concern are you reporting?\n\nThis will be treated with high priority:',
+    subTypeQuestion: 'What type of security concern are you reporting?\n\nThis will be treated with high priority:',
     detailQuestions: {
-      'Phishing / Suspicious Email': '🚨 Phishing report — important steps first:\n\n• Do NOT click any links or open attachments\n• Who sent it and what does it ask you to do?\n• Have you already clicked anything or entered credentials?',
-      'Malware or Virus Alert': '🚨 Malware concern — please act now:\n\n• What suspicious behaviour? (pop-ups, slow PC, files renamed)\n• Antivirus warning shown? What threat name?\n• Please isolate the device from the network if possible',
-      'Unauthorised Account Access': '🚨 Account compromised — take action:\n\n• Which account or system was accessed?\n• When did you notice the unauthorised activity?\n• Change your password immediately and enable MFA now',
-      'Possible Data Breach': '🚨 CRITICAL — Potential data breach:\n\n• What data may have been exposed? (personal, financial, health?)\n• How many individuals could be affected?\n• We will escalate to the Security & Compliance team immediately',
-      'Compliance Question': '🔍 Compliance query:\n\n• Which regulation? (GDPR / HIPAA / PCI-DSS / ISO27001)\n• Specific policy question or an active incident?\n• Are you reporting an issue or seeking guidance?',
-      'Antivirus / EDR Alert': '🔍 AV / EDR alert details:\n\n• Which security tool? (Defender / CrowdStrike / SentinelOne)\n• Threat name and severity level shown?\n• Has the file been quarantined or the alert resolved?',
+      'Phishing / Suspicious Email': 'Phishing report — important steps first:\n\n• Do NOT click any links or open attachments\n• Who sent it and what does it ask you to do?\n• Have you already clicked anything or entered credentials?',
+      'Malware or Virus Alert': 'Malware concern — please act now:\n\n• What suspicious behaviour? (pop-ups, slow PC, files renamed)\n• Antivirus warning shown? What threat name?\n• Please isolate the device from the network if possible',
+      'Unauthorised Account Access': 'Account compromised — take action:\n\n• Which account or system was accessed?\n• When did you notice the unauthorised activity?\n• Change your password immediately and enable MFA now',
+      'Possible Data Breach': 'CRITICAL — Potential data breach:\n\n• What data may have been exposed? (personal, financial, health?)\n• How many individuals could be affected?\n• We will escalate to the Security & Compliance team immediately',
+      'Compliance Question': 'Compliance query:\n\n• Which regulation? (GDPR / HIPAA / PCI-DSS / ISO27001)\n• Specific policy question or an active incident?\n• Are you reporting an issue or seeking guidance?',
+      'Antivirus / EDR Alert': 'AV / EDR alert details:\n\n• Which security tool? (Defender / CrowdStrike / SentinelOne)\n• Threat name and severity level shown?\n• Has the file been quarantined or the alert resolved?',
     },
     detailChips: ["Got phishing email — didn't click", 'Clicked suspicious link accidentally', 'Antivirus blocked / quarantined threat', 'Unusual sign-in to my account', 'Need security policy guidance'],
     priorityBoost: {
@@ -290,13 +299,14 @@ const CategoryGrid = ({ onSelect }) => (
   <div className="grid grid-cols-2 gap-1.5 px-4 pb-3 pt-3 border-t border-[#27272a]">
     {CATEGORY_NAMES.map((name) => {
       const cfg = CATEGORIES[name];
+      const Icon = CATEGORY_ICONS[name];
       return (
         <button
           key={name}
           onClick={() => onSelect(name)}
           className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[#27272a] bg-[#1c1c1f] hover:border-[#3b82f6]/40 hover:bg-[#27272a] transition-all text-left"
         >
-          <span className="text-sm leading-none">{cfg.icon}</span>
+          {Icon && <Icon className="w-4 h-4 flex-shrink-0" style={{ color: cfg.color }} />}
           <span className="text-[11.5px] font-medium text-[#e4e4e7] leading-tight">{name}</span>
         </button>
       );
@@ -386,7 +396,7 @@ const Chatbot = () => {
       setFlowStep(2);
       const cfg = CATEGORIES[detected];
       botReply(
-        `${cfg.icon} Got it — I've identified this as a **${detected}** issue.\n\n${cfg.subTypeQuestion}`,
+        `Got it — I've identified this as a **${detected}** issue.\n\n${cfg.subTypeQuestion}`,
         1000,
         () => {
           setChipType('subtype');
@@ -439,11 +449,11 @@ const Chatbot = () => {
         : ticketData.description;
 
     botReply(
-      `Thanks for the details! Here's your ticket summary:\n\n📂 Category: ${ticketData.category}\n🏷️ Sub-type: ${ticketData.subType || 'General'}\n⚡ Priority: ${priority}\n📝 Issue: ${descPreview}\n\nShall I go ahead and submit this ticket?`,
+      `Thanks for the details! Here's your ticket summary:\n\nCategory: ${ticketData.category}\nSub-type: ${ticketData.subType || 'General'}\nPriority: ${priority}\nIssue: ${descPreview}\n\nShall I go ahead and submit this ticket?`,
       1100,
       () => {
         setChipType('confirm');
-        setQuickReplies(['✅ Yes, submit my ticket', '✏️ Edit details', '❌ Cancel']);
+        setQuickReplies(['Confirm & Submit', 'Edit Details', 'Cancel']);
       }
     );
   };
@@ -455,10 +465,9 @@ const Chatbot = () => {
       t.includes('yes') ||
       t.includes('submit') ||
       t.includes('confirm') ||
-      t.includes('go ahead') ||
-      t.includes('✅');
+      t.includes('go ahead');
     const isEdit =
-      t.includes('edit') || t.includes('change') || t.includes('update') || t.includes('✏️');
+      t.includes('edit') || t.includes('change') || t.includes('update');
 
     if (isConfirm) {
       const eta =
@@ -482,18 +491,18 @@ const Chatbot = () => {
         const id = data.ticket.ticketId || data.ticket._id;
         setTicketData((prev) => ({ ...prev, ticketId: id }));
         botReply(
-          `✅ Ticket **${id}** submitted successfully!\n\n📂 ${ticketData.category} — ${ticketData.subType || 'General'}\n⚡ Priority: ${ticketData.priority}\n\n⏱ Expected response within ${eta}.\n\nYou'll receive email updates as the status changes. Track progress anytime in "My Tickets".`,
+          `Ticket **${id}** submitted!\n\n${ticketData.category} — ${ticketData.subType || 'General'}\nPriority: ${ticketData.priority}\n\nExpected response within ${eta}.\n\nYou'll receive email updates as the status changes. Track your ticket in "My Tickets".`,
           1300,
           () => {
             setChipType('done');
-            setQuickReplies(['📋 View My Tickets', '🔄 Raise Another Ticket']);
+            setQuickReplies(['View My Tickets', 'Raise Another Ticket']);
           }
         );
       }).catch(() => {
-        botReply('❌ Failed to submit ticket. Please check your connection and try again.', 800, () => {
+        botReply('Failed to submit ticket. Please check your connection and try again.', 800, () => {
           setFlowStep(4);
           setSubmitted(false);
-          setQuickReplies(['✅ Yes, submit my ticket', '✏️ Edit details', '❌ Cancel']);
+          setQuickReplies(['Confirm & Submit', 'Edit Details', 'Cancel']);
         });
       });
     } else if (isEdit) {
@@ -514,14 +523,14 @@ const Chatbot = () => {
   // STEP 5: post-submit navigation
   const handleDone = (text) => {
     const t = text.toLowerCase();
-    if (t.includes('view') || t.includes('my tickets') || t.includes('📋')) {
+    if (t.includes('view') || t.includes('my tickets')) {
       navigate('/my-tickets');
-    } else if (t.includes('another') || t.includes('new') || t.includes('raise') || t.includes('🔄')) {
+    } else if (t.includes('another') || t.includes('new') || t.includes('raise')) {
       window.location.reload();
     } else {
       botReply("You can view your ticket in 'My Tickets' or raise a new one anytime.", 800, () => {
         setChipType('done');
-        setQuickReplies(['📋 View My Tickets', '🔄 Raise Another Ticket']);
+        setQuickReplies(['View My Tickets', 'Raise Another Ticket']);
       });
     }
   };
@@ -539,7 +548,7 @@ const Chatbot = () => {
 
   return (
     <PageWrapper>
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-5">
         <Breadcrumb />
 
         <div className="grid lg:grid-cols-[1fr_360px] gap-6 mt-6">
@@ -662,7 +671,7 @@ const Chatbot = () => {
                 <div className="flex items-center justify-between pt-1">
                   <span className="text-[11px] text-[#52525b]">Category</span>
                   <span className="text-[12px] text-[#e4e4e7] font-medium flex items-center gap-1">
-                    <span>{CATEGORIES[ticketData.category]?.icon}</span>
+                    {(() => { const Icon = CATEGORY_ICONS[ticketData.category]; return Icon ? <Icon className="w-3.5 h-3.5" style={{ color: CATEGORIES[ticketData.category]?.color }} /> : null; })()}
                     {ticketData.category}
                   </span>
                 </div>
@@ -712,7 +721,7 @@ const Chatbot = () => {
                         onClick={() => userSend(name)}
                         className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-[#27272a] transition-colors text-left group"
                       >
-                        <span className="text-sm">{cfg.icon}</span>
+                        {(() => { const Icon = CATEGORY_ICONS[name]; return Icon ? <Icon className="w-4 h-4 flex-shrink-0" style={{ color: cfg.color }} /> : null; })()}
                         <span className="text-[12px] text-[#71717a] group-hover:text-[#fafafa] transition-colors">{name}</span>
                         <svg className="w-3 h-3 text-[#3f3f46] group-hover:text-[#3b82f6] ml-auto transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />

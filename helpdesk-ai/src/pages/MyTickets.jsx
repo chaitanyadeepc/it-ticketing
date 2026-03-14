@@ -74,7 +74,7 @@ const MyTickets = () => {
 
   return (
     <PageWrapper>
-      <div className="w-full max-w-screen-2xl mx-auto px-6 xl:px-10 py-5">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-5">
         <Breadcrumb />
         <div className="flex flex-wrap items-center justify-between gap-3 p-5 mb-5 rounded-2xl bg-gradient-to-r from-[#6366f1]/8 via-[#3b82f6]/4 to-transparent border border-[#6366f1]/15">
           <div>

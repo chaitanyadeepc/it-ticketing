@@ -54,7 +54,7 @@ export default function UserManagement() {
 
   return (
     <PageWrapper>
-      <div className="w-full max-w-screen-2xl mx-auto px-6 xl:px-10 py-5">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-5">
         <Breadcrumb />
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3 p-5 rounded-2xl bg-gradient-to-r from-[#a855f7]/8 via-[#6366f1]/4 to-transparent border border-[#a855f7]/15">
           <div>

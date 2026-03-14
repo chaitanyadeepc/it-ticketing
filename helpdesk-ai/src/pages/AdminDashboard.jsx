@@ -132,7 +132,7 @@ const AdminDashboard = () => {
 
   return (
     <PageWrapper>
-      <div className="w-full max-w-screen-2xl mx-auto px-6 xl:px-10 py-5">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-5">
         <Breadcrumb />
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3 p-5 rounded-2xl bg-gradient-to-r from-[#f59e0b]/8 via-[#ef4444]/4 to-transparent border border-[#f59e0b]/15">
           <div>

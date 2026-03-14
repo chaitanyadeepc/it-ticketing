@@ -11,14 +11,21 @@ const TicketCard = ({ ticket, onClick }) => {
   const statusVariant = ticket.status.toLowerCase().replace(' ', '-');
 
   const getCategoryIcon = (category) => {
-    const icons = {
-      'Hardware': '🖥️',
-      'Software': '💻',
-      'Network': '🌐',
-      'Access': '🔐',
-      'Other': '📋'
+    const paths = {
+      'Hardware':             'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2h-2',
+      'Software':             'M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4',
+      'Software & Apps':      'M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4',
+      'Network':              'M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.14 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0',
+      'Network & Connectivity':'M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.14 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0',
+      'Access':               'M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z',
+      'Access & Identity':    'M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z',
     };
-    return icons[category] || '📋';
+    const d = paths[category] || 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2';
+    return (
+      <svg className="w-3.5 h-3.5 inline-block flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+        <path strokeLinecap="round" strokeLinejoin="round" d={d} />
+      </svg>
+    );
   };
 
   const getStatusDotColor = (status) => {

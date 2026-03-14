@@ -80,7 +80,7 @@ const Home = () => {
   if (isAuthenticated) {
     return (
       <PageWrapper>
-        <div className="w-full max-w-screen-2xl mx-auto px-6 xl:px-10 py-5">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-5">
 
           {/* Header */}
           <div className="flex flex-wrap items-start justify-between gap-4 mb-5 p-5 rounded-2xl bg-gradient-to-r from-[#3b82f6]/8 via-[#6366f1]/4 to-transparent border border-[#3b82f6]/15 animate-fade-in">
@@ -311,7 +311,7 @@ const Home = () => {
   return (
     <PageWrapper>
       {/* Hero */}
-      <div className="w-full max-w-screen-2xl mx-auto px-6 xl:px-10 pt-16 pb-20">
+      <div className="w-full px-4 sm:px-6 lg:px-8 pt-14 pb-20">
         <div className="text-center max-w-3xl mx-auto">
           {/* Status pill */}
           <div className="inline-flex items-center gap-2 bg-[#18181b] border border-[#27272a] rounded-full px-3 py-1 mb-6 animate-fade-in">
@@ -361,7 +361,7 @@ const Home = () => {
 
       {/* Stats */}
       <div className="border-y border-[#27272a] py-16">
-        <div className="max-w-6xl mx-auto px-4">
+          <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-3 gap-8 md:gap-12">
             {[
               { value: '2,400+', label: 'Tickets Resolved', color: '#3b82f6', icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
@@ -382,7 +382,7 @@ const Home = () => {
 
       {/* Features */}
       <div className="py-20">
-        <div className="w-full max-w-screen-2xl mx-auto px-6 xl:px-10">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-[26px] font-bold text-[#fafafa] mb-2">Everything your IT team needs</h2>
             <p className="text-[14px] text-[#a1a1aa] max-w-md mx-auto">
@@ -407,7 +407,7 @@ const Home = () => {
 
       {/* CTA Banner */}
       <div className="py-16 border-t border-[#27272a]">
-        <div className="max-w-3xl mx-auto px-4 text-center">
+        <div className="w-full px-4 sm:px-6 lg:px-8 text-center">
           <div className="bg-gradient-to-r from-[#3b82f6]/10 to-[#6366f1]/10 border border-[#3b82f6]/20 rounded-2xl p-10">
             <div className="w-12 h-12 bg-[#3b82f6] rounded-xl flex items-center justify-center mx-auto mb-5 shadow-lg shadow-[#3b82f6]/20">
               <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
@@ -425,7 +425,7 @@ const Home = () => {
 
       {/* Footer */}
       <div className="border-t border-[#27272a] py-8">
-        <div className="w-full max-w-screen-2xl mx-auto px-6 xl:px-10 flex flex-col sm:flex-row justify-between items-center gap-4 text-[13px] text-[#52525b]">
+        <div className="w-full px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4 text-[13px] text-[#52525b]">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 bg-[#3b82f6] rounded-md flex items-center justify-center">
               <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="currentColor">

@@ -126,7 +126,7 @@ export default function TicketDetail() {
   const statusColor   = STATUS_ACCENT[ticket.status]   || '#a1a1aa';
 
   return (
-    <div className="w-full max-w-screen-2xl mx-auto px-6 xl:px-10 py-5">
+    <div className="w-full px-4 sm:px-6 lg:px-8 py-5">
       {/* Back */}
       <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-[13px] text-[#a1a1aa] hover:text-[#fafafa] mb-5 transition-colors">
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
