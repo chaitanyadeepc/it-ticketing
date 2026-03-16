@@ -133,24 +133,24 @@ const Home = () => {
               {/* Stat chips */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-5">
                 {[
-                  { label: 'Open', value: open, color: '#22c55e', sub: 'Active tickets' },
-                  { label: 'In Progress', value: inProgress, color: '#f59e0b', sub: 'Being handled' },
+                  { label: 'Open', value: open, color: '#22c55e', sub: 'Active' },
+                  { label: 'In Progress', value: inProgress, color: '#f59e0b', sub: 'Handling' },
                   { label: 'Resolved', value: resolved + closed, color: '#06b6d4', sub: 'Completed' },
-                  { label: 'Critical', value: critical, color: '#ef4444', sub: 'Need attention' },
+                  { label: 'Critical', value: critical, color: '#ef4444', sub: 'Urgent' },
                 ].map(({ label, value, color, sub }) => (
                   <div key={label} className="rounded-xl border p-3 sm:p-4 relative overflow-hidden" style={{ borderColor: `${color}30`, background: `linear-gradient(135deg, ${color}0d 0%, transparent 70%)` }}>
-                    <div className="text-[32px] font-bold leading-none mb-1" style={{ color }}>{value}</div>
-                    <div className="text-[13px] font-medium text-[#fafafa]">{label}</div>
-                    <div className="text-[11px] text-[#52525b] mt-0.5">{sub}</div>
+                    <div className="text-[24px] sm:text-[32px] font-bold leading-none mb-1" style={{ color }}>{value}</div>
+                    <div className="text-[12px] sm:text-[13px] font-medium text-[#fafafa] leading-tight">{label}</div>
+                    <div className="text-[10px] sm:text-[11px] text-[#52525b] mt-0.5">{sub}</div>
                     <div className="absolute -right-4 -bottom-4 w-14 h-14 rounded-full blur-2xl opacity-25" style={{ backgroundColor: color }} />
                   </div>
                 ))}
               </div>
 
-              <div className="grid lg:grid-cols-3 gap-5">
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
 
               {/* ── LEFT column (2/3) ── */}
-              <div className="lg:col-span-2 space-y-5">
+              <div className="md:col-span-1 lg:col-span-2 space-y-5">
 
                 {/* Status overview card */}
                 <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5">
@@ -160,16 +160,16 @@ const Home = () => {
                   </div>
 
                   {/* Resolution rate ring */}
-                  <div className="flex items-center gap-6 mb-5">
-                    <div className="relative w-20 h-20 flex-shrink-0">
-                      <svg className="w-20 h-20 -rotate-90" viewBox="0 0 36 36">
+                  <div className="flex items-center gap-4 sm:gap-6 mb-5">
+                    <div className="relative w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0">
+                      <svg className="w-16 h-16 sm:w-20 sm:h-20 -rotate-90" viewBox="0 0 36 36">
                         <circle cx="18" cy="18" r="14" fill="none" stroke="#27272a" strokeWidth="3"/>
                         <circle cx="18" cy="18" r="14" fill="none" stroke="#3b82f6" strokeWidth="3"
                           strokeDasharray={`${resolutionRate * 0.879} ${100 - resolutionRate * 0.879}`}
                           strokeLinecap="round"/>
                       </svg>
                       <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className="text-[16px] font-bold text-[#fafafa]">{resolutionRate}%</span>
+                        <span className="text-[14px] sm:text-[16px] font-bold text-[#fafafa]">{resolutionRate}%</span>
                       </div>
                     </div>
                     <div className="flex-1">
@@ -216,12 +216,12 @@ const Home = () => {
                       <button
                         key={t._id}
                         onClick={() => navigate(`/tickets/${t._id}`)}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-[#27272a] transition-colors text-left group"
+                        className="w-full flex items-center gap-2 sm:gap-3 px-2.5 sm:px-3 py-2.5 rounded-lg hover:bg-[#27272a] transition-colors text-left group"
                       >
                         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: STATUS_COLOR[t.status] || '#52525b' }} />
-                        <span className="flex-1 text-[13px] text-[#fafafa] truncate">{t.title}</span>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${STATUS_BG[t.status] || 'bg-[#27272a] text-[#a1a1aa]'}`}>{t.status}</span>
-                        <span className="text-[10px] font-['JetBrains_Mono'] text-[#3f3f46] group-hover:text-[#52525b] ml-1 flex-shrink-0">{t.ticketId || ''}</span>
+                        <span className="flex-1 text-[12px] sm:text-[13px] text-[#fafafa] truncate min-w-0">{t.title}</span>
+                        <span className={`text-[10px] px-1.5 sm:px-2 py-0.5 rounded-full font-medium flex-shrink-0 whitespace-nowrap ${STATUS_BG[t.status] || 'bg-[#27272a] text-[#a1a1aa]'}`}>{t.status}</span>
+                        <span className="hidden sm:block text-[10px] font-['JetBrains_Mono'] text-[#3f3f46] group-hover:text-[#52525b] ml-1 flex-shrink-0">{t.ticketId || ''}</span>
                       </button>
                     ))}
                   </div>
