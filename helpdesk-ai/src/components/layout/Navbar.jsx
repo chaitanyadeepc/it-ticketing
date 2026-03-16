@@ -114,6 +114,7 @@ const Navbar = () => {
     { name: 'Knowledge Base', path: '/knowledge-base' },
     ...(isStaff ? [{ name: isAdmin ? 'Admin' : 'Dashboard', path: '/admin' }] : []),
     ...(isAdmin ? [{ name: 'Activity Log', path: '/admin/logs' }] : []),
+    ...(isAdmin ? [{ name: 'Survey Results', path: '/admin/feedback' }] : []),
   ];
 
   const handleLogout = () => {

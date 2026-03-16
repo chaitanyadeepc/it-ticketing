@@ -68,7 +68,6 @@ app.use('/api/users', userRoutes);
 app.use('/api/kb', kbRoutes);
 app.use('/api/logs',     logRoutes);
 app.use('/api/feedback', feedbackRoutes);
-app.use('/api/feedback', feedbackRoutes);
 
 // ── Health check ─────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date() }));
