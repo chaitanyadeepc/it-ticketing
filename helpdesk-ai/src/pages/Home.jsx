@@ -80,7 +80,7 @@ const Home = () => {
   if (isAuthenticated) {
     return (
       <PageWrapper>
-        <div className="w-full px-4 sm:px-6 lg:px-8 py-5">
+        <div className="w-full max-w-full px-4 sm:px-6 lg:px-8 py-5 overflow-x-hidden">
 
           {/* Header */}
           <div className="flex flex-wrap items-start justify-between gap-4 mb-5 p-5 rounded-2xl bg-gradient-to-r from-[#3b82f6]/8 via-[#6366f1]/4 to-transparent border border-[#3b82f6]/15 animate-fade-in">
@@ -147,10 +147,10 @@ const Home = () => {
                 ))}
               </div>
 
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
 
               {/* ── LEFT column (2/3) ── */}
-              <div className="md:col-span-1 lg:col-span-2 space-y-5">
+              <div className="min-w-0 md:col-span-1 lg:col-span-2 space-y-5">
 
                 {/* Status overview card */}
                 <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5">
@@ -229,7 +229,7 @@ const Home = () => {
               </div>
 
               {/* ── RIGHT column (1/3) ── */}
-              <div className="space-y-5">
+              <div className="min-w-0 space-y-5">
 
                 {/* Priority breakdown */}
                 <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5">
