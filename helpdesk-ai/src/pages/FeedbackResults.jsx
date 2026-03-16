@@ -40,14 +40,20 @@ const SAT_LABELS = ['Very Poor', 'Poor', 'Okay', 'Good', 'Excellent'];
 
 const REFRESH_INTERVAL = 30_000;
 
-// ── Stat bar ───────────────────────────────────────────────────────────────
+// ── Animated stat bar ──────────────────────────────────────────────────────
 const StatBar = ({ label, count, total, color = '#3b82f6' }) => {
   const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const t = setTimeout(() => setWidth(pct), 80);
+    return () => clearTimeout(t);
+  }, [pct]);
   return (
     <div className="flex items-center gap-3 py-1.5">
       <span className="text-[12px] text-[#a1a1aa] flex-shrink-0 w-40 truncate">{label}</span>
       <div className="flex-1 h-2 bg-[#27272a] rounded-full overflow-hidden">
-        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, backgroundColor: color }} />
+        <div className="h-full rounded-full transition-[width] duration-700 ease-out"
+          style={{ width: `${width}%`, backgroundColor: color }} />
       </div>
       <div className="flex items-center gap-1 flex-shrink-0 w-24 justify-end">
         <span className="text-[12px] font-semibold" style={{ color }}>{count}</span>
@@ -78,59 +84,185 @@ const SCard = ({ title, subtitle, children, accent = '#3b82f6', icon }) => (
   </div>
 );
 
-// ── Satisfaction summary ───────────────────────────────────────────────────
-const SatSummary = ({ dist, total, avg }) => (
-  <div className="space-y-1.5">
-    <div className="flex items-center gap-2 mb-3">
-      <span className="text-[32px] font-black" style={{ color: avg >= 4 ? '#22c55e' : avg >= 3 ? '#f59e0b' : '#ef4444' }}>
-        {avg}
-      </span>
-      <div>
-        <div className="flex gap-0.5">
-          {[1,2,3,4,5].map(n => (
-            <svg key={n} className="w-3.5 h-3.5" viewBox="0 0 20 20" fill={n <= Math.round(avg) ? '#f59e0b' : '#27272a'}>
-              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-            </svg>
+// ── SVG donut ring ─────────────────────────────────────────────────────────
+const DonutRing = ({ dist, total, avg }) => {
+  const R = 52, cx = 64, cy = 64, strokeW = 16;
+  const circ = 2 * Math.PI * R;
+  const [ready, setReady] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setReady(true), 120); return () => clearTimeout(t); }, []);
+
+  let usedLen = 0;
+  const segments = [5, 4, 3, 2, 1].map(n => {
+    const frac = total > 0 ? (dist?.[n] || 0) / total : 0;
+    const len = frac * circ;
+    const offset = -(usedLen);
+    usedLen += len;
+    return { n, len, offset, color: SAT_COLORS[n - 1] };
+  });
+
+  return (
+    <div className="flex items-center gap-6">
+      <div className="relative flex-shrink-0">
+        <svg width="128" height="128" viewBox="0 0 128 128">
+          <circle cx={cx} cy={cy} r={R} fill="none" stroke="#27272a" strokeWidth={strokeW} />
+          {segments.map(s => (
+            <circle key={s.n} cx={cx} cy={cy} r={R} fill="none"
+              stroke={s.color} strokeWidth={strokeW}
+              strokeDasharray={ready ? `${s.len} ${circ - s.len}` : `0 ${circ}`}
+              strokeDashoffset={s.offset}
+              style={{
+                transition: 'stroke-dasharray 0.8s ease-out',
+                transformOrigin: 'center',
+                transform: 'rotate(-90deg)',
+              }}
+            />
           ))}
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-[22px] font-black leading-none"
+            style={{ color: avg >= 4 ? '#22c55e' : avg >= 3 ? '#f59e0b' : '#ef4444' }}>{avg}</span>
+          <span className="text-[9px] text-[#52525b] leading-none mt-0.5">/ 5</span>
         </div>
-        <p className="text-[10px] text-[#52525b]">out of 5 · {total} responses</p>
+      </div>
+      <div className="space-y-1 flex-1">
+        {[5, 4, 3, 2, 1].map(n => (
+          <StatBar key={n} label={`${n}★ ${SAT_LABELS[n - 1]}`}
+            count={dist?.[n] || 0} total={total} color={SAT_COLORS[n - 1]} />
+        ))}
       </div>
     </div>
-    {[5,4,3,2,1].map(n => (
-      <StatBar key={n} label={`${n} star — ${SAT_LABELS[n-1]}`} count={dist?.[n] || 0} total={total} color={SAT_COLORS[n-1]} />
-    ))}
-  </div>
-);
+  );
+};
+
+// ── Response volume sparkline ──────────────────────────────────────────────
+const Sparkline = ({ allFeedback }) => {
+  const DAYS = 14;
+  const now = new Date();
+  const buckets = Array.from({ length: DAYS }, (_, i) => {
+    const d = new Date(now);
+    d.setDate(d.getDate() - (DAYS - 1 - i));
+    return { label: d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }), count: 0 };
+  });
+  allFeedback.forEach(f => {
+    const fd = new Date(f.createdAt);
+    const start = new Date(now); start.setDate(now.getDate() - DAYS + 1); start.setHours(0,0,0,0);
+    const idx = Math.floor((fd - start) / 86400000);
+    if (idx >= 0 && idx < DAYS) buckets[idx].count++;
+  });
+  const max = Math.max(...buckets.map(b => b.count), 1);
+  return (
+    <div>
+      <div className="flex items-end gap-1 h-14">
+        {buckets.map((b, i) => (
+          <div key={i} className="flex-1 flex flex-col items-center group relative">
+            <div className="w-full rounded-sm bg-[#3b82f6]/20 hover:bg-[#3b82f6]/50 transition-colors cursor-default"
+              style={{ height: `${Math.max(3, (b.count / max) * 56)}px` }} />
+            {b.count > 0 && (
+              <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] text-[#3b82f6] font-bold
+                opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                {b.count}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+      <div className="flex justify-between mt-1.5">
+        <span className="text-[9px] text-[#3f3f46]">{buckets[0].label}</span>
+        <span className="text-[9px] text-[#3f3f46]">{buckets[DAYS - 1].label}</span>
+      </div>
+    </div>
+  );
+};
+
+// ── Role × Satisfaction cross-tab ──────────────────────────────────────────
+const CrossTab = ({ allFeedback }) => {
+  const data = Object.entries(ROLE_LABELS).map(([key, label]) => {
+    const rs = allFeedback.filter(f => f.role === key);
+    const avg = rs.length > 0
+      ? parseFloat((rs.reduce((s, f) => s + f.satisfaction, 0) / rs.length).toFixed(1))
+      : null;
+    return { key, label, count: rs.length, avg };
+  }).filter(d => d.count > 0).sort((a, b) => b.count - a.count);
+
+  if (!data.length) return <p className="text-[12px] text-[#52525b]">No data yet.</p>;
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-[12px]">
+        <thead>
+          <tr className="border-b border-[#27272a]">
+            {['Role', 'Responses', 'Avg Rating', 'Visual'].map(h => (
+              <th key={h} className="text-left py-2 pr-4 text-[10px] font-semibold text-[#52525b] uppercase tracking-wider">{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-[#1c1c1f]">
+          {data.map(({ key, label, count, avg }) => (
+            <tr key={key} className="hover:bg-[#1c1c1f] transition-colors">
+              <td className="py-2.5 pr-4 text-[#a1a1aa] font-medium">{label}</td>
+              <td className="py-2.5 pr-4 text-[#52525b]">{count}</td>
+              <td className="py-2.5 pr-4">
+                <span className="font-bold text-[13px]"
+                  style={{ color: avg >= 4 ? '#22c55e' : avg >= 3 ? '#f59e0b' : '#ef4444' }}>
+                  {avg ?? '—'}
+                </span>
+              </td>
+              <td className="py-2.5">
+                <div className="flex items-center gap-0.5">
+                  {[1,2,3,4,5].map(n => (
+                    <div key={n} className="w-3 h-3 rounded-sm"
+                      style={{ backgroundColor: avg && n <= Math.round(avg) ? SAT_COLORS[Math.round(avg) - 1] : '#27272a' }} />
+                  ))}
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
 
 export default function FeedbackResults() {
   const navigate = useNavigate();
-  const [stats, setStats]               = useState(null);
-  const [feedback, setFeedback]         = useState([]);
-  const [total, setTotal]               = useState(0);
-  const [loading, setLoading]           = useState(true);
-  const [refreshing, setRefreshing]     = useState(false);
-  const [error, setError]               = useState('');
-  const [page, setPage]                 = useState(1);
-  const [totalPages, setTotalPages]     = useState(1);
-  const [expanded, setExpanded]         = useState(null);
-  const [search, setSearch]             = useState('');
-  const [lastUpdated, setLastUpdated]   = useState(null);
-  const [copyDone, setCopyDone]         = useState(false);
-  const intervalRef                     = useRef(null);
+
+  // ── Core data ──────────────────────────────────────────────────────────
+  const [stats, setStats]             = useState(null);
+  const [feedback, setFeedback]       = useState([]);
+  const [allFeedback, setAllFeedback] = useState([]);   // all items for sparkline + cross-tab
+  const [total, setTotal]             = useState(0);
+  const [loading, setLoading]         = useState(true);
+  const [refreshing, setRefreshing]   = useState(false);
+  const [error, setError]             = useState('');
+  const [page, setPage]               = useState(1);
+  const [totalPages, setTotalPages]   = useState(1);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [copyDone, setCopyDone]       = useState(false);
+  const intervalRef                   = useRef(null);
+
+  // ── View controls ──────────────────────────────────────────────────────
+  const [activeTab, setActiveTab]   = useState('charts');   // 'charts' | 'responses'
+  const [expanded, setExpanded]     = useState(null);
+  const [search, setSearch]         = useState('');
+  const [satFilter, setSatFilter]   = useState(0);          // 0 = all, 1-5 = filter
+  const [sortKey, setSortKey]       = useState('date');      // 'date' | 'sat' | 'role'
+  const [sortDir, setSortDir]       = useState('desc');
+  const [selected, setSelected]     = useState(new Set());  // bulk-delete IDs
 
   const fetchAll = useCallback(async (pg = 1, silent = false) => {
     if (!silent) pg === 1 ? setLoading(true) : setRefreshing(true);
     else setRefreshing(true);
     setError('');
     try {
-      const [sr, lr] = await Promise.all([
+      const [sr, lr, allr] = await Promise.all([
         api.get('/feedback/stats'),
         api.get(`/feedback?page=${pg}&limit=15`),
+        api.get('/feedback?page=1&limit=1000'),
       ]);
       setStats(sr.data);
       setFeedback(lr.data.feedback || []);
       setTotal(lr.data.total || 0);
       setTotalPages(lr.data.pages || 1);
+      setAllFeedback(allr.data.feedback || []);
       setLastUpdated(new Date());
     } catch (err) {
       if (!silent) setError(err.response?.data?.error || 'Failed to load feedback');
@@ -158,13 +290,39 @@ export default function FeedbackResults() {
     try {
       await api.delete(`/feedback/${id}`);
       setFeedback(prev => prev.filter(f => f._id !== id));
+      setAllFeedback(prev => prev.filter(f => f._id !== id));
       setTotal(t => t - 1);
       if (stats) setStats(s => ({ ...s, total: s.total - 1 }));
       setExpanded(null);
+      setSelected(prev => { const n = new Set(prev); n.delete(id); return n; });
     } catch {
       setError('Failed to delete response');
     }
   };
+
+  const handleBulkDelete = async () => {
+    if (!selected.size) return;
+    try {
+      await Promise.all([...selected].map(id => api.delete(`/feedback/${id}`)));
+      const ids = selected;
+      setFeedback(prev => prev.filter(f => !ids.has(f._id)));
+      setAllFeedback(prev => prev.filter(f => !ids.has(f._id)));
+      setTotal(t => t - ids.size);
+      if (stats) setStats(s => ({ ...s, total: s.total - ids.size }));
+      setSelected(new Set());
+      setExpanded(null);
+    } catch {
+      setError('Failed to delete selected responses');
+    }
+  };
+
+  const toggleSelect = (id) => setSelected(prev => {
+    const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n;
+  });
+
+  const toggleSelectAll = () => setSelected(prev =>
+    prev.size === processedFeedback.length ? new Set() : new Set(processedFeedback.map(f => f._id))
+  );
 
   const exportCSV = () => {
     if (!feedback.length) return;
@@ -202,12 +360,61 @@ export default function FeedbackResults() {
   const topProcess  = stats?.processes ? Object.entries(stats.processes).sort((a,b) => b[1]-a[1])[0]?.[0] : null;
   const topPriority = stats?.priorities? Object.entries(stats.priorities).sort((a,b) => b[1]-a[1])[0]?.[0]: null;
 
-  const filteredFeedback = search.trim()
-    ? feedback.filter(f =>
-        ROLE_LABELS[f.role]?.toLowerCase().includes(search.toLowerCase()) ||
-        (f.suggestions || '').toLowerCase().includes(search.toLowerCase())
-      )
-    : feedback;
+  const completionRate = allFeedback.length > 0
+    ? Math.round((allFeedback.filter(f => f.suggestions?.trim()).length / allFeedback.length) * 100)
+    : 0;
+
+  // Needs-attention: lowest-sat response that also has a suggestion
+  const needsAttention = allFeedback.length > 0
+    ? [...allFeedback]
+        .filter(f => f.suggestions?.trim())
+        .sort((a, b) => a.satisfaction - b.satisfaction || new Date(b.createdAt) - new Date(a.createdAt))[0]
+    : null;
+
+  // Filter + sort pipeline for the responses table (current page)
+  const processedFeedback = (() => {
+    let list = [...feedback];
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(f =>
+        ROLE_LABELS[f.role]?.toLowerCase().includes(q) ||
+        (f.suggestions || '').toLowerCase().includes(q)
+      );
+    }
+    if (satFilter > 0) list = list.filter(f => f.satisfaction === satFilter);
+    list.sort((a, b) => {
+      if (sortKey === 'sat')  return sortDir === 'desc' ? b.satisfaction - a.satisfaction : a.satisfaction - b.satisfaction;
+      if (sortKey === 'role') return sortDir === 'asc'
+        ? (ROLE_LABELS[a.role] || '').localeCompare(ROLE_LABELS[b.role] || '')
+        : (ROLE_LABELS[b.role] || '').localeCompare(ROLE_LABELS[a.role] || '');
+      return sortDir === 'desc'
+        ? new Date(b.createdAt) - new Date(a.createdAt)
+        : new Date(a.createdAt) - new Date(b.createdAt);
+    });
+    return list;
+  })();
+
+  // Keep alias for backward compat with JSX below
+  const filteredFeedback = processedFeedback;
+
+  const toggleSort = (key) => {
+    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortKey(key); setSortDir('desc'); }
+  };
+
+  const SortBtn = ({ k, label }) => (
+    <button onClick={() => toggleSort(k)}
+      className={`flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider transition-colors ${
+        sortKey === k ? 'text-[#3b82f6]' : 'text-[#52525b] hover:text-[#a1a1aa]'
+      }`}>
+      {label}
+      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        {sortKey === k && sortDir === 'asc'
+          ? <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+          : <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />}
+      </svg>
+    </button>
+  );
 
   const insights = stats && stats.total > 0 ? [
     positiveIntent >= 50
@@ -285,8 +492,8 @@ export default function FeedbackResults() {
         {/* ── Loading skeleton ────────────────────────────────────────── */}
         {loading ? (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-              {Array.from({ length: 6 }).map((_,i) => <div key={i} className="skeleton h-24 rounded-xl" />)}
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+              {Array.from({ length: 7 }).map((_,i) => <div key={i} className="skeleton h-24 rounded-xl" />)}
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {Array.from({ length: 4 }).map((_,i) => <div key={i} className="skeleton h-48 rounded-xl" />)}
@@ -313,6 +520,32 @@ export default function FeedbackResults() {
 
         ) : (
           <>
+            {/* ── Needs-attention banner ──────────────────────────────── */}
+            {needsAttention && needsAttention.satisfaction <= 2 && (
+              <div className="mb-5 p-4 bg-[#ef4444]/6 border border-[#ef4444]/20 rounded-xl">
+                <div className="flex items-center gap-2 mb-2">
+                  <svg className="w-4 h-4 text-[#ef4444] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                  <span className="text-[11px] font-semibold text-[#ef4444] uppercase tracking-widest">Needs Attention</span>
+                  <span className="text-[10px] text-[#3f3f46] ml-1">· lowest-rated response with a suggestion</span>
+                </div>
+                <div className="flex flex-wrap gap-2 items-start">
+                  <span className="px-2 py-0.5 text-[10px] rounded-full bg-[#8b5cf6]/10 text-[#a78bfa] font-medium">
+                    {ROLE_LABELS[needsAttention.role]}
+                  </span>
+                  <div className="flex items-center gap-0.5">
+                    {[1,2,3,4,5].map(n => (
+                      <svg key={n} className="w-3 h-3" viewBox="0 0 20 20"
+                        fill={n <= needsAttention.satisfaction ? '#ef4444' : '#27272a'}>
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                    ))}
+                    <span className="text-[10px] text-[#ef4444] ml-1 font-semibold">{needsAttention.satisfaction}/5</span>
+                  </div>
+                  <p className="text-[12px] text-[#a1a1aa] italic flex-1">"{needsAttention.suggestions}"</p>
+                </div>
+              </div>
+            )}
+
             {/* ── Key Insights banner ─────────────────────────────────── */}
             {insights.length > 0 && (
               <div className="mb-5 p-4 bg-[#3b82f6]/5 border border-[#3b82f6]/15 rounded-xl">
@@ -331,8 +564,8 @@ export default function FeedbackResults() {
               </div>
             )}
 
-            {/* ── Summary stat chips ──────────────────────────────────── */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+            {/* ── Summary stat chips (7) ──────────────────────────────── */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
               {[
                 { label: 'Total Responses',  value: stats.total,                        color: '#3b82f6', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
                 { label: 'Avg Satisfaction', value: `${stats.avgSatisfaction}/5`,        color: '#f59e0b', icon: 'M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z' },
@@ -340,6 +573,7 @@ export default function FeedbackResults() {
                 { label: 'Top Respondent',   value: ROLE_LABELS[topRole] || '—',          color: '#a855f7', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z' },
                 { label: 'Top Priority',     value: PRIORITY_LABELS[topPriority] || '—',  color: '#06b6d4', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
                 { label: 'Top Process Now',  value: PROCESS_LABELS[topProcess] || '—',   color: '#f97316', icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z' },
+                { label: 'Wrote Suggestions',value: `${completionRate}%`,                color: '#84cc16', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
               ].map(({ label, value, color, icon }) => (
                 <div key={label} className="bg-[#18181b] border border-[#27272a] rounded-xl p-4">
                   <div className="w-7 h-7 rounded-lg flex items-center justify-center mb-2.5" style={{ backgroundColor: `${color}18` }}>
@@ -347,13 +581,32 @@ export default function FeedbackResults() {
                       <path strokeLinecap="round" strokeLinejoin="round" d={icon} />
                     </svg>
                   </div>
-                  <div className="text-[20px] sm:text-[22px] font-bold leading-tight mb-0.5 truncate" style={{ color }}>{value}</div>
+                  <div className="text-[18px] sm:text-[20px] font-bold leading-tight mb-0.5 truncate" style={{ color }}>{value}</div>
                   <div className="text-[10px] text-[#52525b] leading-tight">{label}</div>
                 </div>
               ))}
             </div>
 
-            {/* ── Charts grid ─────────────────────────────────────────── */}
+            {/* ── Chart / Responses tab switcher ─────────────────────── */}
+            <div className="flex gap-1 mb-5 bg-[#18181b] border border-[#27272a] rounded-xl p-1 w-fit">
+              {[
+                { id: 'charts',    label: 'Analytics',  icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
+                { id: 'responses', label: 'Responses',  icon: 'M4 6h16M4 10h16M4 14h16M4 18h16' },
+              ].map(tab => (
+                <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-[12px] font-medium transition-all ${
+                    activeTab === tab.id ? 'bg-[#3b82f6] text-white shadow' : 'text-[#52525b] hover:text-[#a1a1aa]'
+                  }`}>
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d={tab.icon} />
+                  </svg>
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* ══ ANALYTICS TAB ═══════════════════════════════════ */}
+            {activeTab === 'charts' && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
 
               <SCard
@@ -362,7 +615,16 @@ export default function FeedbackResults() {
                 accent="#f59e0b"
                 icon="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"
               >
-                <SatSummary dist={stats.satisfactionDist} total={stats.total} avg={stats.avgSatisfaction} />
+                <DonutRing dist={stats.satisfactionDist} total={stats.total} avg={stats.avgSatisfaction} />
+              </SCard>
+
+              <SCard
+                title="Response Volume (last 14 days)"
+                subtitle="Day-by-day submissions — hover a bar to see count"
+                accent="#3b82f6"
+                icon="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+              >
+                <Sparkline allFeedback={allFeedback} />
               </SCard>
 
               <SCard
@@ -391,6 +653,15 @@ export default function FeedbackResults() {
                     color={key === 'definitely' ? '#22c55e' : key === 'probably' ? '#84cc16' : key === 'maybe' ? '#f59e0b' : '#52525b'}
                   />
                 ))}
+              </SCard>
+
+              <SCard
+                title="Role × Satisfaction"
+                subtitle="Average satisfaction score broken down by respondent role"
+                accent="#a855f7"
+                icon="M3 10h18M3 14h18M10 5v14M14 5v14"
+              >
+                <CrossTab allFeedback={allFeedback} />
               </SCard>
 
               <SCard
@@ -475,69 +746,130 @@ export default function FeedbackResults() {
               </SCard>
 
             </div>
+            )}
 
-            {/* ── Individual Responses ─────────────────────────────────── */}
+            {/* ── Individual Responses ────────────────────────── */}
+            {activeTab === 'responses' && (
             <div className="bg-[#18181b] border border-[#27272a] rounded-xl overflow-hidden">
-              <div className="px-5 py-4 border-b border-[#27272a] flex flex-wrap items-center justify-between gap-3">
+
+              {/* Toolbar row */}
+              <div className="px-5 py-4 border-b border-[#27272a] flex flex-wrap items-center gap-3">
                 <div>
                   <h2 className="text-[13px] font-semibold text-[#fafafa]">Individual Responses</h2>
                   <p className="text-[11px] text-[#52525b] mt-0.5">
                     {total} total · {totalPages > 1 ? `page ${page} of ${totalPages}` : 'all shown'}
                   </p>
                 </div>
+
+                {/* Search */}
                 <div className="relative">
                   <svg className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#52525b]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
                   </svg>
                   <input
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
+                    value={search} onChange={e => setSearch(e.target.value)}
                     placeholder="Search by role or suggestion…"
-                    className="pl-8 pr-3 py-1.5 bg-[#09090b] border border-[#27272a] rounded-lg text-[12px] text-[#fafafa] placeholder-[#3f3f46] focus:outline-none focus:border-[#3b82f6] w-52 transition-colors"
+                    className="pl-8 pr-3 py-1.5 bg-[#09090b] border border-[#27272a] rounded-lg text-[12px] text-[#fafafa] placeholder-[#3f3f46] focus:outline-none focus:border-[#3b82f6] w-48 transition-colors"
                   />
                 </div>
+
+                {/* Star filter */}
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] text-[#52525b] mr-1">Filter:</span>
+                  <button onClick={() => setSatFilter(0)}
+                    className={`px-2 py-1 text-[10px] rounded-md transition-colors ${satFilter === 0 ? 'bg-[#3b82f6] text-white' : 'bg-[#27272a] text-[#a1a1aa] hover:bg-[#3f3f46]'}`}>
+                    All
+                  </button>
+                  {[1,2,3,4,5].map(n => (
+                    <button key={n} onClick={() => setSatFilter(satFilter === n ? 0 : n)}
+                      className={`px-2 py-1 text-[10px] rounded-md transition-colors ${satFilter === n ? 'text-white' : 'bg-[#27272a] text-[#a1a1aa] hover:bg-[#3f3f46]'}`}
+                      style={satFilter === n ? { backgroundColor: SAT_COLORS[n-1] } : {}}>
+                      {n}★
+                    </button>
+                  ))}
+                </div>
+
+                {/* Sort controls */}
+                <div className="flex items-center gap-2 ml-auto">
+                  <span className="text-[10px] text-[#52525b]">Sort:</span>
+                  <SortBtn k="date" label="Date" />
+                  <SortBtn k="sat"  label="Rating" />
+                  <SortBtn k="role" label="Role" />
+                </div>
+              </div>
+
+              {/* Bulk-delete bar */}
+              {selected.size > 0 && (
+                <div className="px-5 py-2.5 bg-[#ef4444]/8 border-b border-[#ef4444]/20 flex items-center justify-between">
+                  <span className="text-[12px] text-[#ef4444] font-medium">{selected.size} selected</span>
+                  <div className="flex gap-3 items-center">
+                    <button onClick={() => setSelected(new Set())}
+                      className="text-[11px] text-[#52525b] hover:text-[#a1a1aa] transition-colors">
+                      Clear
+                    </button>
+                    <button onClick={handleBulkDelete}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-[#ef4444] hover:bg-[#dc2626] text-white text-[11px] font-medium rounded-lg transition-colors">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                      Delete {selected.size}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Column header */}
+              <div className="px-5 py-2 border-b border-[#27272a] flex items-center gap-3 bg-[#0d0d0f]">
+                <input type="checkbox"
+                  checked={filteredFeedback.length > 0 && selected.size === filteredFeedback.length}
+                  onChange={toggleSelectAll}
+                  className="w-3.5 h-3.5 accent-[#3b82f6] flex-shrink-0" />
+                <span className="text-[10px] text-[#3f3f46] w-6">#</span>
+                <span className="text-[10px] text-[#3f3f46] w-28">Date</span>
+                <span className="text-[10px] text-[#3f3f46] flex-1">Role</span>
+                <span className="text-[10px] text-[#3f3f46] w-24">Rating</span>
+                <span className="text-[10px] text-[#3f3f46] w-28 hidden sm:block">AI Chatbot</span>
+                <span className="w-16" />
               </div>
 
               {filteredFeedback.length === 0 ? (
                 <div className="p-10 text-center text-[13px] text-[#52525b]">
-                  {search ? 'No responses match your search.' : 'No responses on this page.'}
+                  {search || satFilter ? 'No responses match your filters.' : 'No responses on this page.'}
                 </div>
               ) : (
                 <div className="divide-y divide-[#27272a]">
                   {filteredFeedback.map((f, idx) => (
-                    <div key={f._id} className="px-5 py-4 hover:bg-[#1c1c1f] transition-colors">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-[10px] font-mono text-[#3f3f46] flex-shrink-0">
-                            #{(page - 1) * 15 + idx + 1}
-                          </span>
-                          <span className="text-[10px] font-mono text-[#3f3f46]">
-                            {new Date(f.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                          </span>
-                          <span className="px-2 py-0.5 text-[10px] rounded-full bg-[#8b5cf6]/10 text-[#a78bfa] font-medium">
-                            {ROLE_LABELS[f.role] || f.role}
-                          </span>
-                          <div className="flex items-center gap-0.5">
-                            {[1,2,3,4,5].map(n => (
-                              <svg key={n} className="w-3 h-3" viewBox="0 0 20 20" fill={n <= f.satisfaction ? '#f59e0b' : '#27272a'}>
-                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                              </svg>
-                            ))}
-                            <span className="text-[10px] text-[#52525b] ml-1">{f.satisfaction}/5</span>
-                          </div>
-                          <span className={`px-2 py-0.5 text-[10px] rounded-full font-medium ${
-                            ['definitely','probably'].includes(f.wouldUseChatbot)
-                              ? 'bg-[#22c55e]/10 text-[#22c55e]'
-                              : 'bg-[#27272a] text-[#71717a]'
-                          }`}>
-                            AI: {CHATBOT_LABELS[f.wouldUseChatbot]}
-                          </span>
+                    <div key={f._id} className={`hover:bg-[#1c1c1f] transition-colors ${selected.has(f._id) ? 'bg-[#3b82f6]/4' : ''}`}>
+                      <div className="px-5 py-3.5 flex items-center gap-3">
+                        <input type="checkbox" checked={selected.has(f._id)}
+                          onChange={() => toggleSelect(f._id)}
+                          className="w-3.5 h-3.5 accent-[#3b82f6] flex-shrink-0" />
+                        <span className="text-[10px] font-mono text-[#3f3f46] w-6 flex-shrink-0">
+                          {(page - 1) * 15 + idx + 1}
+                        </span>
+                        <span className="text-[10px] font-mono text-[#3f3f46] w-28 flex-shrink-0">
+                          {new Date(f.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </span>
+                        <span className="flex-1 min-w-0 px-2 py-0.5 text-[10px] rounded-full bg-[#8b5cf6]/10 text-[#a78bfa] font-medium truncate">
+                          {ROLE_LABELS[f.role] || f.role}
+                        </span>
+                        <div className="flex items-center gap-0.5 w-24 flex-shrink-0">
+                          {[1,2,3,4,5].map(n => (
+                            <svg key={n} className="w-3 h-3" viewBox="0 0 20 20" fill={n <= f.satisfaction ? '#f59e0b' : '#27272a'}>
+                              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                            </svg>
+                          ))}
+                          <span className="text-[10px] text-[#52525b] ml-1">{f.satisfaction}/5</span>
                         </div>
-                        <button
-                          onClick={() => setExpanded(expanded === f._id ? null : f._id)}
-                          className="flex items-center gap-1 text-[11px] text-[#52525b] hover:text-[#a1a1aa] transition-colors flex-shrink-0"
-                        >
-                          <svg className={`w-3.5 h-3.5 transition-transform ${expanded === f._id ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <span className={`px-2 py-0.5 text-[10px] rounded-full font-medium w-28 text-center flex-shrink-0 hidden sm:block ${
+                          ['definitely','probably'].includes(f.wouldUseChatbot)
+                            ? 'bg-[#22c55e]/10 text-[#22c55e]'
+                            : 'bg-[#27272a] text-[#71717a]'
+                        }`}>
+                          {CHATBOT_LABELS[f.wouldUseChatbot]}
+                        </span>
+                        <button onClick={() => setExpanded(expanded === f._id ? null : f._id)}
+                          className="flex items-center gap-1 text-[11px] text-[#52525b] hover:text-[#a1a1aa] transition-colors flex-shrink-0 w-16 justify-end">
+                          <svg className={`w-3.5 h-3.5 transition-transform ${expanded === f._id ? 'rotate-180' : ''}`}
+                            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                           </svg>
                           {expanded === f._id ? 'Less' : 'Details'}
@@ -545,7 +877,7 @@ export default function FeedbackResults() {
                       </div>
 
                       {expanded === f._id && (
-                        <div className="mt-4 pt-4 border-t border-[#27272a]">
+                        <div className="mx-5 mb-4 pt-4 border-t border-[#27272a]">
                           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
                             {[
                               { label: 'Current process',       value: PROCESS_LABELS[f.currentProcess] },
@@ -594,7 +926,7 @@ export default function FeedbackResults() {
               {totalPages > 1 && (
                 <div className="flex items-center justify-between px-5 py-3.5 border-t border-[#27272a] bg-[#0d0d0f]">
                   <button
-                    onClick={() => { setPage(p => Math.max(1, p - 1)); setExpanded(null); }}
+                    onClick={() => { setPage(p => Math.max(1, p - 1)); setExpanded(null); setSelected(new Set()); }}
                     disabled={page === 1}
                     className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] bg-[#27272a] hover:bg-[#3f3f46] rounded-lg text-[#a1a1aa] disabled:opacity-40 transition-colors"
                   >
@@ -605,18 +937,15 @@ export default function FeedbackResults() {
                     {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                       const n = totalPages <= 5 ? i + 1 : page <= 3 ? i + 1 : page >= totalPages - 2 ? totalPages - 4 + i : page - 2 + i;
                       return (
-                        <button
-                          key={n}
-                          onClick={() => { setPage(n); setExpanded(null); }}
-                          className={`w-7 h-7 text-[12px] rounded-lg transition-colors ${n === page ? 'bg-[#3b82f6] text-white font-semibold' : 'bg-[#27272a] text-[#a1a1aa] hover:bg-[#3f3f46]'}`}
-                        >
+                        <button key={n} onClick={() => { setPage(n); setExpanded(null); setSelected(new Set()); }}
+                          className={`w-7 h-7 text-[12px] rounded-lg transition-colors ${n === page ? 'bg-[#3b82f6] text-white font-semibold' : 'bg-[#27272a] text-[#a1a1aa] hover:bg-[#3f3f46]'}`}>
                           {n}
                         </button>
                       );
                     })}
                   </div>
                   <button
-                    onClick={() => { setPage(p => Math.min(totalPages, p + 1)); setExpanded(null); }}
+                    onClick={() => { setPage(p => Math.min(totalPages, p + 1)); setExpanded(null); setSelected(new Set()); }}
                     disabled={page === totalPages}
                     className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] bg-[#27272a] hover:bg-[#3f3f46] rounded-lg text-[#a1a1aa] disabled:opacity-40 transition-colors"
                   >
@@ -626,6 +955,7 @@ export default function FeedbackResults() {
                 </div>
               )}
             </div>
+            )}
           </>
         )}
       </div>
