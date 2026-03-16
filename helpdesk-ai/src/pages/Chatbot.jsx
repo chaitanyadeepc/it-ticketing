@@ -4,6 +4,7 @@ import PageWrapper from '../components/layout/PageWrapper';
 import Breadcrumb from '../components/layout/Breadcrumb';
 import ChatBubble, { TypingIndicator } from '../components/ChatBubble';
 import api from '../api/api';
+import { logActivity } from '../utils/activityLog';
 import {
   HiComputerDesktop, HiCodeBracket, HiSignal, HiKey, HiEnvelope,
   HiCircleStack, HiSpeakerWave, HiDevicePhoneMobile, HiPrinter, HiShieldCheck,
@@ -649,6 +650,17 @@ const Chatbot = () => {
       }).then(({ data }) => {
         const id = data.ticket.ticketId || data.ticket._id;
         setTicketData((prev) => ({ ...prev, ticketId: id }));
+        logActivity('TICKET_CREATED', {
+          category: 'TICKET', severity: 'info',
+          detail: `Ticket ${id} created via AI chatbot`,
+          metadata: {
+            ticketId: id,
+            category: ticketData.category,
+            subType: ticketData.subType || 'General',
+            priority: ticketData.priority,
+            titlePreview: (data.ticket.title || '').slice(0, 80),
+          },
+        });
         botReply(
           `Ticket **${id}** submitted!\n\n${ticketData.category} — ${ticketData.subType || 'General'}\nPriority: ${ticketData.priority}\n\nExpected response within ${eta}.\n\nYou'll receive email updates as the status changes. Track your ticket in "My Tickets".`,
           1300,

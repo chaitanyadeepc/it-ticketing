@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/api';
 import { useToast } from '../context/ToastContext';
+import { logActivity } from '../utils/activityLog';
 
 const STATUS_OPTIONS = ['Open', 'In Progress', 'Resolved', 'Closed'];
 const PRIORITY_COLOR = {
@@ -195,6 +196,11 @@ export default function TicketDetail() {
     try {
       const { data } = await api.patch(`/tickets/${id}`, { status: newStatus });
       setTicket(data.ticket);
+      logActivity('TICKET_STATUS_CHANGED', {
+        category: 'TICKET', severity: newStatus === 'Resolved' || newStatus === 'Closed' ? 'info' : 'info',
+        detail: `Ticket ${data.ticket.ticketId || id} status changed to "${newStatus}"`,
+        metadata: { ticketId: data.ticket.ticketId || id, title: data.ticket.title, oldStatus: ticket?.status, newStatus, priority: data.ticket.priority },
+      });
       addToast(`Status updated to "${newStatus}"`);
       if (newStatus === 'Resolved') {
         setShowConfetti(true);
@@ -214,6 +220,11 @@ export default function TicketDetail() {
     try {
       const { data } = await api.post(`/tickets/${id}/notes`, { text: internalNote.trim() });
       setTicket(prev => ({ ...prev, internalNotes: data.internalNotes }));
+      logActivity('TICKET_NOTE_ADDED', {
+        category: 'COMMENT', severity: 'info',
+        detail: `Internal note added to ticket ${ticket?.ticketId || id}`,
+        metadata: { ticketId: ticket?.ticketId || id, title: ticket?.title, noteLength: internalNote.trim().length },
+      });
       setInternalNote('');
       addToast('Internal note added');
     } catch {
@@ -229,6 +240,11 @@ export default function TicketDetail() {
     try {
       const { data } = await api.patch(`/tickets/${id}`, { assignedTo: assignValue });
       setTicket(data.ticket);
+      logActivity('TICKET_ASSIGNED', {
+        category: 'TICKET', severity: 'info',
+        detail: `Ticket ${data.ticket.ticketId || id} assigned`,
+        metadata: { ticketId: data.ticket.ticketId || id, title: data.ticket.title, assignedTo: assignValue || 'Unassigned' },
+      });
       addToast('Ticket assigned successfully');
     } catch {
       addToast('Failed to assign ticket', 'error');
@@ -241,6 +257,11 @@ export default function TicketDetail() {
     try {
       const { data } = await api.patch(`/tickets/${id}`, { status: 'Open' });
       setTicket(data.ticket);
+      logActivity('TICKET_REOPENED', {
+        category: 'TICKET', severity: 'warning',
+        detail: `Ticket ${data.ticket.ticketId || id} reopened`,
+        metadata: { ticketId: data.ticket.ticketId || id, title: data.ticket.title },
+      });
       addToast('Ticket reopened');
     } catch {
       addToast('Failed to reopen ticket', 'error');
@@ -254,6 +275,11 @@ export default function TicketDetail() {
     try {
       const { data } = await api.patch(`/tickets/${id}`, { comment: comment.trim() });
       setTicket(data.ticket);
+      logActivity('TICKET_COMMENT_ADDED', {
+        category: 'COMMENT', severity: 'info',
+        detail: `Comment posted on ticket ${ticket?.ticketId || id}`,
+        metadata: { ticketId: ticket?.ticketId || id, title: ticket?.title, commentLength: comment.trim().length },
+      });
       setComment('');
       addToast('Comment posted');
     } catch {
@@ -267,6 +293,11 @@ export default function TicketDetail() {
     if (!window.confirm('Permanently delete this ticket? This cannot be undone.')) return;
     try {
       await api.delete(`/tickets/${id}`);
+      logActivity('TICKET_DELETED', {
+        category: 'ADMIN', severity: 'critical',
+        detail: `Ticket ${ticket?.ticketId || id} permanently deleted`,
+        metadata: { ticketId: ticket?.ticketId || id, title: ticket?.title, status: ticket?.status, priority: ticket?.priority },
+      });
       addToast('Ticket deleted');
       navigate('/admin');
     } catch {

@@ -4,6 +4,7 @@ import PageWrapper from '../components/layout/PageWrapper';
 import Breadcrumb from '../components/layout/Breadcrumb';
 import api from '../api/api';
 import { useToast } from '../context/ToastContext';
+import { logActivity } from '../utils/activityLog';
 
 export default function UserManagement() {
   const navigate = useNavigate();
@@ -21,9 +22,25 @@ export default function UserManagement() {
 
   const patch = async (userId, payload) => {
     setUpdating(userId);
+    const targetUser = users.find(u => u._id === userId);
     try {
       const { data } = await api.patch(`/users/${userId}`, payload);
       setUsers((prev) => prev.map((u) => u._id === userId ? data.user : u));
+      const changeDesc = Object.entries(payload)
+        .map(([k, v]) => `${k}: ${targetUser?.[k]} → ${v}`)
+        .join(', ');
+      logActivity('USER_UPDATED', {
+        category: 'USER_MGMT',
+        severity: payload.role ? 'warning' : 'info',
+        detail: `User ${targetUser?.email || userId} updated — ${changeDesc}`,
+        metadata: {
+          targetUserId: userId,
+          targetEmail: targetUser?.email,
+          targetName: targetUser?.name,
+          changes: payload,
+          previousValues: Object.fromEntries(Object.keys(payload).map(k => [k, targetUser?.[k]])),
+        },
+      });
       addToast('User updated successfully');
     } catch {
       addToast('Failed to update user', 'error');

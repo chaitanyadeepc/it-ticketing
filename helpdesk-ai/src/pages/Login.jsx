@@ -4,6 +4,7 @@ import Button from '../components/ui/Button';
 import OTPInput from '../components/OTPInput';
 import api from '../api/api';
 import LogoMark from '../components/ui/LogoMark';
+import { logActivity } from '../utils/activityLog';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -38,6 +39,12 @@ const Login = () => {
 
       // 2FA required — go to verification step
       if (data.requires2FA) {
+        logActivity('2FA_INITIATED', {
+          category: 'AUTH', severity: 'info',
+          detail: `2FA step triggered for ${email}`,
+          metadata: { email, method: data.method },
+          actor: { id: null, name: email, email, role: 'unknown' },
+        });
         setTwoFaToken(data.tempToken);
         setTwoFaMethod(data.method);
         setStep('2fa');
@@ -49,8 +56,29 @@ const Login = () => {
       localStorage.setItem('userEmail', data.user.email);
       localStorage.setItem('userName', data.user.name);
       localStorage.setItem('userRole', data.user.role);
+      if (isRegister) {
+        logActivity('USER_REGISTERED', {
+          category: 'AUTH', severity: 'info',
+          detail: `New account created for ${data.user.email}`,
+          metadata: { name: data.user.name, email: data.user.email, role: data.user.role },
+          actor: { id: data.user._id || null, name: data.user.name, email: data.user.email, role: data.user.role },
+        });
+      } else {
+        logActivity('USER_LOGIN', {
+          category: 'AUTH', severity: 'info',
+          detail: `${data.user.email} signed in (password)`,
+          metadata: { email: data.user.email, role: data.user.role, method: 'password' },
+          actor: { id: data.user._id || null, name: data.user.name, email: data.user.email, role: data.user.role },
+        });
+      }
       navigate(from, { replace: true });
     } catch (err) {
+      logActivity('LOGIN_FAILED', {
+        category: 'AUTH', severity: 'warning',
+        detail: `Failed login attempt for ${email}`,
+        metadata: { email, isRegister, reason: err.response?.data?.error || 'Unknown error' },
+        actor: { id: null, name: email, email, role: 'unknown' },
+      });
       setError(err.response?.data?.error || 'Something went wrong. Is the server running?');
     } finally {
       setLoading(false);
@@ -82,6 +110,12 @@ const Login = () => {
     try {
       const { data } = await api.post('/auth/2fa/verify', { tempToken: twoFaToken, code });
       storeAuth(data);
+      logActivity('USER_LOGIN_2FA', {
+        category: 'AUTH', severity: 'info',
+        detail: `${data.user.email} signed in via 2FA (${twoFaMethod})`,
+        metadata: { email: data.user.email, role: data.user.role, method: twoFaMethod },
+        actor: { id: data.user._id || null, name: data.user.name, email: data.user.email, role: data.user.role },
+      });
       navigate(from, { replace: true });
     } catch (err) {
       setTwoFaError(err.response?.data?.error || 'Verification failed');

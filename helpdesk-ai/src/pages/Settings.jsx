@@ -4,6 +4,7 @@ import Breadcrumb from '../components/layout/Breadcrumb';
 import { useTheme } from '../context/ThemeContext';
 import OTPInput from '../components/OTPInput';
 import api from '../api/api';
+import { logActivity } from '../utils/activityLog';
 
 const Toggle = ({ enabled, onChange }) => (
   <button
@@ -86,6 +87,11 @@ const Settings = () => {
     setSaveMsg('');
     try {
       await api.put('/users/notifications', patch);
+      logActivity('SETTINGS_SAVED', {
+        category: 'SETTINGS', severity: 'info',
+        detail: `Notification preferences updated`,
+        metadata: { changes: patch },
+      });
       setSaveMsg('Saved');
       setTimeout(() => setSaveMsg(''), 2000);
     } catch {
@@ -116,6 +122,11 @@ const Settings = () => {
     try {
       await api.post('/auth/2fa/setup/email/confirm', { code });
       setTwoFaEnabled(true); setTwoFaMethod('email'); setShow2FAModal(false);
+      logActivity('2FA_ENABLED', {
+        category: 'SETTINGS', severity: 'warning',
+        detail: '2FA enabled via email OTP',
+        metadata: { method: 'email' },
+      });
       setSaveMsg('2FA enabled via email OTP'); setTimeout(() => setSaveMsg(''), 3000);
     } catch (err) { setModalError(err.response?.data?.error || 'Verification failed'); setTwoFaOtpKey((k) => k + 1); }
     finally { setModalLoading(false); }
@@ -136,6 +147,11 @@ const Settings = () => {
     try {
       await api.post('/auth/2fa/setup/totp/confirm', { code });
       setTwoFaEnabled(true); setTwoFaMethod('totp'); setShow2FAModal(false);
+      logActivity('2FA_ENABLED', {
+        category: 'SETTINGS', severity: 'warning',
+        detail: '2FA enabled via authenticator app (TOTP)',
+        metadata: { method: 'totp' },
+      });
       setSaveMsg('2FA enabled via authenticator app'); setTimeout(() => setSaveMsg(''), 3000);
     } catch (err) { setModalError(err.response?.data?.error || 'Verification failed'); setTwoFaOtpKey((k) => k + 1); }
     finally { setModalLoading(false); }
@@ -146,6 +162,11 @@ const Settings = () => {
     try {
       await api.post('/auth/2fa/disable', { password: disablePwd });
       setTwoFaEnabled(false); setShowDisable(false); setDisablePwd('');
+      logActivity('2FA_DISABLED', {
+        category: 'SETTINGS', severity: 'critical',
+        detail: '2FA has been disabled for this account',
+        metadata: { previousMethod: twoFaMethod },
+      });
       setSaveMsg('2FA has been disabled'); setTimeout(() => setSaveMsg(''), 3000);
     } catch (err) { setDisableError(err.response?.data?.error || 'Failed to disable 2FA'); }
     finally { setDisableLoading(false); }

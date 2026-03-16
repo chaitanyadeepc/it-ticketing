@@ -18,6 +18,7 @@ import Settings from './pages/Settings';
 import NotFound from './pages/NotFound';
 import TicketStatus from './pages/TicketStatus';
 import KnowledgeBase from './pages/KnowledgeBase';
+import ActivityLog from './pages/ActivityLog';
 
 const ProtectedRoute = ({ children }) => {
   const isAuthenticated = !!localStorage.getItem('token') && localStorage.getItem('isAuthenticated') === 'true';
@@ -74,6 +75,7 @@ function App() {
             <Route path="/knowledge-base" element={<ProtectedRoute><KnowledgeBase /></ProtectedRoute>} />
             <Route path="/admin" element={<StaffRoute><AdminDashboard /></StaffRoute>} />
             <Route path="/admin/users" element={<AdminRoute><UserManagement /></AdminRoute>} />
+            <Route path="/admin/logs" element={<AdminRoute><ActivityLog /></AdminRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />

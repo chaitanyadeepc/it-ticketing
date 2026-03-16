@@ -4,6 +4,7 @@ import { useScrollHide } from '../../hooks/useScrollHide';
 import { useTheme } from '../../context/ThemeContext';
 import api from '../../api/api';
 import LogoMark from '../ui/LogoMark';
+import { logActivity } from '../../utils/activityLog';
 
 const SunIcon = () => (
   <svg className="w-[17px] h-[17px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -110,9 +111,15 @@ const Navbar = () => {
     { name: 'My Tickets', path: '/my-tickets' },
     { name: 'Knowledge Base', path: '/knowledge-base' },
     ...(isStaff ? [{ name: isAdmin ? 'Admin' : 'Dashboard', path: '/admin' }] : []),
+    ...(isAdmin ? [{ name: 'Activity Log', path: '/admin/logs' }] : []),
   ];
 
   const handleLogout = () => {
+    logActivity('USER_LOGOUT', {
+      category: 'AUTH', severity: 'info',
+      detail: `${localStorage.getItem('userEmail') || 'user'} signed out`,
+      metadata: { email: localStorage.getItem('userEmail'), role: localStorage.getItem('userRole') },
+    });
     localStorage.removeItem('isAuthenticated');
     localStorage.removeItem('userEmail');
     localStorage.removeItem('userName');
