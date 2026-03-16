@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -137,126 +137,6 @@ const Logo = () => (
   </div>
 );
 
-// ── Intro screen ────────────────────────────────────────────────────────────
-function IntroScreen({ onStart }) {
-  const DEMO_FLOW = [
-    { icon: '💬', label: 'Describe your issue', desc: 'Chat with the AI in plain English — no forms, no categories to pick', color: '#3b82f6', step: 1 },
-    { icon: '🤖', label: 'AI routes it',         desc: 'HiTicket auto-categorises, prioritises, and assigns to the right team', color: '#8b5cf6', step: 2 },
-    { icon: '🛠️', label: 'Agent resolves',       desc: 'Your IT agent is notified instantly and investigates the issue',          color: '#f59e0b', step: 3 },
-    { icon: '✅', label: 'You\'re notified',     desc: 'Receive a notification when resolved — and rate your experience',         color: '#22c55e', step: 4 },
-  ];
-
-  return (
-    <div className="min-h-screen bg-[#09090b] flex flex-col">
-      {/* Header */}
-      <header className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-[#27272a]">
-        <Link to="/" className="flex items-center gap-2">
-          <Logo />
-          <span className="text-[15px] font-semibold text-[#fafafa]">HiTicket</span>
-        </Link>
-        <Link to="/login" className="text-[12px] text-[#52525b] hover:text-[#a1a1aa] transition-colors">
-          Sign in →
-        </Link>
-      </header>
-
-      <div className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-12">
-        <div className="w-full max-w-2xl text-center">
-
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 bg-[#18181b] border border-[#27272a] rounded-full px-3 py-1.5 mb-6">
-            <span className="w-1.5 h-1.5 bg-[#22c55e] rounded-full animate-pulse" />
-            <span className="text-[12px] text-[#a1a1aa]">2 minutes · Anonymous · No login required</span>
-          </div>
-
-          <h1 className="text-[28px] sm:text-[36px] font-bold text-[#fafafa] mb-3 leading-tight">
-            Help shape a better<br />
-            <span className="text-[#3b82f6]">IT helpdesk</span>
-          </h1>
-          <p className="text-[14px] text-[#52525b] max-w-md mx-auto mb-10 leading-relaxed">
-            Before the survey, here's a quick look at how HiTicket works — from issue to resolution.
-          </p>
-
-          {/* Demo flow */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-10">
-            {DEMO_FLOW.map((s, i) => (
-              <div key={i} className="relative flex flex-col items-center text-center">
-                {i < DEMO_FLOW.length - 1 && (
-                  <div className="hidden sm:block absolute top-6 left-[calc(50%+28px)] right-[-4px] h-px border-t border-dashed border-[#27272a] z-0" />
-                )}
-                <div
-                  className="w-12 h-12 rounded-xl flex items-center justify-center text-[22px] mb-3 relative z-10 border"
-                  style={{ backgroundColor: `${s.color}18`, borderColor: `${s.color}35` }}
-                >
-                  {s.icon}
-                </div>
-                <p className="text-[12px] font-semibold text-[#fafafa] mb-1">{s.label}</p>
-                <p className="text-[11px] text-[#52525b] leading-snug">{s.desc}</p>
-                <div
-                  className="mt-2 text-[10px] font-bold px-2 py-0.5 rounded-full"
-                  style={{ color: s.color, backgroundColor: `${s.color}18` }}
-                >
-                  Step {s.step}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Mini chat demo preview */}
-          <div className="bg-[#18181b] border border-[#27272a] rounded-2xl p-4 sm:p-5 mb-8 text-left max-w-sm mx-auto">
-            <div className="flex items-center gap-2 mb-4 pb-3 border-b border-[#27272a]">
-              <div className="w-7 h-7 bg-[#3b82f6] rounded-lg flex items-center justify-center">
-                <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-[12px] font-semibold text-[#fafafa]">HiTicket AI</p>
-                <div className="flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 bg-[#22c55e] rounded-full" />
-                  <span className="text-[10px] text-[#22c55e]">Online</span>
-                </div>
-              </div>
-            </div>
-            <div className="space-y-3">
-              <div className="flex justify-start">
-                <div className="bg-[#27272a] rounded-2xl rounded-tl-sm px-3 py-2 max-w-[85%]">
-                  <p className="text-[12px] text-[#fafafa]">Hi! What IT issue can I help you with today?</p>
-                </div>
-              </div>
-              <div className="flex justify-end">
-                <div className="bg-[#3b82f6] rounded-2xl rounded-tr-sm px-3 py-2 max-w-[85%]">
-                  <p className="text-[12px] text-white">My laptop can't connect to campus WiFi</p>
-                </div>
-              </div>
-              <div className="flex justify-start">
-                <div className="bg-[#27272a] rounded-2xl rounded-tl-sm px-3 py-2 max-w-[85%]">
-                  <p className="text-[12px] text-[#fafafa]">
-                    Got it — I've raised ticket <span className="text-[#3b82f6] font-mono font-bold">#HT-2048</span>
-                  </p>
-                  <p className="text-[10px] text-[#22c55e] mt-1">✓ Network Support · Priority: High · Assigned</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <button
-            onClick={onStart}
-            className="inline-flex items-center gap-2 px-8 py-3.5 bg-[#3b82f6] hover:bg-[#2563eb] text-white text-[15px] font-semibold rounded-xl transition-colors shadow-lg shadow-[#3b82f6]/20"
-          >
-            Start the Survey
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-          <p className="mt-3 text-[11px] text-[#3f3f46]">
-            10 questions · No account needed · Responses help improve HiTicket
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ── Done screen ─────────────────────────────────────────────────────────────
 function DoneScreen() {
   return (
@@ -285,11 +165,12 @@ function DoneScreen() {
 
 // ── Main Survey component ───────────────────────────────────────────────────
 export default function Survey() {
-  const [phase, setPhase]       = useState('intro'); // 'intro' | 'quiz' | 'done'
-  const [step, setStep]         = useState(0);
-  const [answers, setAnswers]   = useState({});
+  const navigate = useNavigate();
+  const [done, setDone]             = useState(false);
+  const [step, setStep]             = useState(0);
+  const [answers, setAnswers]       = useState({});
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError]       = useState('');
+  const [error, setError]           = useState('');
 
   const current = STEPS[step];
   const answer  = answers[current?.id];
@@ -321,7 +202,7 @@ export default function Survey() {
         const d = await resp.json();
         throw new Error(d.error || 'Submission failed');
       }
-      setPhase('done');
+      setDone(true);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -337,8 +218,7 @@ export default function Survey() {
     }
   };
 
-  if (phase === 'intro') return <IntroScreen onStart={() => setPhase('quiz')} />;
-  if (phase === 'done')  return <DoneScreen />;
+  if (done) return <DoneScreen />
 
   return (
     <div className="min-h-screen bg-[#09090b] flex flex-col">
@@ -506,7 +386,7 @@ export default function Survey() {
           {/* Navigation */}
           <div className="flex items-center justify-between mt-8 pt-4 border-t border-[#27272a]">
             <button
-              onClick={() => (step > 0 ? setStep((s) => s - 1) : setPhase('intro'))}
+              onClick={() => (step > 0 ? setStep((s) => s - 1) : navigate('/'))}
               className="flex items-center gap-1.5 px-4 py-2.5 text-[13px] text-[#52525b] hover:text-[#a1a1aa] transition-colors"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
