@@ -51,7 +51,7 @@ function WelcomeScreen({ onStart }) {
   return (
     <div className="min-h-screen bg-[#09090b] flex flex-col">
       <header className="flex items-center px-4 sm:px-6 py-4 border-b border-[#27272a]">
-        <Link to="/"><LogoMark size="sm" /></Link>
+        <Link to="/"><LogoMark size="lg" /></Link>
       </header>
 
       <div className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-12">
@@ -460,7 +460,7 @@ export default function Survey() {
     <div className="min-h-screen bg-[#09090b] flex flex-col">
       {/* ── Header ─────────────────────────────────── */}
       <header className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-[#27272a]">
-        <Link to="/"><LogoMark size="sm" /></Link>
+        <Link to="/"><LogoMark size="lg" /></Link>
         <div className="flex items-center gap-3">
           {estMin > 0 && (
             <span className="text-[11px] text-[#3f3f46] hidden sm:block">~{estMin} min left</span>
