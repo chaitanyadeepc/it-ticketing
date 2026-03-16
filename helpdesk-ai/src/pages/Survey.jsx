@@ -315,42 +315,55 @@ function ReviewScreen({ answers, onEdit, onSubmit, submitting, error }) {
     if (val === undefined || val === null || val === '') return null;
     let display = '';
     if (s.type === 'rating') display = `${'⭐'.repeat(val)} (${val}/5)`;
-    else if (s.type === 'text') display = `"${val}"`;
+    else if (s.type === 'text') display = val;
     else if (s.type === 'multi') display = (Array.isArray(val) ? val : []).map(v => LABEL_MAPS.priorities?.[v] || v).join(', ');
     else display = LABEL_MAPS[s.id]?.[val] || val;
     return { id: s.id, title: s.title, display, stepIdx: STEPS.findIndex(x => x.id === s.id) };
   }).filter(Boolean);
 
   return (
-    <div className="w-full max-w-xl mx-auto">
-      <div className="mb-7">
-        <p className="text-[11px] text-[#3b82f6] font-semibold mb-2 uppercase tracking-widest">Review</p>
-        <h2 className="text-[20px] sm:text-[24px] font-bold text-[#fafafa] mb-2 leading-snug">Almost there — review your answers</h2>
-        <p className="text-[13px] text-[#52525b]">Click any answer to edit it before submitting.</p>
+    <div className="w-full max-w-2xl mx-auto flex flex-col" style={{ minHeight: 0 }}>
+      {/* Heading */}
+      <div className="mb-5">
+        <p className="text-[11px] text-[#f59e0b] font-semibold mb-1.5 uppercase tracking-widest flex items-center gap-2">
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+          Review your answers
+        </p>
+        <h2 className="text-[18px] sm:text-[22px] font-bold text-[#fafafa] leading-snug">Everything look good?</h2>
+        <p className="text-[12px] text-[#52525b] mt-1">Tap any answer to edit it, then come back to submit.</p>
       </div>
-      <div className="space-y-2 mb-6">
+
+      {/* 2-column answer grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-5">
         {rows.map(r => (
           <button key={r.id} onClick={() => onEdit(r.stepIdx)}
-            className="w-full flex items-start gap-3 p-3.5 rounded-xl bg-[#18181b] border border-[#27272a] hover:border-[#3b82f6]/40 hover:bg-[#1c1c1f] text-left transition-all group">
+            className="flex items-start gap-2.5 p-3 rounded-xl bg-[#18181b] border border-[#27272a] hover:border-[#3b82f6]/40 hover:bg-[#1c1c1f] text-left transition-all group">
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] text-[#52525b] uppercase tracking-wider mb-0.5">{r.title}</p>
-              <p className="text-[13px] text-[#fafafa] font-medium truncate">{r.display}</p>
+              <p className="text-[9px] text-[#52525b] uppercase tracking-wider mb-0.5 truncate">{r.title}</p>
+              <p className="text-[12px] text-[#fafafa] font-medium leading-snug line-clamp-2">{r.display}</p>
             </div>
-            <svg className="w-4 h-4 text-[#3f3f46] group-hover:text-[#3b82f6] flex-shrink-0 mt-0.5 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className="w-3.5 h-3.5 text-[#3f3f46] group-hover:text-[#3b82f6] flex-shrink-0 mt-0.5 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
           </button>
         ))}
       </div>
-      {error && (
-        <div className="mb-4 p-3 bg-[#ef4444]/10 border border-[#ef4444]/20 rounded-lg text-[#ef4444] text-[13px]">{error}</div>
-      )}
-      <button onClick={onSubmit} disabled={submitting}
-        className="w-full flex items-center justify-center gap-2 px-7 py-3 bg-[#22c55e] hover:bg-[#16a34a] disabled:opacity-40 disabled:cursor-not-allowed text-white text-[14px] font-semibold rounded-xl transition-colors">
-        {submitting ? (
-          <><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Submitting…</>
-        ) : <>Submit Survey ✓</>}
-      </button>
+
+      {/* Divider + submit — sticky at bottom */}
+      <div className="sticky bottom-0 bg-[#09090b] pt-3 pb-2 -mx-1 px-1">
+        {error && (
+          <div className="mb-3 p-3 bg-[#ef4444]/10 border border-[#ef4444]/20 rounded-lg text-[#ef4444] text-[12px]">{error}</div>
+        )}
+        <button onClick={onSubmit} disabled={submitting}
+          className="w-full flex items-center justify-center gap-2 px-7 py-3.5 bg-[#22c55e] hover:bg-[#16a34a] disabled:opacity-40 disabled:cursor-not-allowed text-white text-[14px] font-bold rounded-xl transition-colors shadow-lg shadow-[#22c55e]/15">
+          {submitting ? (
+            <><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Submitting…</>
+          ) : (
+            <><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>Submit Survey</>
+          )}
+        </button>
+        <p className="text-center text-[10px] text-[#3f3f46] mt-2">Your response is anonymous and confidential</p>
+      </div>
     </div>
   );
 }
@@ -506,7 +519,9 @@ export default function Survey() {
       </div>
 
       {/* ── Question area ──────────────────────────── */}
-      <div className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-8 overflow-hidden">
+      <div className={`flex-1 flex flex-col items-center px-4 sm:px-6 py-6 ${
+        isReview ? 'overflow-y-auto justify-start' : 'overflow-hidden justify-center'
+      }`}>
         {/* Animated wrapper */}
         <div key={animKey}
           className="w-full max-w-xl"
