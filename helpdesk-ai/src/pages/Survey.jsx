@@ -99,7 +99,7 @@ function WelcomeScreen({ onStart }) {
               <svg className="w-3.5 h-3.5 text-[#22c55e]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              ~2 minutes
+              3–5 minutes
             </span>
             <span className="flex items-center gap-1.5">
               <svg className="w-3.5 h-3.5 text-[#22c55e]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -304,7 +304,7 @@ function DoneScreen() {
           </div>
           <p className="text-[12px] text-[#71717a] leading-relaxed mb-4">
             Every response shapes HiTicket's roadmap. If you found this worthwhile,
-            please share the link with a colleague, classmate, or anyone who uses IT support — it takes them just 2 minutes.
+            please share the link with a colleague, classmate, or anyone who uses IT support — it takes them just 3–5 minutes.
           </p>
           <div className="flex items-center gap-2 p-2.5 bg-[#09090b] rounded-xl border border-[#27272a] mb-3">
             <span className="flex-1 text-[11px] text-[#52525b] truncate font-mono">{surveyUrl}</span>
@@ -329,7 +329,7 @@ function DoneScreen() {
               className="flex items-center gap-1 px-2.5 py-1 bg-[#22c55e]/10 hover:bg-[#22c55e]/20 text-[#22c55e] text-[10px] font-medium rounded-lg transition-colors">
               💬 WhatsApp
             </a>
-            <a href={`mailto:?subject=${encodeURIComponent('Help shape HiTicket — 2-min survey')}&body=${encodeURIComponent(`Hi,\n\nI just completed a short survey for HiTicket, an AI-powered IT helpdesk platform. It only takes 2 minutes and your input really matters!\n\n${surveyUrl}\n\nThanks!`)}`}
+            <a href={`mailto:?subject=${encodeURIComponent('Help shape HiTicket — 3–5 min survey')}&body=${encodeURIComponent(`Hi,\n\nI just completed a short survey for HiTicket, an AI-powered IT helpdesk platform. It only takes 3–5 minutes and your input really matters!\n\n${surveyUrl}\n\nThanks!`)}`}
               className="flex items-center gap-1 px-2.5 py-1 bg-[#3b82f6]/10 hover:bg-[#3b82f6]/20 text-[#3b82f6] text-[10px] font-medium rounded-lg transition-colors">
               ✉️ Email
             </a>
