@@ -35,6 +35,12 @@ export const logActivity = (action, {
   actor    = null,
 } = {}) => {
   try {
+    // Respect per-user logging preferences (set in Settings)
+    if (localStorage.getItem('hd_log_enabled') === 'false') return;
+    const logLevel = localStorage.getItem('hd_log_level') || 'detailed';
+    // 'info_error' level: skip warning severity events
+    if (logLevel === 'info_error' && severity === 'warning') return;
+
     const token     = localStorage.getItem('token');
     const sessionId = getSessionId();
     const userAgent = navigator.userAgent;

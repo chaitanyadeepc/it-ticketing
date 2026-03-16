@@ -64,6 +64,8 @@ const Settings = () => {
   const [disableError, setDisableError] = useState('');
   const [disableLoading, setDisableLoading] = useState(false);
   const [sessionAlerts, setSessionAlerts] = useState(true);
+  const [loggingEnabled, setLoggingEnabled] = useState(() => localStorage.getItem('hd_log_enabled') !== 'false');
+  const [logLevel, setLogLevel]             = useState(() => localStorage.getItem('hd_log_level') || 'detailed');
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
   const [settingsLoading, setSettingsLoading] = useState(true);
@@ -81,6 +83,29 @@ const Settings = () => {
       if (tf?.method)  setTwoFaMethod(tf.method);
     }).catch(() => {}).finally(() => setSettingsLoading(false));
   }, []);
+
+  const handleLoggingToggle = (v) => {
+    setLoggingEnabled(v);
+    localStorage.setItem('hd_log_enabled', String(v));
+    // Log the change only if we're turning logging back on
+    if (v) {
+      logActivity('SETTINGS_SAVED', {
+        category: 'SETTINGS', severity: 'info',
+        detail: 'Activity logging enabled',
+        metadata: { logLevel },
+      });
+    }
+  };
+
+  const handleLogLevel = (level) => {
+    setLogLevel(level);
+    localStorage.setItem('hd_log_level', level);
+    logActivity('SETTINGS_SAVED', {
+      category: 'SETTINGS', severity: 'info',
+      detail: `Log level changed to "${level}"`,
+      metadata: { logLevel: level },
+    });
+  };
 
   const saveNotificationPrefs = async (patch) => {
     setSaving(true);
@@ -345,6 +370,51 @@ const Settings = () => {
             </SettingRow>
           </SectionCard>
         </div>
+
+        {/* Activity Logging — full width */}
+        <SectionCard
+          accentColor="#f59e0b"
+          title="Activity Logging"
+          icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>}
+        >
+          <SettingRow
+            icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75"/></svg>}
+            title="Enable Activity Logging"
+            desc="Track your actions across the platform for the admin audit log"
+          >
+            <Toggle enabled={loggingEnabled} onChange={handleLoggingToggle} />
+          </SettingRow>
+
+          {loggingEnabled && (
+            <div className="flex items-start justify-between py-3.5 gap-3">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div className="w-8 h-8 rounded-lg bg-[#27272a] flex items-center justify-center text-[#a1a1aa] flex-shrink-0">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z"/></svg>
+                </div>
+                <div className="min-w-0">
+                  <div className="font-medium text-[#fafafa] text-[13.5px]">Log Level</div>
+                  <div className="text-[12px] text-[#52525b] mt-0.5">
+                    {logLevel === 'detailed' ? 'All events including warnings and page visits' : 'Errors, critical events, and standard info only — warnings skipped'}
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-1 p-1 bg-[#09090b] rounded-lg border border-[#27272a] flex-shrink-0">
+                <button
+                  onClick={() => handleLogLevel('detailed')}
+                  className={`px-3 py-1.5 rounded-md text-[12px] font-medium transition-colors ${
+                    logLevel === 'detailed' ? 'bg-[#f59e0b] text-[#09090b]' : 'text-[#52525b] hover:text-[#a1a1aa]'
+                  }`}
+                >Detailed</button>
+                <button
+                  onClick={() => handleLogLevel('info_error')}
+                  className={`px-3 py-1.5 rounded-md text-[12px] font-medium transition-colors ${
+                    logLevel === 'info_error' ? 'bg-[#f59e0b] text-[#09090b]' : 'text-[#52525b] hover:text-[#a1a1aa]'
+                  }`}
+                >Info &amp; Error only</button>
+              </div>
+            </div>
+          )}
+        </SectionCard>
 
         {/* Account — full width bottom row */}
         <div className="bg-[#18181b] border border-[#27272a] border-l-[3px] rounded-xl p-5" style={{ borderLeftColor: '#ef4444' }}>
