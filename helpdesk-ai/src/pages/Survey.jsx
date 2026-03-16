@@ -68,6 +68,19 @@ const STEPS = [
     ],
   },
   {
+    id: 'responseTime',
+    title: 'How quickly do you expect an initial response to your IT ticket?',
+    subtitle: 'Not the full resolution — just the first acknowledgement',
+    type: 'single',
+    options: [
+      { value: 'under1hr', label: 'Within 1 hour',     icon: '⚡', desc: 'Critical — I need immediate acknowledgement' },
+      { value: '1to4hrs',  label: '1–4 hours',         icon: '⏱️', desc: 'Same morning or afternoon' },
+      { value: 'sameday',  label: 'Same working day',  icon: '📋', desc: 'Acknowledged before end of business day' },
+      { value: 'nextday',  label: 'Next business day', icon: '📆', desc: 'Not urgently needed' },
+      { value: 'flexible', label: 'No expectation',    icon: '😌', desc: 'Happy to wait however long it takes' },
+    ],
+  },
+  {
     id: 'issueFrequency',
     title: 'How often do you encounter IT issues?',
     subtitle: 'Roughly how often do you need IT support',
@@ -77,6 +90,19 @@ const STEPS = [
       { value: 'weekly',  label: 'A few times a week',icon: '🗓️', desc: 'Regularly throughout the week' },
       { value: 'monthly', label: 'About once a month',icon: '📅', desc: 'Occasional issues' },
       { value: 'rarely',  label: 'Rarely',            icon: '✅', desc: 'Only when something breaks' },
+    ],
+  },
+  {
+    id: 'notifPreference',
+    title: 'How would you prefer to be notified about ticket updates?',
+    subtitle: 'When your ticket status changes or receives a new response',
+    type: 'single',
+    options: [
+      { value: 'email',  label: 'Email only',           icon: '📧', desc: 'Updates sent directly to my inbox' },
+      { value: 'inapp',  label: 'In-app notification',  icon: '🔔', desc: 'Notification badge within the platform' },
+      { value: 'sms',    label: 'SMS / WhatsApp',       icon: '💬', desc: 'Text message to my phone' },
+      { value: 'portal', label: "I'll check the portal",icon: '🌐', desc: 'No push — I prefer logging in manually' },
+      { value: 'any',    label: 'Any method works',     icon: '✅', desc: 'Whatever is fastest and easiest' },
     ],
   },
   {
@@ -223,7 +249,7 @@ function IntroScreen({ onStart }) {
             </svg>
           </button>
           <p className="mt-3 text-[11px] text-[#3f3f46]">
-            8 questions · No account needed · Responses help improve HiTicket
+            10 questions · No account needed · Responses help improve HiTicket
           </p>
         </div>
       </div>

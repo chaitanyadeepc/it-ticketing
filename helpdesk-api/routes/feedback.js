@@ -19,6 +19,7 @@ router.post('/', submitLimiter, async (req, res) => {
     const {
       role, currentProcess, satisfaction, priorities,
       wouldUseChatbot, issueFrequency, statusImportance, suggestions,
+      responseTime, notifPreference,
     } = req.body;
 
     const feedback = await Feedback.create({
@@ -29,6 +30,8 @@ router.post('/', submitLimiter, async (req, res) => {
       wouldUseChatbot,
       issueFrequency,
       statusImportance,
+      responseTime,
+      notifPreference,
       suggestions: (suggestions || '').slice(0, 1000).trim(),
       userAgent: (req.headers['user-agent'] || '').slice(0, 500),
     });
@@ -73,12 +76,14 @@ router.get('/stats', protect, adminOnly, async (req, res) => {
       total,
       avgSatisfaction: Math.round(avg * 10) / 10,
       satisfactionDist,
-      roles:       tally('role'),
-      processes:   tally('currentProcess'),
-      chatbot:     tally('wouldUseChatbot'),
-      frequency:   tally('issueFrequency'),
-      importance:  tally('statusImportance'),
-      priorities:  priorityCounts,
+      roles:           tally('role'),
+      processes:       tally('currentProcess'),
+      chatbot:         tally('wouldUseChatbot'),
+      frequency:       tally('issueFrequency'),
+      importance:      tally('statusImportance'),
+      priorities:      priorityCounts,
+      responseTime:    tally('responseTime'),
+      notifPreference: tally('notifPreference'),
     });
   } catch {
     res.status(500).json({ error: 'Failed to fetch stats' });

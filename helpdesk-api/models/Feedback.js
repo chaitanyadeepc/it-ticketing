@@ -49,6 +49,14 @@ const FeedbackSchema = new mongoose.Schema(
       enum: ['critical', 'important', 'somewhat', 'notimportant'],
       required: true,
     },
+    responseTime: {
+      type: String,
+      enum: ['under1hr', '1to4hrs', 'sameday', 'nextday', 'flexible'],
+    },
+    notifPreference: {
+      type: String,
+      enum: ['email', 'inapp', 'sms', 'portal', 'any'],
+    },
     suggestions: {
       type: String,
       maxlength: 1000,

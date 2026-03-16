@@ -20,6 +20,20 @@ const PRIORITY_LABELS = {
   speed: '⚡ Fast response', tracking: '📍 Real-time tracking', ai: '🤖 AI-assisted',
   mobile: '📱 Mobile-friendly', notes: '📋 Resolution notes', availability: '🕐 24/7 availability',
 };
+const RESP_TIME_LABELS = {
+  under1hr: '⚡ Within 1 hour',
+  '1to4hrs': '⏱️ 1–4 hours',
+  sameday:  '📋 Same working day',
+  nextday:  '📆 Next business day',
+  flexible: '😌 No expectation',
+};
+const NOTIF_LABELS = {
+  email:  '📧 Email only',
+  inapp:  '🔔 In-app notification',
+  sms:    '💬 SMS / WhatsApp',
+  portal: '🌐 Check portal manually',
+  any:    '✅ Any method works',
+};
 
 const SAT_COLORS    = ['#ef4444', '#f97316', '#f59e0b', '#22c55e', '#3b82f6'];
 const SAT_LABELS    = ['Very Poor', 'Poor', 'Okay', 'Good', 'Excellent'];
@@ -92,14 +106,16 @@ export default function FeedbackResults() {
 
   const exportCSV = () => {
     if (!feedback.length) return;
-    const headers = ['Date', 'Role', 'Current Process', 'Satisfaction', 'Priorities', 'Would Use Chatbot', 'Issue Frequency', 'Status Importance', 'Suggestions'];
-    const rows = feedback.map((f) => [
-      new Date(f.createdAt).toLocaleDateString('en-GB'),
-      f.role, f.currentProcess, f.satisfaction,
-      (f.priorities || []).join('; '),
-      f.wouldUseChatbot, f.issueFrequency, f.statusImportance,
-      `"${(f.suggestions || '').replace(/"/g, '""')}"`,
-    ]);
+    const headers = ['Date', 'Role', 'Current Process', 'Satisfaction', 'Priorities', 'Would Use Chatbot', 'Issue Frequency', 'Response Time Expectation', 'Notif. Preference', 'Status Importance', 'Suggestions'];
+      const rows = feedback.map((f) => [
+        new Date(f.createdAt).toLocaleDateString('en-GB'),
+        f.role, f.currentProcess, f.satisfaction,
+        (f.priorities || []).join('; '),
+        f.wouldUseChatbot, f.issueFrequency,
+        f.responseTime || '', f.notifPreference || '',
+        f.statusImportance,
+        `"${(f.suggestions || '').replace(/"/g, '""')}"`,
+      ]);
     const csv  = [headers, ...rows].map((r) => r.join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url  = URL.createObjectURL(blob);
@@ -261,6 +277,22 @@ export default function FeedbackResults() {
                   />
                 ))}
               </SCard>
+
+              {/* Response time expectation */}
+              <SCard title="Response Time Expectation" accent="#06b6d4">
+                <p className="text-[11px] text-[#52525b] mb-3">How quickly users expect their first response</p>
+                {Object.entries(RESP_TIME_LABELS).map(([key, label]) => (
+                  <StatBar key={key} label={label} count={stats.responseTime?.[key] || 0} total={stats.total} color="#06b6d4" />
+                ))}
+              </SCard>
+
+              {/* Notification preference */}
+              <SCard title="Preferred Notification Method" accent="#a855f7">
+                <p className="text-[11px] text-[#52525b] mb-3">How users prefer to receive ticket updates</p>
+                {Object.entries(NOTIF_LABELS).map(([key, label]) => (
+                  <StatBar key={key} label={label} count={stats.notifPreference?.[key] || 0} total={stats.total} color="#a855f7" />
+                ))}
+              </SCard>
             </div>
 
             {/* Individual responses table */}
@@ -309,6 +341,8 @@ export default function FeedbackResults() {
                           <div><span className="text-[#52525b]">Issue frequency: </span><span className="text-[#a1a1aa]">{FREQ_LABELS[f.issueFrequency]}</span></div>
                           <div><span className="text-[#52525b]">Status importance: </span><span className="text-[#a1a1aa]">{IMP_LABELS[f.statusImportance]}</span></div>
                           <div><span className="text-[#52525b]">Priorities: </span><span className="text-[#a1a1aa]">{(f.priorities || []).map((p) => PRIORITY_LABELS[p]).join(', ') || '—'}</span></div>
+                          {f.responseTime && <div><span className="text-[#52525b]">Response expectation: </span><span className="text-[#a1a1aa]">{RESP_TIME_LABELS[f.responseTime]}</span></div>}
+                          {f.notifPreference && <div><span className="text-[#52525b]">Notif. preference: </span><span className="text-[#a1a1aa]">{NOTIF_LABELS[f.notifPreference]}</span></div>}
                           {f.suggestions && (
                             <div className="sm:col-span-2 p-3 bg-[#09090b] rounded-lg border border-[#27272a] mt-1">
                               <p className="text-[10px] text-[#52525b] mb-1 uppercase tracking-widest">Suggestions</p>
