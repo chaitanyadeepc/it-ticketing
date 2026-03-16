@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import LogoMark from '../components/ui/LogoMark';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -128,15 +129,6 @@ const STEPS = [
 
 const TOTAL = STEPS.length;
 
-// ── Logo ────────────────────────────────────────────────────────────────────
-const Logo = () => (
-  <div className="w-7 h-7 bg-[#3b82f6] rounded-lg flex items-center justify-center flex-shrink-0">
-    <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7H3a7 7 0 0 1 7-7h1V5.73A2 2 0 0 1 10 4a2 2 0 0 1 2-2m-4 9.5a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1m8 0a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1M3 15h18v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1Z" />
-    </svg>
-  </div>
-);
-
 // ── Done screen ─────────────────────────────────────────────────────────────
 function DoneScreen() {
   return (
@@ -224,9 +216,8 @@ export default function Survey() {
     <div className="min-h-screen bg-[#09090b] flex flex-col">
       {/* Header */}
       <header className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-[#27272a]">
-        <Link to="/" className="flex items-center gap-2">
-          <Logo />
-          <span className="text-[15px] font-semibold text-[#fafafa]">HiTicket</span>
+        <Link to="/">
+          <LogoMark size="sm" />
         </Link>
         <span className="text-[12px] text-[#52525b]">
           Question {step + 1} of {TOTAL}

@@ -100,6 +100,7 @@ const Navbar = () => {
   }, [isMobileMenuOpen]);
 
   if (location.pathname === '/login') return null;
+  if (location.pathname === '/survey') return null;
   if (location.pathname === '/' && !localStorage.getItem('token')) return null;
 
   const isAdmin = localStorage.getItem('userRole') === 'admin';

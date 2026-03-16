@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import PageWrapper from '../components/layout/PageWrapper';
 import Button from '../components/ui/Button';
+import LogoMark from '../components/ui/LogoMark';
 import api from '../api/api';
 
 const avatarColors = ['#3b82f6', '#6366f1', '#22c55e', '#f59e0b'];
@@ -324,13 +325,8 @@ const Home = () => {
       {/* ── Custom sticky header ─────────────────────────────────────────── */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-[#09090b]/90 backdrop-blur-md border-b border-[#27272a]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2.5">
-            <div className="w-7 h-7 bg-[#3b82f6] rounded-lg flex items-center justify-center">
-              <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7H3a7 7 0 0 1 7-7h1V5.73A2 2 0 0 1 10 4a2 2 0 0 1 2-2m-4 9.5a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1m8 0a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1M3 15h18v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1Z" />
-              </svg>
-            </div>
-            <span className="text-[15px] font-bold text-[#fafafa]">HiTicket</span>
+          <Link to="/">
+            <LogoMark size="sm" />
           </Link>
           <div className="hidden sm:flex items-center gap-1">
             <a href="#how-it-works" className="px-3 py-1.5 text-[13px] text-[#71717a] hover:text-[#fafafa] hover:bg-[#18181b] rounded-lg transition-colors">How It Works</a>
@@ -759,10 +755,10 @@ const Home = () => {
       {/* ── Final CTA ─────────────────────────────────────────────────────── */}
       <section className="border-t border-[#27272a] bg-[#0d0d0f] py-20 px-4 sm:px-6 lg:px-10">
         <div className="max-w-3xl mx-auto text-center">
-          <div className="w-14 h-14 bg-[#3b82f6] rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-[#3b82f6]/20">
-            <svg className="w-7 h-7 text-white" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7H3a7 7 0 0 1 7-7h1V5.73A2 2 0 0 1 10 4a2 2 0 0 1 2-2m-4 9.5a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1m8 0a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1M3 15h18v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1Z" />
-            </svg>
+          <div className="flex justify-center mb-6">
+            <div className="shadow-2xl shadow-[#FF634A]/30 rounded-xl">
+              <LogoMark size="xl" showWordmark={false} />
+            </div>
           </div>
           <h2 className="text-[30px] sm:text-[36px] font-black text-[#fafafa] mb-4">Ready to streamline IT support?</h2>
           <p className="text-[15px] text-[#52525b] mb-8">Join 2,400+ users who've switched to faster, smarter IT support. No configuration required.</p>
@@ -788,13 +784,8 @@ const Home = () => {
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 mb-8">
             <div>
-              <div className="flex items-center gap-2.5 mb-3">
-                <div className="w-7 h-7 bg-[#3b82f6] rounded-lg flex items-center justify-center">
-                  <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7H3a7 7 0 0 1 7-7h1V5.73A2 2 0 0 1 10 4a2 2 0 0 1 2-2m-4 9.5a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1m8 0a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1M3 15h18v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1Z" />
-                  </svg>
-                </div>
-                <span className="text-[15px] font-bold text-[#fafafa]">HiTicket</span>
+              <div className="mb-3">
+                <LogoMark size="sm" />
               </div>
               <p className="text-[12px] text-[#52525b] leading-relaxed">AI-powered IT helpdesk for modern teams. Built as a final year project with React 19, Node.js, and MongoDB.</p>
             </div>
