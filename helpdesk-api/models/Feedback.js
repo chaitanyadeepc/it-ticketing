@@ -4,6 +4,11 @@ const VALID_PRIORITIES = ['speed', 'tracking', 'ai', 'mobile', 'notes', 'availab
 
 const FeedbackSchema = new mongoose.Schema(
   {
+    name: {
+      type: String,
+      maxlength: 100,
+      default: '',
+    },
     role: {
       type: String,
       enum: ['student', 'it_staff', 'faculty', 'developer', 'manager', 'other'],

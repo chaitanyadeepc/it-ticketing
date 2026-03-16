@@ -17,12 +17,14 @@ const submitLimiter = rateLimit({
 router.post('/', submitLimiter, async (req, res) => {
   try {
     const {
+      name,
       role, currentProcess, satisfaction, priorities,
       wouldUseChatbot, issueFrequency, statusImportance, suggestions,
       responseTime, notifPreference,
     } = req.body;
 
     const feedback = await Feedback.create({
+      name: (name || '').slice(0, 100).trim(),
       role,
       currentProcess,
       satisfaction: Number(satisfaction),
