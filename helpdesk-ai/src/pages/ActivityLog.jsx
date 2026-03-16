@@ -75,6 +75,8 @@ export default function ActivityLog() {
   const [totalPages, setTotalPages] = useState(1);
   const [stats, setStats]           = useState({ total: 0, critical: 0, error: 0, warning: 0, auth: 0, ticket: 0 });
   const [loading, setLoading]       = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
   const [error, setError]           = useState('');
 
   const [search, setSearch]         = useState('');
@@ -87,8 +89,9 @@ export default function ActivityLog() {
   const [confirmClear, setConfirmClear] = useState(false);
 
   // ── Fetch from API ────────────────────────────────────────────────────
-  const fetchLogs = useCallback(async (pg = page) => {
-    setLoading(true);
+  const fetchLogs = useCallback(async (pg = page, silent = false) => {
+    if (silent) { setRefreshing(true); }
+    else        { setLoading(true); }
     setError('');
     try {
       const params = new URLSearchParams({
@@ -105,10 +108,12 @@ export default function ActivityLog() {
       setTotal(data.total || 0);
       setTotalPages(data.pages || 1);
       setStats(data.stats || { total: 0, critical: 0, error: 0, warning: 0, auth: 0, ticket: 0 });
+      setLastUpdated(Date.now());
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to load logs');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [page, catFilter, sevFilter, search, dateFrom, dateTo]);
 
@@ -128,6 +133,12 @@ export default function ActivityLog() {
     }, 350);
     return () => clearTimeout(t);
   }, [search]);
+
+  // Auto-refresh every 30s (silent — no loading spinner)
+  useEffect(() => {
+    const id = setInterval(() => fetchLogs(page, true), 30_000);
+    return () => clearInterval(id);
+  }, [fetchLogs, page]);
 
 
   const handleClear = async () => {
@@ -157,9 +168,22 @@ export default function ActivityLog() {
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3 p-5 rounded-2xl bg-gradient-to-r from-[#ef4444]/8 via-[#f97316]/4 to-transparent border border-[#ef4444]/15">
           <div>
             <h1 className="text-[22px] sm:text-[24px] font-bold text-[#fafafa] mb-0.5">Activity Log</h1>
-            <p className="text-[13px] text-[#a1a1aa]">{stats.total} events recorded · admin access only</p>
+            <p className="text-[13px] text-[#a1a1aa]">
+              {stats.total} events recorded · admin access only
+              {lastUpdated && (
+                <span className="ml-2 text-[#3f3f46]">· updated {relativeTime(lastUpdated)}</span>
+              )}
+            </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => fetchLogs(page, true)}
+              disabled={refreshing}
+              className="flex items-center gap-1.5 px-3 py-2 bg-[#27272a] hover:bg-[#3f3f46] text-[#fafafa] text-[12px] font-medium rounded-lg transition-colors disabled:opacity-50"
+            >
+              <svg className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+              Refresh
+            </button>
             <button
               onClick={handleExport}
               className="flex items-center gap-1.5 px-3 py-2 bg-[#27272a] hover:bg-[#3f3f46] text-[#fafafa] text-[12px] font-medium rounded-lg transition-colors"
