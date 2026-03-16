@@ -366,9 +366,10 @@ export default function FeedbackResults() {
 
   const exportCSV = () => {
     if (!feedback.length) return;
-    const headers = ['Date', 'Role', 'Current Process', 'Satisfaction', 'Priorities', 'Would Use Chatbot', 'Issue Frequency', 'Response Time Expectation', 'Notif. Preference', 'Status Importance', 'Suggestions'];
+    const headers = ['Date', 'Name', 'Role', 'Current Process', 'Satisfaction', 'Priorities', 'Would Use Chatbot', 'Issue Frequency', 'Response Time Expectation', 'Notif. Preference', 'Status Importance', 'Suggestions'];
       const rows = feedback.map((f) => [
         new Date(f.createdAt).toLocaleDateString('en-GB'),
+        f.name || '—',
         f.role, f.currentProcess, f.satisfaction,
         (f.priorities || []).join('; '),
         f.wouldUseChatbot, f.issueFrequency,
@@ -431,6 +432,7 @@ export default function FeedbackResults() {
   const copyResponse = (f) => {
     const lines = [
       `Date: ${new Date(f.createdAt).toLocaleDateString('en-GB')}`,
+      f.name ? `Name: ${f.name}` : null,
       `Role: ${ROLE_LABELS[f.role] || f.role}`,
       `Satisfaction: ${f.satisfaction}/5`,
       `Process: ${PROCESS_LABELS[f.currentProcess] || f.currentProcess}`,
@@ -455,6 +457,7 @@ export default function FeedbackResults() {
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(f =>
+        (f.name || '').toLowerCase().includes(q) ||
         ROLE_LABELS[f.role]?.toLowerCase().includes(q) ||
         (f.suggestions || '').toLowerCase().includes(q)
       );
@@ -933,6 +936,7 @@ export default function FeedbackResults() {
                   className="w-3.5 h-3.5 accent-[#3b82f6] flex-shrink-0" />
                 <span className="text-[10px] text-[#3f3f46] w-6">#</span>
                 <span className="text-[10px] text-[#3f3f46] w-28">Date</span>
+                <span className="text-[10px] text-[#3f3f46] w-24 hidden md:block">Name</span>
                 <span className="text-[10px] text-[#3f3f46] flex-1">Role</span>
                 <span className="text-[10px] text-[#3f3f46] w-24">Rating</span>
                 <span className="text-[10px] text-[#3f3f46] w-28 hidden sm:block">AI Chatbot</span>
@@ -956,6 +960,9 @@ export default function FeedbackResults() {
                         </span>
                         <span className="text-[10px] font-mono text-[#3f3f46] w-28 flex-shrink-0">
                           {new Date(f.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </span>
+                        <span className="text-[12px] text-[#fafafa] font-medium w-24 flex-shrink-0 truncate hidden md:block">
+                          {f.name || <span className="text-[#3f3f46] text-[11px] italic">—</span>}
                         </span>
                         <span className="flex-1 min-w-0 px-2 py-0.5 text-[10px] rounded-full bg-[#8b5cf6]/10 text-[#a78bfa] font-medium truncate">
                           {ROLE_LABELS[f.role] || f.role}
