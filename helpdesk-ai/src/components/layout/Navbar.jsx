@@ -199,7 +199,7 @@ const Navbar = () => {
               </button>
 
               {isBellOpen && (
-                <div className="absolute right-0 top-10 w-72 rounded-xl shadow-2xl shadow-black/50 border notif-enter z-50 overflow-hidden"
+                <div className="absolute right-0 top-10 w-64 sm:w-72 rounded-xl shadow-2xl shadow-black/50 border notif-enter z-50 overflow-hidden"
                   style={{ backgroundColor: 'var(--color-canvas-overlay)', borderColor: 'var(--color-border-default)' }}>
                   <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--color-border-muted)' }}>
                     <span className="text-[13px] font-semibold" style={{ color: 'var(--color-fg-default)' }}>Recent Updates</span>

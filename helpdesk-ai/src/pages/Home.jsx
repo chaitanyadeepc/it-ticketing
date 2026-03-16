@@ -131,14 +131,14 @@ const Home = () => {
           ) : (
             <>
               {/* Stat chips */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-5">
                 {[
                   { label: 'Open', value: open, color: '#22c55e', sub: 'Active tickets' },
                   { label: 'In Progress', value: inProgress, color: '#f59e0b', sub: 'Being handled' },
                   { label: 'Resolved', value: resolved + closed, color: '#06b6d4', sub: 'Completed' },
                   { label: 'Critical', value: critical, color: '#ef4444', sub: 'Need attention' },
                 ].map(({ label, value, color, sub }) => (
-                  <div key={label} className="rounded-xl border p-4 relative overflow-hidden" style={{ borderColor: `${color}30`, background: `linear-gradient(135deg, ${color}0d 0%, transparent 70%)` }}>
+                  <div key={label} className="rounded-xl border p-3 sm:p-4 relative overflow-hidden" style={{ borderColor: `${color}30`, background: `linear-gradient(135deg, ${color}0d 0%, transparent 70%)` }}>
                     <div className="text-[32px] font-bold leading-none mb-1" style={{ color }}>{value}</div>
                     <div className="text-[13px] font-medium text-[#fafafa]">{label}</div>
                     <div className="text-[11px] text-[#52525b] mt-0.5">{sub}</div>
@@ -371,20 +371,20 @@ const Home = () => {
       </div>
 
       {/* Stats */}
-      <div className="border-y border-[#27272a] py-16">
+      <div className="border-y border-[#27272a] py-10 sm:py-16">
           <div className="w-full px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-3 gap-8 md:gap-12">
+          <div className="grid grid-cols-3 gap-4 sm:gap-8 md:gap-12">
             {[
-              { value: '2,400+', label: 'Tickets Resolved', color: '#3b82f6', icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
-              { value: '98%',    label: 'User Satisfaction',     color: '#22c55e', icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
-              { value: '< 2hrs', label: 'Avg Resolution Time',   color: '#f59e0b', icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
+              { value: '2,400+', label: 'Tickets Resolved', color: '#3b82f6', icon: <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
+              { value: '98%',    label: 'User Satisfaction',     color: '#22c55e', icon: <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
+              { value: '< 2hrs', label: 'Avg Res. Time',         color: '#f59e0b', icon: <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
             ].map(({ value, label, color, icon }, i) => (
               <div key={i} className={`text-center ${i === 1 ? 'border-x border-[#27272a]' : ''}`}>
-                <div className="flex justify-center mb-3">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${color}18`, color }}>{icon}</div>
+                <div className="flex justify-center mb-2 sm:mb-3">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${color}18`, color }}>{icon}</div>
                 </div>
-                <div className="font-bold text-[34px] text-[#fafafa] mb-1" style={{ color }}>{value}</div>
-                <div className="text-[13px] text-[#52525b]">{label}</div>
+                <div className="font-bold text-[20px] sm:text-[34px] text-[#fafafa] mb-0.5 sm:mb-1" style={{ color }}>{value}</div>
+                <div className="text-[10px] sm:text-[13px] text-[#52525b] leading-tight">{label}</div>
               </div>
             ))}
           </div>
@@ -419,7 +419,7 @@ const Home = () => {
       {/* CTA Banner */}
       <div className="py-16 border-t border-[#27272a]">
         <div className="w-full px-4 sm:px-6 lg:px-8 text-center">
-          <div className="bg-gradient-to-r from-[#3b82f6]/10 to-[#6366f1]/10 border border-[#3b82f6]/20 rounded-2xl p-10">
+          <div className="bg-gradient-to-r from-[#3b82f6]/10 to-[#6366f1]/10 border border-[#3b82f6]/20 rounded-2xl p-5 sm:p-10">
             <div className="w-12 h-12 bg-[#3b82f6] rounded-xl flex items-center justify-center mx-auto mb-5 shadow-lg shadow-[#3b82f6]/20">
               <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7H3a7 7 0 0 1 7-7h1V5.73A2 2 0 0 1 10 4a2 2 0 0 1 2-2m-4 9.5a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1m8 0a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1M3 15h18v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1Z" />

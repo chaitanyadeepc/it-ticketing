@@ -482,8 +482,8 @@ export default function TicketDetail() {
                     </div>
                   )}
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] text-[#52525b]">Supports **bold**, *italic*, `code` · Shift+Enter for new line</span>
+                <div className="flex items-center justify-end sm:justify-between">
+                  <span className="hidden sm:block text-[11px] text-[#52525b]">Supports **bold**, *italic*, `code` · Shift+Enter for new line</span>
                   <button type="submit" disabled={commentLoading || !comment.trim()}
                     className="px-4 py-2 bg-[#8b5cf6] hover:bg-[#7c3aed] disabled:opacity-50 text-white text-[13px] rounded-lg transition-colors font-medium">
                     {commentLoading ? '...' : 'Post'}

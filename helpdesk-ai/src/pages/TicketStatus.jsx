@@ -61,7 +61,7 @@ export default function TicketStatus() {
         </p>
 
         {/* Lookup form */}
-        <form onSubmit={handleLookup} className="flex gap-2 mb-6">
+        <form onSubmit={handleLookup} className="flex flex-col xs:flex-row gap-2 mb-6">
           <input
             value={ticketId}
             onChange={e => setTicketId(e.target.value.toUpperCase())}
@@ -107,7 +107,7 @@ export default function TicketStatus() {
             </div>
 
             {/* Details grid */}
-            <div className="grid grid-cols-2 gap-x-6 gap-y-3 border-t border-[#27272a] pt-4">
+            <div className="grid grid-cols-2 gap-x-4 sm:gap-x-6 gap-y-3 border-t border-[#27272a] pt-4">
               {[
                 { label: 'Priority',  value: ticket.priority, cls: pc },
                 { label: 'Category',  value: ticket.category },

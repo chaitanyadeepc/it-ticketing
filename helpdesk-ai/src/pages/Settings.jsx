@@ -15,17 +15,17 @@ const Toggle = ({ enabled, onChange }) => (
 );
 
 const SettingRow = ({ icon, title, desc, children }) => (
-  <div className="flex items-center justify-between py-3.5 border-b border-[#27272a] last:border-none">
-    <div className="flex items-center gap-3">
+  <div className="flex items-start sm:items-center justify-between py-3.5 border-b border-[#27272a] last:border-none gap-3">
+    <div className="flex items-center gap-3 flex-1 min-w-0">
       <div className="w-8 h-8 rounded-lg bg-[#27272a] flex items-center justify-center text-[#a1a1aa] flex-shrink-0">
         {icon}
       </div>
-      <div>
+      <div className="min-w-0">
         <div className="font-medium text-[#fafafa] text-[13.5px]">{title}</div>
         <div className="text-[12px] text-[#52525b] mt-0.5">{desc}</div>
       </div>
     </div>
-    {children}
+    <div className="flex-shrink-0">{children}</div>
   </div>
 );
 

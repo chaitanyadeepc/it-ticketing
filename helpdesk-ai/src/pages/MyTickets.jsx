@@ -128,8 +128,8 @@ const MyTickets = () => {
         </div>
 
         {/* Search + Filters */}
-        <div className="flex flex-wrap gap-3 mb-4 items-center">
-          <div className="relative flex-1 min-w-[200px] max-w-sm">
+        <div className="flex flex-wrap gap-2 sm:gap-3 mb-4 items-center">
+          <div className="relative w-full sm:flex-1 sm:min-w-[200px] sm:max-w-sm">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#52525b]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z"/>
             </svg>
@@ -141,34 +141,30 @@ const MyTickets = () => {
               className="w-full bg-[#27272a] border border-[#3f3f46] text-[#fafafa] text-[13px] rounded-lg pl-9 pr-3 py-1.5 focus:outline-none focus:border-[#3b82f6] placeholder-[#52525b]"
             />
           </div>
-          <div className="flex items-center gap-2">
-            <label className="text-[12px] text-[#a1a1aa] whitespace-nowrap">Priority</label>
+          <div className="flex items-center gap-1.5 flex-wrap">
             <select
               value={priority}
               onChange={(e) => setPriority(e.target.value)}
-              className="bg-[#27272a] border border-[#3f3f46] text-[#fafafa] text-[13px] rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#3b82f6]"
+              className="bg-[#27272a] border border-[#3f3f46] text-[#fafafa] text-[13px] rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#3b82f6]"
             >
               {PRIORITIES.map((p) => <option key={p}>{p}</option>)}
             </select>
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="text-[12px] text-[#a1a1aa] whitespace-nowrap">Category</label>
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="bg-[#27272a] border border-[#3f3f46] text-[#fafafa] text-[13px] rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#3b82f6]"
+              className="bg-[#27272a] border border-[#3f3f46] text-[#fafafa] text-[13px] rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#3b82f6]"
             >
               {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
             </select>
+            {hasActiveFilters && (
+              <button
+                onClick={() => { setPriority('All'); setCategory('All'); setSearch(''); }}
+                className="text-[12px] text-[#a1a1aa] hover:text-[#fafafa] underline"
+              >
+                Clear
+              </button>
+            )}
           </div>
-          {hasActiveFilters && (
-            <button
-              onClick={() => { setPriority('All'); setCategory('All'); setSearch(''); }}
-              className="text-[12px] text-[#a1a1aa] hover:text-[#fafafa] underline"
-            >
-              Clear filters
-            </button>
-          )}
         </div>
 
         {loading ? (
@@ -203,15 +199,15 @@ const MyTickets = () => {
               ))}
             </div>
             {totalPages > 1 && (
-              <div className="flex items-center justify-between mt-8">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between mt-8 gap-2">
                 <p className="text-[13px] text-[#52525b]">
                   Showing {(page - 1) * ITEMS_PER_PAGE + 1}–{Math.min(page * ITEMS_PER_PAGE, filteredTickets.length)} of {filteredTickets.length}
                 </p>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 overflow-x-auto pb-1">
                   <button
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={page === 1}
-                    className="px-3 py-1.5 rounded-lg text-[13px] bg-[#27272a] border border-[#3f3f46] text-[#a1a1aa] hover:text-[#fafafa] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="px-3 py-1.5 rounded-lg text-[13px] bg-[#27272a] border border-[#3f3f46] text-[#a1a1aa] hover:text-[#fafafa] disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0"
                   >
                     ← Prev
                   </button>
@@ -219,7 +215,7 @@ const MyTickets = () => {
                     <button
                       key={pg}
                       onClick={() => setPage(pg)}
-                      className={`w-8 h-8 rounded-lg text-[13px] border transition-colors ${
+                      className={`w-8 h-8 rounded-lg text-[13px] border transition-colors flex-shrink-0 ${
                         pg === page
                           ? 'bg-[#3b82f6] border-[#3b82f6] text-white'
                           : 'bg-[#27272a] border-[#3f3f46] text-[#a1a1aa] hover:text-[#fafafa]'
@@ -231,7 +227,7 @@ const MyTickets = () => {
                   <button
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     disabled={page === totalPages}
-                    className="px-3 py-1.5 rounded-lg text-[13px] bg-[#27272a] border border-[#3f3f46] text-[#a1a1aa] hover:text-[#fafafa] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="px-3 py-1.5 rounded-lg text-[13px] bg-[#27272a] border border-[#3f3f46] text-[#a1a1aa] hover:text-[#fafafa] disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0"
                   >
                     Next →
                   </button>

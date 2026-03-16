@@ -765,15 +765,15 @@ const AdminDashboard = () => {
             </>
           )}
           {tablePageCount > 1 && (
-            <div className="flex items-center justify-between mt-6 pt-4 border-t border-[#27272a]">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mt-6 pt-4 border-t border-[#27272a] gap-2">
               <p className="text-[13px] text-[#52525b]">
                 Showing {(tablePage - 1) * TABLE_PAGE_SIZE + 1}–{Math.min(tablePage * TABLE_PAGE_SIZE, filteredTableTickets.length)} of {filteredTableTickets.length}
               </p>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 overflow-x-auto pb-1">
                 <button
                   onClick={() => setTablePage((p) => Math.max(1, p - 1))}
                   disabled={tablePage === 1}
-                  className="px-3 py-1.5 rounded-lg text-[13px] bg-[#27272a] border border-[#3f3f46] text-[#a1a1aa] hover:text-[#fafafa] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="px-3 py-1.5 rounded-lg text-[13px] bg-[#27272a] border border-[#3f3f46] text-[#a1a1aa] hover:text-[#fafafa] disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0"
                 >
                   ← Prev
                 </button>
@@ -781,7 +781,7 @@ const AdminDashboard = () => {
                   <button
                     key={pg}
                     onClick={() => setTablePage(pg)}
-                    className={`w-8 h-8 rounded-lg text-[13px] border transition-colors ${
+                    className={`w-8 h-8 rounded-lg text-[13px] border transition-colors flex-shrink-0 ${
                       pg === tablePage
                         ? 'bg-[#3b82f6] border-[#3b82f6] text-white'
                         : 'bg-[#27272a] border-[#3f3f46] text-[#a1a1aa] hover:text-[#fafafa]'
@@ -793,7 +793,7 @@ const AdminDashboard = () => {
                 <button
                   onClick={() => setTablePage((p) => Math.min(tablePageCount, p + 1))}
                   disabled={tablePage === tablePageCount}
-                  className="px-3 py-1.5 rounded-lg text-[13px] bg-[#27272a] border border-[#3f3f46] text-[#a1a1aa] hover:text-[#fafafa] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="px-3 py-1.5 rounded-lg text-[13px] bg-[#27272a] border border-[#3f3f46] text-[#a1a1aa] hover:text-[#fafafa] disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0"
                 >
                   Next →
                 </button>

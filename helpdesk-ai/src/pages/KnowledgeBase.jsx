@@ -155,7 +155,7 @@ export default function KnowledgeBase() {
               className="w-full bg-[#18181b] border border-[#27272a] text-[#fafafa] text-[13px] rounded-xl pl-9 pr-4 py-2.5 focus:outline-none focus:border-[#3b82f6] placeholder-[#52525b]"
             />
           </div>
-          <div className="flex gap-1.5 flex-wrap">
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5 sm:pb-0 flex-nowrap sm:flex-wrap">
             {CATEGORIES.map(c => (
               <button key={c} onClick={() => setCategory(c)}
                 className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors border ${

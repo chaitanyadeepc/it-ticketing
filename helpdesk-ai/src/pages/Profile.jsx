@@ -192,16 +192,16 @@ const Profile = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-3 gap-2 sm:gap-4">
           {statItems.map(({ value, label, icon, color }) => (
-            <div key={label} className="rounded-xl border p-5 relative overflow-hidden" style={{ borderColor: `${color}30`, background: `linear-gradient(135deg, ${color}0d 0%, transparent 70%)` }}>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 mb-3" style={{ backgroundColor: color + '18' }}>
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} style={{ color }}>
+            <div key={label} className="rounded-xl border p-3 sm:p-5 relative overflow-hidden" style={{ borderColor: `${color}30`, background: `linear-gradient(135deg, ${color}0d 0%, transparent 70%)` }}>
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center flex-shrink-0 mb-2 sm:mb-3" style={{ backgroundColor: color + '18' }}>
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} style={{ color }}>
                   <path strokeLinecap="round" strokeLinejoin="round" d={icon} />
                 </svg>
               </div>
-              <div className="text-[28px] font-bold" style={{ color }}>{value}</div>
-              <div className="text-[12px] text-[#a1a1aa] mt-0.5">{label}</div>
+              <div className="text-[18px] sm:text-[28px] font-bold" style={{ color }}>{value}</div>
+              <div className="text-[10px] sm:text-[12px] text-[#a1a1aa] mt-0.5 leading-tight">{label}</div>
               <div className="absolute -right-4 -bottom-4 w-14 h-14 rounded-full blur-2xl opacity-20" style={{ backgroundColor: color }} />
             </div>
           ))}

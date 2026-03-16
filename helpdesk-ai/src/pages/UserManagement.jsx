@@ -93,7 +93,74 @@ export default function UserManagement() {
           <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-[13px]">{error}</div>
         )}
 
-        <div className="bg-[#18181b] border border-[#27272a] rounded-xl overflow-hidden">
+        {/* Mobile card view */}
+        <div className="sm:hidden bg-[#18181b] border border-[#27272a] rounded-xl divide-y divide-[#27272a]">
+          {users.map((user) => {
+            const isSelf = user._id === myId;
+            const isUpdating = updating === user._id;
+            return (
+              <div key={user._id} className="p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#3b82f6] to-[#2563eb] flex items-center justify-center text-white text-[12px] font-bold flex-shrink-0">
+                    {user.name?.slice(0, 2).toUpperCase() || user.email.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-medium text-[#fafafa] truncate">{user.name || '—'}</p>
+                    <p className="text-[11px] text-[#52525b] truncate">{user.email}</p>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                      user.role === 'admin'
+                        ? 'bg-violet-500/20 text-violet-400'
+                        : user.role === 'agent'
+                        ? 'bg-[#FF634A]/20 text-[#FF634A]'
+                        : 'bg-zinc-700/50 text-zinc-400'
+                    }`}>{user.role}</span>
+                    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                      user.isActive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                    }`}>{user.isActive ? 'Active' : 'Inactive'}</span>
+                  </div>
+                </div>
+                {isSelf ? (
+                  <p className="text-[12px] text-[#52525b] italic pl-12">That's you</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2 pl-12">
+                    {user.role !== 'admin' && (
+                      <button
+                        disabled={isUpdating}
+                        onClick={() => patch(user._id, { role: user.role === 'agent' ? 'user' : 'agent' })}
+                        className="text-[11px] px-2.5 py-1 rounded-lg border border-[#3f3f46] text-[#a1a1aa] hover:border-[#FF634A] hover:text-[#FF634A] disabled:opacity-40 transition-colors"
+                      >
+                        {isUpdating ? '…' : user.role === 'agent' ? 'Make User' : 'Make Agent'}
+                      </button>
+                    )}
+                    <button
+                      disabled={isUpdating}
+                      onClick={() => patch(user._id, { role: user.role === 'admin' ? 'user' : 'admin' })}
+                      className="text-[11px] px-2.5 py-1 rounded-lg border border-[#3f3f46] text-[#a1a1aa] hover:border-violet-500 hover:text-violet-400 disabled:opacity-40 transition-colors"
+                    >
+                      {isUpdating ? '…' : user.role === 'admin' ? 'Revoke Admin' : 'Make Admin'}
+                    </button>
+                    <button
+                      disabled={isUpdating}
+                      onClick={() => patch(user._id, { isActive: !user.isActive })}
+                      className={`text-[11px] px-2.5 py-1 rounded-lg border disabled:opacity-40 transition-colors ${
+                        user.isActive
+                          ? 'border-[#3f3f46] text-[#a1a1aa] hover:border-red-500 hover:text-red-400'
+                          : 'border-[#3f3f46] text-[#a1a1aa] hover:border-green-500 hover:text-green-400'
+                      }`}
+                    >
+                      {isUpdating ? '…' : user.isActive ? 'Deactivate' : 'Activate'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Desktop table */}
+        <div className="hidden sm:block bg-[#18181b] border border-[#27272a] rounded-xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
