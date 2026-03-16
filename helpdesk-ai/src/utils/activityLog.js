@@ -1,12 +1,11 @@
 /**
  * HiTicket Activity Logger
- * Writes structured log entries to localStorage.
- * Admin-only access enforced at the route level (AdminRoute).
- * Max 1000 entries — oldest are evicted automatically.
+ * Sends log entries to the backend API (MongoDB).
+ * Admin-only read/delete access enforced server-side.
+ * Fire-and-forget — never throws, never blocks the caller.
  */
 
-const LOG_KEY = 'hd_activity_log';
-const MAX_LOGS = 1000;
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 // ── Session ID (persists per browser tab) ──────────────────────────────────
 const getSessionId = () => {
@@ -18,26 +17,6 @@ const getSessionId = () => {
   return sid;
 };
 
-// ── Resolve current actor from localStorage/token ─────────────────────────
-const getActor = () => {
-  try {
-    const token = localStorage.getItem('token');
-    let tokenId = null;
-    if (token) {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      tokenId = payload.id || payload._id || null;
-    }
-    return {
-      id:    tokenId,
-      name:  localStorage.getItem('userName')  || 'Unknown',
-      email: localStorage.getItem('userEmail') || 'unknown@system',
-      role:  localStorage.getItem('userRole')  || 'user',
-    };
-  } catch {
-    return { id: null, name: 'System', email: 'system', role: 'system' };
-  }
-};
-
 // ── Core write function ────────────────────────────────────────────────────
 /**
  * @param {string} action      - Machine-readable verb e.g. 'TICKET_CREATED'
@@ -46,7 +25,7 @@ const getActor = () => {
  *   @param {string} opts.severity  - 'info' | 'warning' | 'error' | 'critical'
  *   @param {string} opts.detail    - Human-readable description
  *   @param {object} opts.metadata  - Arbitrary key/value payload (no passwords)
- *   @param {object} opts.actor     - Override actor (for login events where localStorage isn't set yet)
+ *   @param {object} opts.actor     - Actor override for pre-auth events (LOGIN_FAILED etc.)
  */
 export const logActivity = (action, {
   category = 'SYSTEM',
@@ -56,44 +35,42 @@ export const logActivity = (action, {
   actor    = null,
 } = {}) => {
   try {
-    const logs = getLogs();
-    const entry = {
-      id:        Math.random().toString(36).slice(2, 9) + Date.now().toString(36),
-      timestamp: new Date().toISOString(),
-      actor:     actor || getActor(),
-      action,
-      category,
-      severity,
-      detail,
-      metadata,
-      userAgent: navigator.userAgent,
-      sessionId: getSessionId(),
-    };
-    logs.unshift(entry);
-    if (logs.length > MAX_LOGS) logs.splice(MAX_LOGS);
-    localStorage.setItem(LOG_KEY, JSON.stringify(logs));
+    const token     = localStorage.getItem('token');
+    const sessionId = getSessionId();
+    const userAgent = navigator.userAgent;
+
+    const body = JSON.stringify({ action, category, severity, detail, metadata, sessionId, userAgent });
+
+    // Pre-auth events (LOGIN_FAILED, 2FA_INITIATED etc.) use the anonymous endpoint
+    // because the user has no valid token yet. Supply actor from call-site.
+    if (actor) {
+      fetch(`${BASE_URL}/logs/anonymous`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, category, severity, detail, metadata, sessionId, userAgent, actor }),
+        keepalive: true,
+      }).catch(() => {});
+      return;
+    }
+
+    if (!token) return; // Not authenticated — skip silently
+
+    fetch(`${BASE_URL}/logs`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body,
+      keepalive: true, // survives page unload
+    }).catch(() => {}); // never surface errors
   } catch {
     // Logging must never break the application
   }
 };
 
-// ── Read ──────────────────────────────────────────────────────────────────
-export const getLogs = () => {
-  try {
-    return JSON.parse(localStorage.getItem(LOG_KEY) || '[]');
-  } catch {
-    return [];
-  }
-};
-
-// ── Clear ─────────────────────────────────────────────────────────────────
-export const clearLogs = () => {
-  try { localStorage.removeItem(LOG_KEY); } catch {}
-};
-
-// ── Export as downloadable JSON ───────────────────────────────────────────
-export const exportLogs = () => {
-  const logs = getLogs();
+// ── Export helper (called from ActivityLog page with already-fetched data) ─
+export const exportLogsData = (logs) => {
   const json = JSON.stringify(logs, null, 2);
   const blob = new Blob([json], { type: 'application/json' });
   const url  = URL.createObjectURL(blob);

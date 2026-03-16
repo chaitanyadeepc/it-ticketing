@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageWrapper from '../components/layout/PageWrapper';
 import Breadcrumb from '../components/layout/Breadcrumb';
-import { getLogs, clearLogs, exportLogs } from '../utils/activityLog';
+import api from '../api/api';
+import { exportLogsData } from '../utils/activityLog';
 
 // ── Colour maps ───────────────────────────────────────────────────────────
 const CATEGORY_STYLE = {
@@ -32,8 +33,6 @@ const SEVERITY_ROW = {
 const CATEGORIES = ['ALL', 'AUTH', 'TICKET', 'COMMENT', 'USER_MGMT', 'SETTINGS', 'ADMIN', 'SYSTEM'];
 const SEVERITIES = ['ALL', 'info', 'warning', 'error', 'critical'];
 const PAGE_SIZE  = 25;
-
-// ── Helpers ───────────────────────────────────────────────────────────────
 const formatTs = (iso) => {
   const d = new Date(iso);
   return d.toLocaleString('en-GB', {
@@ -72,6 +71,12 @@ export default function ActivityLog() {
   const navigate = useNavigate();
 
   const [logs, setLogs]             = useState([]);
+  const [total, setTotal]           = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [stats, setStats]           = useState({ total: 0, critical: 0, error: 0, warning: 0, auth: 0, ticket: 0 });
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState('');
+
   const [search, setSearch]         = useState('');
   const [catFilter, setCatFilter]   = useState('ALL');
   const [sevFilter, setSevFilter]   = useState('ALL');
@@ -81,52 +86,64 @@ export default function ActivityLog() {
   const [expanded, setExpanded]     = useState(null);
   const [confirmClear, setConfirmClear] = useState(false);
 
-  useEffect(() => { setLogs(getLogs()); }, []);
+  // ── Fetch from API ────────────────────────────────────────────────────
+  const fetchLogs = useCallback(async (pg = page) => {
+    setLoading(true);
+    setError('');
+    try {
+      const params = new URLSearchParams({
+        page:  pg,
+        limit: PAGE_SIZE,
+        ...(catFilter !== 'ALL' && { category: catFilter }),
+        ...(sevFilter !== 'ALL' && { severity: sevFilter }),
+        ...(search    && { search }),
+        ...(dateFrom  && { dateFrom }),
+        ...(dateTo    && { dateTo }),
+      });
+      const { data } = await api.get(`/logs?${params}`);
+      setLogs(data.logs || []);
+      setTotal(data.total || 0);
+      setTotalPages(data.pages || 1);
+      setStats(data.stats || { total: 0, critical: 0, error: 0, warning: 0, auth: 0, ticket: 0 });
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to load logs');
+    } finally {
+      setLoading(false);
+    }
+  }, [page, catFilter, sevFilter, search, dateFrom, dateTo]);
 
-  // ── Filtered + searched list ──────────────────────────────────────────
-  const filtered = useMemo(() => {
-    const q = search.toLowerCase();
-    return logs.filter((e) => {
-      if (catFilter !== 'ALL' && e.category !== catFilter) return false;
-      if (sevFilter !== 'ALL' && e.severity !== sevFilter) return false;
-      if (dateFrom && new Date(e.timestamp) < new Date(dateFrom)) return false;
-      if (dateTo   && new Date(e.timestamp) > new Date(dateTo + 'T23:59:59')) return false;
-      if (q) {
-        const haystack = [
-          e.action, e.detail, e.actor?.name, e.actor?.email,
-          e.actor?.role, e.category, e.severity,
-          JSON.stringify(e.metadata),
-        ].join(' ').toLowerCase();
-        if (!haystack.includes(q)) return false;
-      }
-      return true;
-    });
-  }, [logs, search, catFilter, sevFilter, dateFrom, dateTo]);
+  useEffect(() => { fetchLogs(page); }, [page]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  // Reset to page 1 and refetch when filters change
+  useEffect(() => {
+    if (page !== 1) { setPage(1); } else { fetchLogs(1); }
+    setExpanded(null);
+  }, [catFilter, sevFilter, dateFrom, dateTo]);
 
-  // reset to page 1 on filter change
-  useEffect(() => { setPage(1); }, [search, catFilter, sevFilter, dateFrom, dateTo]);
+  // Debounce search
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (page !== 1) { setPage(1); } else { fetchLogs(1); }
+      setExpanded(null);
+    }, 350);
+    return () => clearTimeout(t);
+  }, [search]);
 
-  // ── Stats ─────────────────────────────────────────────────────────────
-  const stats = useMemo(() => ({
-    total:    logs.length,
-    critical: logs.filter(e => e.severity === 'critical').length,
-    error:    logs.filter(e => e.severity === 'error').length,
-    warning:  logs.filter(e => e.severity === 'warning').length,
-    auth:     logs.filter(e => e.category === 'AUTH').length,
-    ticket:   logs.filter(e => e.category === 'TICKET').length,
-  }), [logs]);
 
-  const handleClear = () => {
-    clearLogs();
-    setLogs([]);
+  const handleClear = async () => {
+    try {
+      await api.delete('/logs');
+      setLogs([]);
+      setTotal(0);
+      setStats({ total: 0, critical: 0, error: 0, warning: 0, auth: 0, ticket: 0 });
+    } catch {
+      setError('Failed to clear logs');
+    }
     setConfirmClear(false);
   };
 
   const handleExport = () => {
-    exportLogs();
+    exportLogsData(logs);
   };
 
   const toggle = (id) => setExpanded(prev => prev === id ? null : id);
@@ -241,21 +258,35 @@ export default function ActivityLog() {
               </button>
             )}
           </div>
-          <p className="mt-2 text-[11px] text-[#3f3f46]">{filtered.length} result{filtered.length !== 1 ? 's' : ''} · page {page} of {totalPages}</p>
+          <p className="mt-2 text-[11px] text-[#3f3f46]">{total} result{total !== 1 ? 's' : ''} · page {page} of {totalPages}</p>
         </div>
 
-        {/* ── Log table ──────────────────────────────────────────────── */}
-        {logs.length === 0 ? (
+        {/* ── Error ─────────────────────────────────────────────────── */}
+        {error && (
+          <div className="mb-4 p-3 bg-[#ef4444]/10 border border-[#ef4444]/20 rounded-lg text-[#ef4444] text-[13px]">{error}</div>
+        )}
+
+        {/* ── Loading skeleton ───────────────────────────────────────── */}
+        {loading ? (
+          <div className="bg-[#18181b] border border-[#27272a] rounded-xl overflow-hidden">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4 px-4 py-3 border-b border-[#27272a] last:border-0">
+                <div className="skeleton h-3 w-32 rounded" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="skeleton h-3.5 w-48 rounded" />
+                  <div className="skeleton h-3 w-64 rounded" />
+                </div>
+                <div className="skeleton h-5 w-16 rounded-full" />
+                <div className="skeleton h-5 w-20 rounded-full" />
+              </div>
+            ))}
+          </div>
+        ) : logs.length === 0 ? (
           <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-12 text-center">
             <div className="w-12 h-12 bg-[#27272a] rounded-xl flex items-center justify-center mx-auto mb-4">
               <svg className="w-6 h-6 text-[#52525b]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
             </div>
-            <p className="text-[14px] font-medium text-[#fafafa] mb-1">No activity logged yet</p>
             <p className="text-[12px] text-[#52525b]">Events will appear here as users interact with the platform.</p>
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-8 text-center">
-            <p className="text-[13px] text-[#52525b]">No logs match your filters.</p>
           </div>
         ) : (
           <div className="bg-[#18181b] border border-[#27272a] rounded-xl overflow-hidden">
@@ -267,14 +298,15 @@ export default function ActivityLog() {
             </div>
 
             <div className="divide-y divide-[#27272a]">
-              {paginated.map((entry) => {
+              {logs.map((entry) => {
                 const cat = CATEGORY_STYLE[entry.category] || CATEGORY_STYLE.SYSTEM;
-                const isOpen = expanded === entry.id;
+                const entryId = entry._id || entry.id;
+                const isOpen = expanded === entryId;
                 return (
-                  <div key={entry.id}>
+                  <div key={entryId}>
                     {/* ── Row ── */}
                     <button
-                      onClick={() => toggle(entry.id)}
+                      onClick={() => toggle(entryId)}
                       className={`w-full text-left transition-colors hover:bg-[#27272a]/40 ${SEVERITY_ROW[entry.severity] || ''}`}
                     >
                       {/* Mobile layout */}
@@ -292,7 +324,7 @@ export default function ActivityLog() {
                         <p className="text-[11px] text-[#a1a1aa] truncate pl-3.5">{entry.detail || '—'}</p>
                         <div className="flex items-center gap-3 pl-3.5">
                           <span className="text-[10px] text-[#52525b]">{entry.actor?.email}</span>
-                          <span className="text-[10px] text-[#3f3f46]">{relativeTime(entry.timestamp)}</span>
+                          <span className="text-[10px] text-[#3f3f46]">{relativeTime(entry.createdAt || entry.timestamp)}</span>
                         </div>
                       </div>
 
@@ -300,8 +332,8 @@ export default function ActivityLog() {
                       <div className="hidden sm:grid grid-cols-[160px_1fr_100px_110px_80px_32px] gap-3 px-4 py-3 items-center">
                         {/* Timestamp */}
                         <div className="min-w-0">
-                          <p className="text-[11px] font-['JetBrains_Mono'] text-[#52525b] leading-tight">{formatTs(entry.timestamp)}</p>
-                          <p className="text-[10px] text-[#3f3f46] mt-0.5">{relativeTime(entry.timestamp)}</p>
+                          <p className="text-[11px] font-['JetBrains_Mono'] text-[#52525b] leading-tight">{formatTs(entry.createdAt || entry.timestamp)}</p>
+                          <p className="text-[10px] text-[#3f3f46] mt-0.5">{relativeTime(entry.createdAt || entry.timestamp)}</p>
                         </div>
                         {/* Action + detail */}
                         <div className="min-w-0">
@@ -337,8 +369,8 @@ export default function ActivityLog() {
                         <p className="text-[11px] font-semibold text-[#52525b] uppercase tracking-widest pt-2">Event Details</p>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1.5">
-                          <MetaRow label="Log ID"       value={entry.id} />
-                          <MetaRow label="Timestamp"    value={formatTs(entry.timestamp)} />
+                          <MetaRow label="Log ID"       value={entryId} />
+                          <MetaRow label="Timestamp"    value={formatTs(entry.createdAt || entry.timestamp)} />
                           <MetaRow label="Action"       value={entry.action} />
                           <MetaRow label="Category"     value={entry.category} />
                           <MetaRow label="Severity"     value={entry.severity} />
@@ -347,6 +379,7 @@ export default function ActivityLog() {
                           <MetaRow label="Actor Name"   value={entry.actor?.name} />
                           <MetaRow label="Actor Email"  value={entry.actor?.email} />
                           <MetaRow label="Actor Role"   value={entry.actor?.role} />
+                          <MetaRow label="IP Address"   value={entry.ip} />
                           <MetaRow label="Session ID"   value={entry.sessionId} />
                         </div>
 
@@ -378,7 +411,7 @@ export default function ActivityLog() {
         {totalPages > 1 && (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4">
             <p className="text-[12px] text-[#52525b]">
-              Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}
+              Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} of {total}
             </p>
             <div className="flex items-center gap-1 overflow-x-auto pb-1">
               <button
@@ -419,7 +452,7 @@ export default function ActivityLog() {
               </div>
               <h3 className="text-[16px] font-semibold text-[#fafafa] mb-2">Clear all logs?</h3>
               <p className="text-[13px] text-[#a1a1aa] mb-6">
-                This will permanently delete all {logs.length} log entries. This action cannot be undone.
+                this will permanently delete all {stats.total} log entries.
               </p>
               <div className="flex gap-3">
                 <button
