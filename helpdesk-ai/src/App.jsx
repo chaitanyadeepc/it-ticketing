@@ -19,6 +19,7 @@ import NotFound from './pages/NotFound';
 import TicketStatus from './pages/TicketStatus';
 import KnowledgeBase from './pages/KnowledgeBase';
 import ActivityLog from './pages/ActivityLog';
+import { logActivity } from './utils/activityLog';
 
 const ProtectedRoute = ({ children }) => {
   const isAuthenticated = !!localStorage.getItem('token') && localStorage.getItem('isAuthenticated') === 'true';
@@ -47,6 +48,18 @@ function App() {
   const isLogin = location.pathname === '/login';
   const [cmdOpen, setCmdOpen] = React.useState(false);
   useInactivityLogout();
+
+  // Log every page navigation for authenticated users
+  React.useEffect(() => {
+    const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
+    if (!isAuthenticated || location.pathname === '/login') return;
+    logActivity('PAGE_VISITED', {
+      category: 'SYSTEM',
+      severity: 'info',
+      detail: `Navigated to ${location.pathname}`,
+      metadata: { path: location.pathname, search: location.search },
+    });
+  }, [location.pathname]);
 
   React.useEffect(() => {
     const handler = (e) => {

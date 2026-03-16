@@ -134,6 +134,19 @@ export default function TicketDetail() {
         setTicket(data.ticket);
         setAssignValue(data.ticket.assignedTo || '');
         setLoading(false);
+        logActivity('TICKET_VIEWED', {
+          category: 'TICKET', severity: 'info',
+          detail: `Viewed ticket ${data.ticket.ticketId || id} — "${data.ticket.title}"`,
+          metadata: {
+            ticketId: data.ticket.ticketId || id,
+            title: data.ticket.title,
+            status: data.ticket.status,
+            priority: data.ticket.priority,
+            category: data.ticket.category,
+            assignedTo: data.ticket.assignedTo || null,
+            createdBy: data.ticket.createdBy?.email || null,
+          },
+        });
       })
       .catch(() => { setError('Failed to load ticket.'); setLoading(false); });
   }, [id]);
@@ -152,6 +165,16 @@ export default function TicketDetail() {
     try {
       const { data } = await api.patch(`/tickets/${id}`, { satisfaction: { rating: csatRating, feedback: csatFeedback } });
       setTicket(data.ticket);
+      logActivity('CSAT_SUBMITTED', {
+        category: 'TICKET', severity: 'info',
+        detail: `CSAT rating ${csatRating}/5 submitted for ticket ${ticket?.ticketId || id}`,
+        metadata: {
+          ticketId: ticket?.ticketId || id,
+          title: ticket?.title,
+          rating: csatRating,
+          feedback: csatFeedback || null,
+        },
+      });
       addToast('Thank you for your feedback!');
     } catch {
       addToast('Failed to submit rating', 'error');
