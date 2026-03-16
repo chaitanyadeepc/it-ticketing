@@ -46,6 +46,93 @@ const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 const STORAGE_KEY = 'hiticket_survey_draft';
 const OPTIONAL_STEPS = ['suggestions'];
 
+// ── Welcome / intro screen ─────────────────────────────────────────────────
+function WelcomeScreen({ onStart }) {
+  return (
+    <div className="min-h-screen bg-[#09090b] flex flex-col">
+      <header className="flex items-center px-4 sm:px-6 py-4 border-b border-[#27272a]">
+        <Link to="/"><LogoMark size="sm" /></Link>
+      </header>
+
+      <div className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-12">
+        <div className="w-full max-w-xl">
+
+          {/* Badge */}
+          <div className="flex justify-center mb-7">
+            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#3b82f6]/10 border border-[#3b82f6]/20 text-[#3b82f6] text-[11px] font-semibold uppercase tracking-widest">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#3b82f6] animate-pulse" />
+              User Research Survey
+            </span>
+          </div>
+
+          {/* Heading */}
+          <h1 className="text-[28px] sm:text-[36px] font-black text-[#fafafa] text-center leading-tight mb-4">
+            Help us build a better<br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#3b82f6] to-[#06b6d4]">
+              IT Support experience
+            </span>
+          </h1>
+          <p className="text-[14px] text-[#71717a] text-center leading-relaxed mb-8 max-w-md mx-auto">
+            We're developing <strong className="text-[#a1a1aa]">HiTicket</strong> — an AI-powered IT helpdesk platform
+            that makes raising, tracking, and resolving support requests fast and effortless.
+            Your feedback directly shapes what we build.
+          </p>
+
+          {/* Feature highlights */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-10">
+            {[
+              { icon: '🎫', title: 'Smart Ticketing',  desc: 'AI auto-categorises and prioritises your requests instantly' },
+              { icon: '🤖', title: 'AI Chatbot',       desc: 'Resolve common issues without waiting for an agent' },
+              { icon: '📊', title: 'Live Tracking',    desc: "Real-time status updates so you're never left in the dark" },
+            ].map(({ icon, title, desc }) => (
+              <div key={title} className="flex flex-col items-center text-center p-4 rounded-xl bg-[#18181b] border border-[#27272a]">
+                <span className="text-2xl mb-2">{icon}</span>
+                <p className="text-[12px] font-semibold text-[#fafafa] mb-1">{title}</p>
+                <p className="text-[11px] text-[#52525b] leading-snug">{desc}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Meta info */}
+          <div className="flex items-center justify-center gap-6 mb-8 text-[12px] text-[#3f3f46]">
+            <span className="flex items-center gap-1.5">
+              <svg className="w-3.5 h-3.5 text-[#22c55e]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              ~2 minutes
+            </span>
+            <span className="flex items-center gap-1.5">
+              <svg className="w-3.5 h-3.5 text-[#22c55e]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+              Anonymous &amp; confidential
+            </span>
+            <span className="flex items-center gap-1.5">
+              <svg className="w-3.5 h-3.5 text-[#22c55e]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              10 questions
+            </span>
+          </div>
+
+          {/* CTA */}
+          <div className="flex flex-col items-center gap-3">
+            <button onClick={onStart}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-10 py-3.5 bg-[#3b82f6] hover:bg-[#2563eb] text-white text-[14px] font-bold rounded-xl transition-colors shadow-lg shadow-[#3b82f6]/20">
+              Start Survey
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+            <p className="text-[11px] text-[#3f3f46]">No sign-in required · your answers are saved as you go</p>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Survey questions ───────────────────────────────────────────────────────
 const STEPS = [
   {
@@ -264,6 +351,7 @@ function ReviewScreen({ answers, onEdit, onSubmit, submitting, error }) {
 // ── Main Survey component ───────────────────────────────────────────────────
 export default function Survey() {
   const navigate = useNavigate();
+  const [started, setStarted]       = useState(false);
   const [done, setDone]             = useState(false);
   const [step, setStep]             = useState(0);
   const [answers, setAnswers]       = useState(() => {
@@ -364,6 +452,7 @@ export default function Survey() {
   const estMin = Math.max(0, Math.ceil(remaining * 0.18));
 
   if (done) return <DoneScreen />;
+  if (!started) return <WelcomeScreen onStart={() => setStarted(true)} />;
 
   const progressPct = isReview ? 100 : ((step + 1) / (TOTAL + 1)) * 100;
 
