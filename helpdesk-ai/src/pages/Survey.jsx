@@ -44,7 +44,7 @@ function Confetti() {
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 const STORAGE_KEY = 'hiticket_survey_draft';
-const OPTIONAL_STEPS = ['suggestions'];
+const OPTIONAL_STEPS = ['name', 'suggestions'];
 
 // ── Welcome / intro screen ─────────────────────────────────────────────────
 function WelcomeScreen({ onStart }) {
@@ -135,6 +135,13 @@ function WelcomeScreen({ onStart }) {
 
 // ── Survey questions ───────────────────────────────────────────────────────
 const STEPS = [
+  {
+    id: 'name',
+    title: 'First, what should we call you?',
+    subtitle: 'Optional — helps us personalise your experience',
+    type: 'text',
+    placeholder: 'Your first name or nickname…',
+  },
   {
     id: 'role',
     title: 'What best describes your role?',
