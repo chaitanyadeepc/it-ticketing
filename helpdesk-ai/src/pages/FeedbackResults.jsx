@@ -280,6 +280,7 @@ export default function FeedbackResults() {
   const [dateRange, setDateRange]   = useState('all');       // 'all' | '30' | '7'
   const [lastVisit, setLastVisit]   = useState(null);
   const [copyResponseDone, setCopyResponseDone] = useState(null);
+  const [hasSuggFilter, setHasSuggFilter] = useState(false);  // only show rows with a comment
 
   // Record visit timestamp for "new since last visit" badges
   useEffect(() => {
@@ -463,6 +464,7 @@ export default function FeedbackResults() {
       );
     }
     if (satFilter > 0) list = list.filter(f => f.satisfaction === satFilter);
+    if (hasSuggFilter) list = list.filter(f => f.suggestions?.trim());
     list.sort((a, b) => {
       if (sortKey === 'sat')  return sortDir === 'desc' ? b.satisfaction - a.satisfaction : a.satisfaction - b.satisfaction;
       if (sortKey === 'role') return sortDir === 'asc'
@@ -869,7 +871,7 @@ export default function FeedbackResults() {
                 <div>
                   <h2 className="text-[13px] font-semibold text-[#fafafa]">Individual Responses</h2>
                   <p className="text-[11px] text-[#52525b] mt-0.5">
-                    {total} total · {totalPages > 1 ? `page ${page} of ${totalPages}` : 'all shown'}
+                    {filteredFeedback.length} shown · {total} total{totalPages > 1 ? ` · page ${page} of ${totalPages}` : ''}
                   </p>
                 </div>
 
@@ -880,14 +882,19 @@ export default function FeedbackResults() {
                   </svg>
                   <input
                     value={search} onChange={e => setSearch(e.target.value)}
-                    placeholder="Search by role or suggestion…"
-                    className="pl-8 pr-3 py-1.5 bg-[#09090b] border border-[#27272a] rounded-lg text-[12px] text-[#fafafa] placeholder-[#3f3f46] focus:outline-none focus:border-[#3b82f6] w-48 transition-colors"
+                    placeholder="Search name, role or suggestion…"
+                    className="pl-8 pr-3 py-1.5 bg-[#09090b] border border-[#27272a] rounded-lg text-[12px] text-[#fafafa] placeholder-[#3f3f46] focus:outline-none focus:border-[#3b82f6] w-52 transition-colors"
                   />
+                  {search && (
+                    <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#3f3f46] hover:text-[#a1a1aa]">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                  )}
                 </div>
 
                 {/* Star filter */}
                 <div className="flex items-center gap-1">
-                  <span className="text-[10px] text-[#52525b] mr-1">Filter:</span>
+                  <span className="text-[10px] text-[#52525b] mr-1">Rating:</span>
                   <button onClick={() => setSatFilter(0)}
                     className={`px-2 py-1 text-[10px] rounded-md transition-colors ${satFilter === 0 ? 'bg-[#3b82f6] text-white' : 'bg-[#27272a] text-[#a1a1aa] hover:bg-[#3f3f46]'}`}>
                     All
@@ -900,6 +907,15 @@ export default function FeedbackResults() {
                     </button>
                   ))}
                 </div>
+
+                {/* Has-suggestion filter */}
+                <button onClick={() => setHasSuggFilter(v => !v)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 text-[10px] rounded-md font-medium transition-colors ${
+                    hasSuggFilter ? 'bg-[#f59e0b]/15 text-[#f59e0b] border border-[#f59e0b]/30' : 'bg-[#27272a] text-[#a1a1aa] hover:bg-[#3f3f46]'
+                  }`}>
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                  Has comment
+                </button>
 
                 {/* Sort controls */}
                 <div className="flex items-center gap-2 ml-auto">
@@ -934,46 +950,78 @@ export default function FeedbackResults() {
                   checked={filteredFeedback.length > 0 && selected.size === filteredFeedback.length}
                   onChange={toggleSelectAll}
                   className="w-3.5 h-3.5 accent-[#3b82f6] flex-shrink-0" />
+                <span className="w-1 flex-shrink-0" />{/* sentinel for color bar */}
                 <span className="text-[10px] text-[#3f3f46] w-6">#</span>
                 <span className="text-[10px] text-[#3f3f46] w-28">Date</span>
                 <span className="text-[10px] text-[#3f3f46] w-24 hidden md:block">Name</span>
-                <span className="text-[10px] text-[#3f3f46] flex-1">Role</span>
+                <span className="text-[10px] text-[#3f3f46] w-28">Role</span>
                 <span className="text-[10px] text-[#3f3f46] w-24">Rating</span>
+                <span className="text-[10px] text-[#3f3f46] flex-1 hidden lg:block">Comment snippet</span>
                 <span className="text-[10px] text-[#3f3f46] w-28 hidden sm:block">AI Chatbot</span>
-                <span className="w-16" />
+                <span className="w-20" />
               </div>
 
               {filteredFeedback.length === 0 ? (
-                <div className="p-10 text-center text-[13px] text-[#52525b]">
-                  {search || satFilter ? 'No responses match your filters.' : 'No responses on this page.'}
+                <div className="p-10 text-center">
+                  <svg className="w-8 h-8 text-[#3f3f46] mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                  <p className="text-[13px] text-[#52525b]">{search || satFilter || hasSuggFilter ? 'No responses match your filters.' : 'No responses on this page.'}</p>
+                  {(search || satFilter || hasSuggFilter) && (
+                    <button onClick={() => { setSearch(''); setSatFilter(0); setHasSuggFilter(false); }}
+                      className="mt-3 text-[11px] text-[#3b82f6] hover:underline">Clear all filters</button>
+                  )}
                 </div>
               ) : (
                 <div className="divide-y divide-[#27272a]">
-                  {filteredFeedback.map((f, idx) => (
-                    <div key={f._id} className={`hover:bg-[#1c1c1f] transition-colors ${selected.has(f._id) ? 'bg-[#3b82f6]/4' : ''}`}>
-                      <div className="px-5 py-3.5 flex items-center gap-3">
+                  {filteredFeedback.map((f, idx) => {
+                    const sentColor = SAT_COLORS[f.satisfaction - 1];
+                    const isNew = lastVisit && new Date(f.createdAt) > lastVisit;
+                    const snippetText = f.suggestions?.trim();
+                    return (
+                    <div key={f._id} className={`transition-colors ${selected.has(f._id) ? 'bg-[#3b82f6]/4' : 'hover:bg-[#1c1c1f]'}`}>
+                      <div className="flex items-center gap-3 pr-4 py-3 pl-0">
+                        {/* Satisfaction color bar */}
+                        <div className="w-1 self-stretch flex-shrink-0 rounded-r-full" style={{ backgroundColor: sentColor, opacity: 0.7 }} />
                         <input type="checkbox" checked={selected.has(f._id)}
                           onChange={() => toggleSelect(f._id)}
                           className="w-3.5 h-3.5 accent-[#3b82f6] flex-shrink-0" />
                         <span className="text-[10px] font-mono text-[#3f3f46] w-6 flex-shrink-0">
                           {(page - 1) * 15 + idx + 1}
                         </span>
-                        <span className="text-[10px] font-mono text-[#3f3f46] w-28 flex-shrink-0">
-                          {new Date(f.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                        </span>
-                        <span className="text-[12px] text-[#fafafa] font-medium w-24 flex-shrink-0 truncate hidden md:block">
-                          {f.name || <span className="text-[#3f3f46] text-[11px] italic">—</span>}
-                        </span>
-                        <span className="flex-1 min-w-0 px-2 py-0.5 text-[10px] rounded-full bg-[#8b5cf6]/10 text-[#a78bfa] font-medium truncate">
-                          {ROLE_LABELS[f.role] || f.role}
-                        </span>
-                        <div className="flex items-center gap-0.5 w-24 flex-shrink-0">
-                          {[1,2,3,4,5].map(n => (
-                            <svg key={n} className="w-3 h-3" viewBox="0 0 20 20" fill={n <= f.satisfaction ? '#f59e0b' : '#27272a'}>
-                              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                            </svg>
-                          ))}
-                          <span className="text-[10px] text-[#52525b] ml-1">{f.satisfaction}/5</span>
+                        <div className="w-28 flex-shrink-0">
+                          <span className="text-[10px] font-mono text-[#52525b] block">
+                            {new Date(f.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          </span>
+                          <span className="text-[9px] text-[#3f3f46]">
+                            {new Date(f.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        <div className="w-24 flex-shrink-0 hidden md:block">
+                          {f.name
+                            ? <span className="text-[12px] text-[#fafafa] font-semibold truncate block">{f.name}</span>
+                            : <span className="text-[10px] text-[#3f3f46] italic">Anonymous</span>
+                          }
+                        </div>
+                        <div className="w-28 flex-shrink-0">
+                          <span className="inline-flex px-2 py-0.5 text-[10px] rounded-full bg-[#8b5cf6]/10 text-[#a78bfa] font-medium truncate max-w-full">
+                            {ROLE_LABELS[f.role] || f.role}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1 w-24 flex-shrink-0">
+                          <div className="flex items-center gap-0.5">
+                            {[1,2,3,4,5].map(n => (
+                              <svg key={n} className="w-3 h-3" viewBox="0 0 20 20" fill={n <= f.satisfaction ? sentColor : '#27272a'}>
+                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                              </svg>
+                            ))}
+                          </div>
+                          <span className="text-[10px] font-bold" style={{ color: sentColor }}>{f.satisfaction}</span>
+                        </div>
+                        {/* Suggestion snippet */}
+                        <div className="flex-1 min-w-0 hidden lg:block">
+                          {snippetText
+                            ? <p className="text-[11px] text-[#71717a] truncate italic">"{snippetText.slice(0, 60)}{snippetText.length > 60 ? '…' : ''}"</p>
+                            : <span className="text-[10px] text-[#3f3f46]">No comment</span>
+                          }
                         </div>
                         <span className={`px-2 py-0.5 text-[10px] rounded-full font-medium w-28 text-center flex-shrink-0 hidden sm:block ${
                           ['definitely','probably'].includes(f.wouldUseChatbot)
@@ -982,71 +1030,97 @@ export default function FeedbackResults() {
                         }`}>
                           {CHATBOT_LABELS[f.wouldUseChatbot]}
                         </span>
-                        <button onClick={() => setExpanded(expanded === f._id ? null : f._id)}
-                          className="flex items-center gap-1 text-[11px] text-[#52525b] hover:text-[#a1a1aa] transition-colors flex-shrink-0 w-16 justify-end">
-                          <svg className={`w-3.5 h-3.5 transition-transform ${expanded === f._id ? 'rotate-180' : ''}`}
-                            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                          </svg>
-                          {expanded === f._id ? 'Less' : 'Details'}
-                        </button>
-                        {lastVisit && new Date(f.createdAt) > lastVisit && (
-                          <span className="flex-shrink-0 px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-[#3b82f6] text-white">NEW</span>
-                        )}
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {isNew && (
+                            <span className="px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-[#3b82f6] text-white">NEW</span>
+                          )}
+                          <button onClick={() => setExpanded(expanded === f._id ? null : f._id)}
+                            className={`flex items-center gap-1 text-[11px] transition-colors flex-shrink-0 ${
+                              expanded === f._id ? 'text-[#3b82f6]' : 'text-[#52525b] hover:text-[#a1a1aa]'
+                            }`}>
+                            <svg className={`w-3.5 h-3.5 transition-transform ${expanded === f._id ? 'rotate-180' : ''}`}
+                              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                            </svg>
+                            {expanded === f._id ? 'Less' : 'Details'}
+                          </button>
+                        </div>
                       </div>
 
                       {expanded === f._id && (
-                        <div className="mx-5 mb-4 pt-4 border-t border-[#27272a]">
-                          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
-                            {[
-                              { label: 'Current process',       value: PROCESS_LABELS[f.currentProcess] },
-                              { label: 'Issue frequency',        value: FREQ_LABELS[f.issueFrequency] },
-                              { label: 'Status importance',      value: IMP_LABELS[f.statusImportance] },
-                              ...(f.responseTime    ? [{ label: 'Response expectation', value: RESP_TIME_LABELS[f.responseTime] }] : []),
-                              ...(f.notifPreference ? [{ label: 'Notif. preference',    value: NOTIF_LABELS[f.notifPreference] }] : []),
-                            ].map(({ label, value }) => value ? (
-                              <div key={label} className="bg-[#09090b] rounded-lg px-3 py-2">
-                                <p className="text-[10px] text-[#52525b] mb-0.5 uppercase tracking-wider">{label}</p>
-                                <p className="text-[12px] text-[#a1a1aa] font-medium">{value}</p>
-                              </div>
-                            ) : null)}
+                        <div className="ml-1 mr-4 mb-4 rounded-xl bg-[#0d0d0f] border border-[#27272a] overflow-hidden">
+                          {/* Expanded header */}
+                          <div className="flex items-center gap-3 px-4 py-3 border-b border-[#27272a]" style={{ borderLeftColor: sentColor, borderLeftWidth: 3 }}>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[13px] font-semibold text-[#fafafa]">
+                                {f.name || 'Anonymous respondent'}
+                                {f.name && <span className="ml-2 text-[11px] text-[#52525b] font-normal">{ROLE_LABELS[f.role]}</span>}
+                              </p>
+                              <p className="text-[10px] text-[#3f3f46] mt-0.5">
+                                {new Date(f.createdAt).toLocaleDateString('en-GB', { weekday:'short', day:'2-digit', month:'short', year:'numeric' })} at {new Date(f.createdAt).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              <span className="text-[11px] font-bold" style={{ color: sentColor }}>{SAT_LABELS[f.satisfaction - 1]}</span>
+                              <span className="text-[18px] leading-none">{['😤','😕','😐','🙂','😊'][f.satisfaction - 1]}</span>
+                            </div>
                           </div>
-                          {f.priorities?.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5 mb-3">
-                              {f.priorities.map(p => (
-                                <span key={p} className="px-2 py-1 text-[11px] rounded-md bg-[#06b6d4]/8 text-[#06b6d4] border border-[#06b6d4]/15">
-                                  {PRIORITY_LABELS[p]}
-                                </span>
-                              ))}
+
+                          {/* Detail grid */}
+                          <div className="p-4">
+                            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2 mb-3">
+                              {[
+                                { label: 'Current process',       value: PROCESS_LABELS[f.currentProcess] },
+                                { label: 'Issue frequency',        value: FREQ_LABELS[f.issueFrequency] },
+                                { label: 'Status importance',      value: IMP_LABELS[f.statusImportance] },
+                                ...(f.responseTime    ? [{ label: 'Response expectation', value: RESP_TIME_LABELS[f.responseTime] }] : []),
+                                ...(f.notifPreference ? [{ label: 'Notif. preference',    value: NOTIF_LABELS[f.notifPreference] }] : []),
+                              ].map(({ label, value }) => value ? (
+                                <div key={label} className="bg-[#18181b] rounded-lg px-3 py-2">
+                                  <p className="text-[9px] text-[#52525b] mb-0.5 uppercase tracking-wider">{label}</p>
+                                  <p className="text-[12px] text-[#a1a1aa] font-medium">{value}</p>
+                                </div>
+                              ) : null)}
                             </div>
-                          )}
-                          {f.suggestions && (
-                            <div className="p-3 bg-[#09090b] rounded-lg border border-[#27272a] mb-3">
-                              <p className="text-[10px] text-[#52525b] mb-1 uppercase tracking-widest">Suggestion</p>
-                              <p className="text-[12px] text-[#a1a1aa] leading-relaxed">{f.suggestions}</p>
+                            {f.priorities?.length > 0 && (
+                              <div className="mb-3">
+                                <p className="text-[9px] text-[#52525b] uppercase tracking-wider mb-1.5">Top priorities</p>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {f.priorities.map(p => (
+                                    <span key={p} className="px-2 py-1 text-[11px] rounded-md bg-[#06b6d4]/8 text-[#06b6d4] border border-[#06b6d4]/15">
+                                      {PRIORITY_LABELS[p]}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {f.suggestions?.trim() && (
+                              <div className="p-3 bg-[#18181b] rounded-lg border-l-2 mb-3" style={{ borderColor: '#f59e0b' }}>
+                                <p className="text-[9px] text-[#f59e0b] mb-1.5 uppercase tracking-widest font-semibold">💬 Comment</p>
+                                <p className="text-[12px] text-[#d4d4d8] leading-relaxed">{f.suggestions}</p>
+                              </div>
+                            )}
+                            <div className="flex justify-between items-center pt-2 border-t border-[#27272a]">
+                              <button onClick={() => copyResponse(f)}
+                                className="flex items-center gap-1.5 text-[11px] text-[#52525b] hover:text-[#a1a1aa] transition-colors">
+                                {copyResponseDone === f._id ? (
+                                  <><svg className="w-3.5 h-3.5 text-[#22c55e]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>Copied!</>
+                                ) : (
+                                  <><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>Copy response</>
+                                )}
+                              </button>
+                              <button onClick={() => handleDelete(f._id)}
+                                className="flex items-center gap-1.5 text-[11px] text-[#ef4444] hover:text-[#f87171] transition-colors">
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                Delete
+                              </button>
                             </div>
-                          )}
-                          <div className="flex justify-between items-center">
-                            <button onClick={() => copyResponse(f)}
-                              className="flex items-center gap-1.5 text-[11px] text-[#52525b] hover:text-[#a1a1aa] transition-colors">
-                              {copyResponseDone === f._id ? (
-                                <><svg className="w-3.5 h-3.5 text-[#22c55e]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>Copied!</>
-                              ) : (
-                                <><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>Copy</>
-                              )}
-                            </button>
-                            <button
-                              onClick={() => handleDelete(f._id)}
-                              className="flex items-center gap-1.5 text-[11px] text-[#ef4444] hover:text-[#f87171] transition-colors"
-                            >
-                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                              Delete
-                            </button>
                           </div>
                         </div>
                       )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 
