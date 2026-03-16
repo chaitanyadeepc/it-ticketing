@@ -39,6 +39,36 @@ const SAT_COLORS = ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e'];
 const SAT_LABELS = ['Very Poor', 'Poor', 'Okay', 'Good', 'Excellent'];
 
 const REFRESH_INTERVAL = 30_000;
+const LAST_VISIT_KEY   = 'hiticket_fr_lastvisit';
+
+// ── Word cloud (top distinct words from suggestions) ───────────────────────
+const STOP = new Set(['the','and','a','an','to','of','in','is','it','i','that','for','on','with','this','be','have','was','are','but','not','so','we','at','or','from','they','were','as','by','our','you','do','my','your','all','can','more','if','would','very','also','please','get','has','just','use','when','out','up','about','us','will','its','than','make','how','one','there','they','some','been','what','had','he','she']);
+const WordCloud = ({ allFeedback }) => {
+  const freq = {};
+  allFeedback.forEach(f => {
+    (f.suggestions || '').toLowerCase().replace(/[^a-z\s]/g, '').split(/\s+/)
+      .forEach(w => { if (w.length > 3 && !STOP.has(w)) freq[w] = (freq[w] || 0) + 1; });
+  });
+  const words = Object.entries(freq).sort((a,b) => b[1]-a[1]).slice(0,20);
+  if (!words.length) return <p className="text-[12px] text-[#52525b]">No suggestion text yet.</p>;
+  const maxF    = words[0][1];
+  const sizes   = ['text-[10px]','text-[11px]','text-[12px]','text-[14px]','text-[16px]','text-[18px]','text-[20px]'];
+  const palette = ['#3b82f6','#22c55e','#f59e0b','#a855f7','#06b6d4','#84cc16','#f97316','#ef4444'];
+  return (
+    <div className="flex flex-wrap gap-2 items-center">
+      {words.map(([w, c], i) => {
+        const sIdx = Math.min(sizes.length - 1, Math.floor((c / maxF) * sizes.length));
+        return (
+          <span key={w} title={`${c} mention${c > 1 ? 's' : ''}`}
+            className={`${sizes[sIdx]} font-semibold cursor-default hover:opacity-60 transition-opacity`}
+            style={{ color: palette[i % palette.length] }}>
+            {w}
+          </span>
+        );
+      })}
+    </div>
+  );
+};
 
 // ── Animated stat bar ──────────────────────────────────────────────────────
 const StatBar = ({ label, count, total, color = '#3b82f6' }) => {
@@ -247,6 +277,16 @@ export default function FeedbackResults() {
   const [sortKey, setSortKey]       = useState('date');      // 'date' | 'sat' | 'role'
   const [sortDir, setSortDir]       = useState('desc');
   const [selected, setSelected]     = useState(new Set());  // bulk-delete IDs
+  const [dateRange, setDateRange]   = useState('all');       // 'all' | '30' | '7'
+  const [lastVisit, setLastVisit]   = useState(null);
+  const [copyResponseDone, setCopyResponseDone] = useState(null);
+
+  // Record visit timestamp for "new since last visit" badges
+  useEffect(() => {
+    const prev = localStorage.getItem(LAST_VISIT_KEY);
+    if (prev) setLastVisit(new Date(prev));
+    localStorage.setItem(LAST_VISIT_KEY, new Date().toISOString());
+  }, []);
 
   const fetchAll = useCallback(async (pg = 1, silent = false) => {
     if (!silent) pg === 1 ? setLoading(true) : setRefreshing(true);
@@ -364,6 +404,44 @@ export default function FeedbackResults() {
     ? Math.round((allFeedback.filter(f => f.suggestions?.trim()).length / allFeedback.length) * 100)
     : 0;
 
+  // Date-range filtered subset for stat chips + trend
+  const nowTs = new Date();
+  const rangedFeedback = allFeedback.filter(f => {
+    if (dateRange === 'all') return true;
+    const days = parseInt(dateRange, 10);
+    const cutoff = new Date(nowTs); cutoff.setDate(nowTs.getDate() - days);
+    return new Date(f.createdAt) >= cutoff;
+  });
+  const prevFeedback = (() => {
+    if (dateRange === 'all') return [];
+    const days = parseInt(dateRange, 10);
+    const end   = new Date(nowTs); end.setDate(nowTs.getDate() - days);
+    const start = new Date(nowTs); start.setDate(nowTs.getDate() - days * 2);
+    return allFeedback.filter(f => { const d = new Date(f.createdAt); return d >= start && d < end; });
+  })();
+  const rangedAvg = rangedFeedback.length
+    ? parseFloat((rangedFeedback.reduce((s,f) => s + f.satisfaction, 0) / rangedFeedback.length).toFixed(2))
+    : null;
+  const prevAvg = prevFeedback.length
+    ? parseFloat((prevFeedback.reduce((s,f) => s + f.satisfaction, 0) / prevFeedback.length).toFixed(2))
+    : null;
+  const trendDiff = (rangedAvg !== null && prevAvg !== null) ? +(rangedAvg - prevAvg).toFixed(2) : null;
+
+  // Copy single response as text
+  const copyResponse = (f) => {
+    const lines = [
+      `Date: ${new Date(f.createdAt).toLocaleDateString('en-GB')}`,
+      `Role: ${ROLE_LABELS[f.role] || f.role}`,
+      `Satisfaction: ${f.satisfaction}/5`,
+      `Process: ${PROCESS_LABELS[f.currentProcess] || f.currentProcess}`,
+      `AI Chatbot: ${CHATBOT_LABELS[f.wouldUseChatbot] || f.wouldUseChatbot}`,
+      f.suggestions ? `Suggestion: ${f.suggestions}` : null,
+    ].filter(Boolean).join('\n');
+    navigator.clipboard.writeText(lines);
+    setCopyResponseDone(f._id);
+    setTimeout(() => setCopyResponseDone(null), 2000);
+  };
+
   // Needs-attention: lowest-sat response that also has a suggestion
   const needsAttention = allFeedback.length > 0
     ? [...allFeedback]
@@ -436,7 +514,17 @@ export default function FeedbackResults() {
         {/* ── Header ─────────────────────────────────────────────────── */}
         <div className="mb-6 flex flex-wrap items-start justify-between gap-4 p-5 rounded-2xl bg-gradient-to-r from-[#3b82f6]/8 via-[#8b5cf6]/4 to-transparent border border-[#3b82f6]/15">
           <div>
-            <h1 className="text-[22px] sm:text-[24px] font-bold text-[#fafafa] mb-1">Survey Results</h1>
+            <div className="flex items-center gap-3 mb-1 flex-wrap">
+              <h1 className="text-[22px] sm:text-[24px] font-bold text-[#fafafa]">Survey Results</h1>
+              <div className="flex items-center gap-1">
+                {[['all','All time'],['30','Last 30d'],['7','Last 7d']].map(([v,l]) => (
+                  <button key={v} onClick={() => setDateRange(v)}
+                    className={`px-2.5 py-1 text-[10px] rounded-lg font-medium transition-colors ${
+                      dateRange === v ? 'bg-[#3b82f6] text-white' : 'bg-[#27272a] text-[#71717a] hover:text-[#a1a1aa]'
+                    }`}>{l}</button>
+                ))}
+              </div>
+            </div>
             <div className="flex items-center gap-3">
               <p className="text-[13px] text-[#a1a1aa]">{stats?.total || 0} responses · admin only</p>
               {lastUpdated && (
@@ -564,24 +652,31 @@ export default function FeedbackResults() {
               </div>
             )}
 
-            {/* ── Summary stat chips (7) ──────────────────────────────── */}
+            {/* ── Summary stat chips ─────────────────────────────────── */}
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
               {[
-                { label: 'Total Responses',  value: stats.total,                        color: '#3b82f6', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
-                { label: 'Avg Satisfaction', value: `${stats.avgSatisfaction}/5`,        color: '#f59e0b', icon: 'M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z' },
+                { label: 'Total Responses',  value: dateRange !== 'all' ? rangedFeedback.length : stats.total, color: '#3b82f6', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
+                { label: 'Avg Satisfaction', value: rangedAvg !== null ? `${rangedAvg}/5` : `${stats.avgSatisfaction}/5`, color: '#f59e0b', trend: trendDiff, icon: 'M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z' },
                 { label: 'Want AI Chatbot',  value: `${positiveIntent}%`,                color: '#22c55e', icon: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2h-2' },
                 { label: 'Top Respondent',   value: ROLE_LABELS[topRole] || '—',          color: '#a855f7', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z' },
                 { label: 'Top Priority',     value: PRIORITY_LABELS[topPriority] || '—',  color: '#06b6d4', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
                 { label: 'Top Process Now',  value: PROCESS_LABELS[topProcess] || '—',   color: '#f97316', icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z' },
                 { label: 'Wrote Suggestions',value: `${completionRate}%`,                color: '#84cc16', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
-              ].map(({ label, value, color, icon }) => (
+              ].map(({ label, value, color, icon, trend }) => (
                 <div key={label} className="bg-[#18181b] border border-[#27272a] rounded-xl p-4">
                   <div className="w-7 h-7 rounded-lg flex items-center justify-center mb-2.5" style={{ backgroundColor: `${color}18` }}>
                     <svg className="w-3.5 h-3.5" style={{ color }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
                       <path strokeLinecap="round" strokeLinejoin="round" d={icon} />
                     </svg>
                   </div>
-                  <div className="text-[18px] sm:text-[20px] font-bold leading-tight mb-0.5 truncate" style={{ color }}>{value}</div>
+                  <div className="flex items-baseline gap-1.5">
+                    <div className="text-[18px] sm:text-[20px] font-bold leading-tight mb-0.5 truncate" style={{ color }}>{value}</div>
+                    {trend != null && (
+                      <span className={`text-[10px] font-semibold flex-shrink-0 ${trend > 0 ? 'text-[#22c55e]' : trend < 0 ? 'text-[#ef4444]' : 'text-[#52525b]'}`}>
+                        {trend > 0 ? `↑+${trend}` : trend < 0 ? `↓${trend}` : '→'}
+                      </span>
+                    )}
+                  </div>
                   <div className="text-[10px] text-[#52525b] leading-tight">{label}</div>
                 </div>
               ))}
@@ -745,6 +840,20 @@ export default function FeedbackResults() {
                 ))}
               </SCard>
 
+              {/* ── Suggestions word cloud ── */}
+              {allFeedback.some(f => f.suggestions?.trim()) && (
+                <div className="lg:col-span-2">
+                  <SCard
+                    title="Suggestions Word Cloud"
+                    subtitle="Most frequent words in open-ended feedback — hover a word for count"
+                    accent="#06b6d4"
+                    icon="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"
+                  >
+                    <WordCloud allFeedback={allFeedback} />
+                  </SCard>
+                </div>
+              )}
+
             </div>
             )}
 
@@ -874,6 +983,9 @@ export default function FeedbackResults() {
                           </svg>
                           {expanded === f._id ? 'Less' : 'Details'}
                         </button>
+                        {lastVisit && new Date(f.createdAt) > lastVisit && (
+                          <span className="flex-shrink-0 px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-[#3b82f6] text-white">NEW</span>
+                        )}
                       </div>
 
                       {expanded === f._id && (
@@ -907,7 +1019,15 @@ export default function FeedbackResults() {
                               <p className="text-[12px] text-[#a1a1aa] leading-relaxed">{f.suggestions}</p>
                             </div>
                           )}
-                          <div className="flex justify-end">
+                          <div className="flex justify-between items-center">
+                            <button onClick={() => copyResponse(f)}
+                              className="flex items-center gap-1.5 text-[11px] text-[#52525b] hover:text-[#a1a1aa] transition-colors">
+                              {copyResponseDone === f._id ? (
+                                <><svg className="w-3.5 h-3.5 text-[#22c55e]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>Copied!</>
+                              ) : (
+                                <><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>Copy</>
+                              )}
+                            </button>
                             <button
                               onClick={() => handleDelete(f._id)}
                               className="flex items-center gap-1.5 text-[11px] text-[#ef4444] hover:text-[#f87171] transition-colors"
