@@ -19,6 +19,8 @@ import NotFound from './pages/NotFound';
 import TicketStatus from './pages/TicketStatus';
 import KnowledgeBase from './pages/KnowledgeBase';
 import ActivityLog from './pages/ActivityLog';
+import Survey from './pages/Survey';
+import FeedbackResults from './pages/FeedbackResults';
 import { logActivity } from './utils/activityLog';
 
 const ProtectedRoute = ({ children }) => {
@@ -89,6 +91,8 @@ function App() {
             <Route path="/admin" element={<StaffRoute><AdminDashboard /></StaffRoute>} />
             <Route path="/admin/users" element={<AdminRoute><UserManagement /></AdminRoute>} />
             <Route path="/admin/logs" element={<AdminRoute><ActivityLog /></AdminRoute>} />
+            <Route path="/survey" element={<Survey />} />
+            <Route path="/admin/feedback" element={<AdminRoute><FeedbackResults /></AdminRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />

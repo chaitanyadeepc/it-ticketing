@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import PageWrapper from '../components/layout/PageWrapper';
 import Button from '../components/ui/Button';
 import api from '../api/api';
@@ -321,63 +321,129 @@ const Home = () => {
 
   return (
     <PageWrapper>
-      {/* Hero */}
+      {/* ── Hero ──────────────────────────────────────────────────────────── */}
       <div className="w-full px-4 sm:px-6 lg:px-8 pt-14 pb-20">
         <div className="text-center max-w-3xl mx-auto">
           {/* Status pill */}
-          <div className="inline-flex items-center gap-2 bg-[#18181b] border border-[#27272a] rounded-full px-3 py-1 mb-6 animate-fade-in">
+          <div className="inline-flex items-center gap-2 bg-[#18181b] border border-[#27272a] rounded-full px-3 py-1 mb-3 animate-fade-in">
             <span className="w-1.5 h-1.5 bg-[#22c55e] rounded-full animate-blink" />
             <span className="text-[12px] font-medium text-[#a1a1aa]">All systems operational</span>
           </div>
 
+          {/* Project context badge */}
+          <div className="flex justify-center mb-5 animate-fade-in">
+            <div className="inline-flex items-center gap-1.5 bg-[#3b82f6]/10 border border-[#3b82f6]/20 rounded-full px-3 py-1">
+              <span className="text-[11px] text-[#3b82f6] font-medium">Final Year IT Project · React + Node.js + MongoDB + AI</span>
+            </div>
+          </div>
+
           <h1 className="display mb-4 animate-fade-in" style={{ animationDelay: '0.08s' }}>
-            The IT Support Platform<br />
-            Built for <span className="text-[#3b82f6]">Speed</span>.
+            The AI-Powered Helpdesk<br />
+            Built for <span className="text-[#3b82f6]">Speed</span> &amp; <span className="text-[#22c55e]">Teams</span>.
           </h1>
 
-          <p className="text-[16px] leading-[1.7] text-[#a1a1aa] max-w-lg mx-auto mb-8 animate-fade-in" style={{ animationDelay: '0.16s' }}>
+          <p className="text-[16px] leading-[1.7] text-[#a1a1aa] max-w-xl mx-auto mb-8 animate-fade-in" style={{ animationDelay: '0.16s' }}>
             Raise, track, and resolve IT tickets through a conversational AI interface.
-            No forms. No complexity. Just fast support.
+            No forms. No queues. Pure speed — from campus lab to enterprise team.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center items-center mb-8 animate-fade-in" style={{ animationDelay: '0.24s' }}>
-            <Button variant="primary" size="lg" onClick={() => navigate('/chatbot')} className="w-full sm:w-auto min-w-[180px] flex items-center gap-2 justify-center">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
-              Raise a Ticket
+            <Button variant="primary" size="lg" onClick={() => navigate('/login')} className="w-full sm:w-auto min-w-[180px] flex items-center gap-2 justify-center">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+              Get Started Free
             </Button>
-            <Button variant="secondary" size="lg" onClick={() => navigate('/my-tickets')} className="w-full sm:w-auto min-w-[180px] flex items-center gap-2 justify-center">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 10h16M4 14h10" />
-              </svg>
-              View Dashboard
-            </Button>
+            <Link
+              to="/survey"
+              className="w-full sm:w-auto min-w-[180px] flex items-center gap-2 justify-center px-5 py-3 rounded-xl border border-[#27272a] bg-[#18181b] hover:bg-[#1c1c1f] hover:border-[#3f3f46] text-[#fafafa] text-[15px] font-medium transition-all"
+            >
+              <svg className="w-4 h-4 text-[#f59e0b]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+              Take Our Survey
+            </Link>
           </div>
 
           {/* Social proof */}
           <div className="flex items-center justify-center gap-2 animate-fade-in" style={{ animationDelay: '0.32s' }}>
             <div className="flex -space-x-2">
               {avatarColors.map((color, i) => (
-                <div key={i} className="w-7 h-7 rounded-full border-2 border-[#09090b] flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0"
-                  style={{ backgroundColor: color }}>
+                <div key={i} className="w-7 h-7 rounded-full border-2 border-[#09090b] flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0" style={{ backgroundColor: color }}>
                   {avatarInitials[i]}
                 </div>
               ))}
             </div>
-            <span className="text-[13px] text-[#52525b]">Trusted by 2,400+ users</span>
+            <span className="text-[13px] text-[#52525b]">Trusted by 2,400+ users across campus &amp; teams</span>
           </div>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="border-y border-[#27272a] py-10 sm:py-16">
-          <div className="w-full px-4 sm:px-6 lg:px-8">
+      {/* ── How It Works ───────────────────────────────────────────────────── */}
+      <div className="py-16 border-y border-[#27272a] bg-[#0d0d0f]">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <p className="text-[11px] text-[#3b82f6] font-semibold uppercase tracking-widest mb-2">How It Works</p>
+            <h2 className="text-[22px] sm:text-[26px] font-bold text-[#fafafa] mb-2">From issue to resolution in minutes</h2>
+            <p className="text-[13px] text-[#52525b] max-w-md mx-auto">No phone queues, no confusing forms — just describe your problem and HiTicket handles the rest</p>
+          </div>
+
+          {/* Steps */}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 max-w-5xl mx-auto">
+            {[
+              { n: '01', icon: '💬', color: '#3b82f6', title: 'Describe your issue', desc: 'Open the AI chatbot and explain your problem in plain English — just like texting a colleague.' },
+              { n: '02', icon: '🤖', color: '#8b5cf6', title: 'AI categorises & routes', desc: 'HiTicket automatically determines the category, priority, and assigns it to the right team.' },
+              { n: '03', icon: '🛠️', color: '#f59e0b', title: 'Agent investigates', desc: 'Your IT agent gets an instant notification and starts working on your issue right away.' },
+              { n: '04', icon: '✅', color: '#22c55e', title: 'Track & get notified', desc: 'Follow real-time status updates and receive a notification the moment your issue is resolved.' },
+            ].map(({ n, icon, color, title, desc }) => (
+              <div key={n} className="relative bg-[#18181b] border border-[#27272a] rounded-2xl p-5 group hover:border-[#3f3f46] transition-colors">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center text-2xl" style={{ backgroundColor: `${color}18`, border: `1px solid ${color}30` }}>
+                    {icon}
+                  </div>
+                  <span className="text-[28px] font-black leading-none" style={{ color: `${color}20` }}>{n}</span>
+                </div>
+                <h3 className="text-[13.5px] font-semibold text-[#fafafa] mb-2">{title}</h3>
+                <p className="text-[12px] text-[#52525b] leading-relaxed">{desc}</p>
+                <div className="mt-3 h-0.5 rounded-full w-8" style={{ backgroundColor: color }} />
+              </div>
+            ))}
+          </div>
+
+          {/* Mini ticket preview */}
+          <div className="mt-12 max-w-sm mx-auto">
+            <p className="text-center text-[11px] text-[#52525b] mb-3 uppercase tracking-widest">Live ticket example</p>
+            <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono text-[#3b82f6] bg-[#3b82f6]/10 px-2 py-0.5 rounded">#HT-2048</span>
+                  <span className="text-[11px] font-medium text-[#fafafa]">WiFi connection issue</span>
+                </div>
+                <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#ef4444]/10 text-[#ef4444] border border-[#ef4444]/20">High</span>
+              </div>
+              <div className="flex items-center gap-2 text-[11px] text-[#52525b]">
+                <span>Network Support</span>
+                <span>·</span>
+                <span>Assigned to Ravi K.</span>
+                <span>·</span>
+                <span>2 min ago</span>
+              </div>
+              <div className="h-1.5 bg-[#27272a] rounded-full overflow-hidden">
+                <div className="h-full w-3/4 bg-gradient-to-r from-[#3b82f6] to-[#8b5cf6] rounded-full" />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 bg-[#f59e0b] rounded-full" />
+                <span className="text-[11px] text-[#f59e0b] font-medium">In Progress — investigating network adapter settings</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Stats ─────────────────────────────────────────────────────────── */}
+      <div className="border-b border-[#27272a] py-10 sm:py-16">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-3 gap-4 sm:gap-8 md:gap-12">
             {[
-              { value: '2,400+', label: 'Tickets Resolved', color: '#3b82f6', icon: <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
-              { value: '98%',    label: 'User Satisfaction',     color: '#22c55e', icon: <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
-              { value: '< 2hrs', label: 'Avg Res. Time',         color: '#f59e0b', icon: <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
+              { value: '2,400+', label: 'Tickets Resolved',   color: '#3b82f6', icon: <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
+              { value: '98%',    label: 'User Satisfaction',  color: '#22c55e', icon: <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
+              { value: '< 2hrs', label: 'Avg Resolution',     color: '#f59e0b', icon: <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
             ].map(({ value, label, color, icon }, i) => (
               <div key={i} className={`text-center ${i === 1 ? 'border-x border-[#27272a]' : ''}`}>
                 <div className="flex justify-center mb-2 sm:mb-3">
@@ -391,14 +457,13 @@ const Home = () => {
         </div>
       </div>
 
-      {/* Features */}
+      {/* ── Features ──────────────────────────────────────────────────────── */}
       <div className="py-20">
         <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-[26px] font-bold text-[#fafafa] mb-2">Everything your IT team needs</h2>
-            <p className="text-[14px] text-[#a1a1aa] max-w-md mx-auto">
-              Streamline your support workflow with intelligent automation and real-time tracking
-            </p>
+            <p className="text-[11px] text-[#3b82f6] font-semibold uppercase tracking-widest mb-2">Features</p>
+            <h2 className="text-[22px] sm:text-[26px] font-bold text-[#fafafa] mb-2">Everything your IT team needs</h2>
+            <p className="text-[13px] text-[#52525b] max-w-md mx-auto">Streamline your support workflow with intelligent automation and real-time tracking</p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {features.map((f, i) => (
@@ -409,14 +474,117 @@ const Home = () => {
                   </svg>
                 </div>
                 <h3 className="text-[14px] font-semibold text-[#fafafa] mb-1.5">{f.title}</h3>
-                <p className="text-[13px] text-[#a1a1aa] leading-relaxed">{f.desc}</p>
+                <p className="text-[12.5px] text-[#a1a1aa] leading-relaxed">{f.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* CTA Banner */}
+      {/* ── Who uses HiTicket ──────────────────────────────────────────────── */}
+      <div className="py-16 border-t border-[#27272a] bg-[#0d0d0f]">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-10">
+            <p className="text-[11px] text-[#a855f7] font-semibold uppercase tracking-widest mb-2">Use Cases</p>
+            <h2 className="text-[22px] sm:text-[26px] font-bold text-[#fafafa] mb-2">Built for every role</h2>
+            <p className="text-[13px] text-[#52525b]">Whether you're raising tickets or resolving them, HiTicket fits your workflow</p>
+          </div>
+          <div className="grid sm:grid-cols-3 gap-5 max-w-4xl mx-auto">
+            {[
+              {
+                icon: '🎓', role: 'Students', color: '#3b82f6',
+                points: ['Submit IT issues in 30 seconds via chat', 'Track ticket status from your phone', 'Get notified when your lab PC is fixed', 'No IT jargon — just plain English'],
+              },
+              {
+                icon: '🛠️', role: 'IT Staff & Agents', color: '#f59e0b',
+                points: ['See all tickets in a live dashboard', 'Tickets auto-assigned based on category', 'Comment, escalate, and resolve together', 'Activity log for full audit trail'],
+              },
+              {
+                icon: '📊', role: 'Admins & Managers', color: '#22c55e',
+                points: ['Analytics & resolution rate reports', 'Manage user roles and permissions', 'SLA visibility and priority alerts', 'Export data for compliance reports'],
+              },
+            ].map(({ icon, role, color, points }) => (
+              <div key={role} className="bg-[#18181b] border border-[#27272a] rounded-2xl p-5 hover:border-[#3f3f46] transition-colors">
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-[24px] mb-4" style={{ backgroundColor: `${color}15`, border: `1px solid ${color}25` }}>
+                  {icon}
+                </div>
+                <h3 className="text-[14px] font-semibold text-[#fafafa] mb-3">{role}</h3>
+                <ul className="space-y-2">
+                  {points.map((pt) => (
+                    <li key={pt} className="flex items-start gap-2 text-[12px] text-[#a1a1aa]">
+                      <svg className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" style={{ color }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                      </svg>
+                      {pt}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Tech stack (college demo section) ─────────────────────────────── */}
+      <div className="py-12 border-t border-[#27272a]">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-8">
+            <p className="text-[11px] text-[#52525b] font-semibold uppercase tracking-widest mb-2">Technology Stack</p>
+            <h2 className="text-[18px] font-bold text-[#fafafa]">Built with modern, production-grade tools</h2>
+          </div>
+          <div className="flex flex-wrap justify-center gap-3 max-w-3xl mx-auto">
+            {[
+              { name: 'React 19',       color: '#61dafb', bg: '#0d2137' },
+              { name: 'Vite',           color: '#f59e0b', bg: '#1a1300' },
+              { name: 'Tailwind CSS',   color: '#06b6d4', bg: '#031b23' },
+              { name: 'Node.js',        color: '#22c55e', bg: '#0a1f0d' },
+              { name: 'Express.js',     color: '#a1a1aa', bg: '#1a1a1a' },
+              { name: 'MongoDB Atlas',  color: '#4db33d', bg: '#0a1a09' },
+              { name: 'JWT Auth',       color: '#f97316', bg: '#1a0e03' },
+              { name: '2FA (TOTP/OTP)', color: '#a855f7', bg: '#130d1a' },
+              { name: 'REST API',       color: '#3b82f6', bg: '#030d1a' },
+              { name: 'Role-Based AC',  color: '#ec4899', bg: '#1a0310' },
+            ].map(({ name, color, bg }) => (
+              <div key={name} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[#27272a] text-[12px] font-medium" style={{ backgroundColor: bg, color }}>
+                {name}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Survey CTA ────────────────────────────────────────────────────── */}
+      <div className="py-16 border-t border-[#27272a] bg-[#0d0d0f]">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
+          <div className="max-w-2xl mx-auto text-center bg-gradient-to-br from-[#f59e0b]/8 to-[#3b82f6]/8 border border-[#f59e0b]/15 rounded-2xl p-8 sm:p-10">
+            <div className="w-12 h-12 bg-[#f59e0b]/15 border border-[#f59e0b]/25 rounded-xl flex items-center justify-center mx-auto mb-4">
+              <svg className="w-6 h-6 text-[#f59e0b]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+            </div>
+            <h2 className="text-[20px] sm:text-[22px] font-bold text-[#fafafa] mb-2">Tell us what you think</h2>
+            <p className="text-[13px] text-[#a1a1aa] mb-6 leading-relaxed max-w-sm mx-auto">
+              We're building HiTicket based on real feedback. Take our 2-minute survey and help us shape the product — no account needed.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Link
+                to="/survey"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#f59e0b] hover:bg-[#d97706] text-[#09090b] text-[14px] font-semibold rounded-xl transition-colors shadow-lg shadow-[#f59e0b]/20"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                Take the Survey →
+              </Link>
+              <Link
+                to="/login"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#18181b] border border-[#27272a] hover:bg-[#1c1c1f] text-[#fafafa] text-[14px] font-medium rounded-xl transition-colors"
+              >
+                Sign In / Register
+              </Link>
+            </div>
+            <p className="mt-4 text-[11px] text-[#3f3f46]">8 questions · Anonymous · Results help improve HiTicket</p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Final CTA Banner ──────────────────────────────────────────────── */}
       <div className="py-16 border-t border-[#27272a]">
         <div className="w-full px-4 sm:px-6 lg:px-8 text-center">
           <div className="bg-gradient-to-r from-[#3b82f6]/10 to-[#6366f1]/10 border border-[#3b82f6]/20 rounded-2xl p-5 sm:p-10">
@@ -427,28 +595,35 @@ const Home = () => {
             </div>
             <h2 className="text-[22px] font-bold text-[#fafafa] mb-3">Ready to streamline IT support?</h2>
             <p className="text-[14px] text-[#a1a1aa] mb-6">Get started in seconds. No configuration required.</p>
-            <Button variant="primary" size="lg" onClick={() => navigate('/chatbot')}>
+            <Button variant="primary" size="lg" onClick={() => navigate('/login')}>
               Get Started Free
             </Button>
           </div>
         </div>
       </div>
 
-      {/* Footer */}
+      {/* ── Footer ────────────────────────────────────────────────────────── */}
       <div className="border-t border-[#27272a] py-8">
-        <div className="w-full px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4 text-[13px] text-[#52525b]">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-[#3b82f6] rounded-md flex items-center justify-center">
-              <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7H3a7 7 0 0 1 7-7h1V5.73A2 2 0 0 1 10 4a2 2 0 0 1 2-2m-4 9.5a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1m8 0a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1M3 15h18v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1Z" />
-              </svg>
+        <div className="w-full px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-6">
+            <div className="flex items-center gap-3">
+              <div className="w-7 h-7 bg-[#3b82f6] rounded-lg flex items-center justify-center">
+                <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7H3a7 7 0 0 1 7-7h1V5.73A2 2 0 0 1 10 4a2 2 0 0 1 2-2m-4 9.5a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1m8 0a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1M3 15h18v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1Z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-[13px] font-semibold text-[#fafafa]">HiTicket</p>
+                <p className="text-[11px] text-[#52525b]">AI-Powered IT Helpdesk &copy; 2026</p>
+              </div>
             </div>
-            <span>HiTicket &copy; 2026</span>
-          </div>
-          <div className="flex gap-5">
-            <a href="#" className="hover:text-[#a1a1aa] transition-colors">Privacy Policy</a>
-            <a href="#" className="hover:text-[#a1a1aa] transition-colors">Terms of Service</a>
-            <a href="#" className="hover:text-[#a1a1aa] transition-colors">Contact Support</a>
+            <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-[12px] text-[#52525b]">
+              <Link to="/survey" className="hover:text-[#f59e0b] transition-colors">Take Our Survey</Link>
+              <Link to="/status" className="hover:text-[#a1a1aa] transition-colors">System Status</Link>
+              <Link to="/login"  className="hover:text-[#a1a1aa] transition-colors">Sign In</Link>
+              <a href="#" className="hover:text-[#a1a1aa] transition-colors">Privacy Policy</a>
+              <a href="#" className="hover:text-[#a1a1aa] transition-colors">Contact Support</a>
+            </div>
           </div>
         </div>
       </div>
