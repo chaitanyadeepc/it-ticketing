@@ -235,7 +235,7 @@ const PRIORITY_BG = {
 };
 
 // ── Step progress (5 steps) ───────────────────────────────────────────────────
-const StepProgress = ({ currentStep }) => {
+const StepProgress = ({ currentStep, compact = false }) => {
   const steps = [
     { id: 1, label: 'Describe' },
     { id: 2, label: 'Sub-type' },
@@ -243,6 +243,27 @@ const StepProgress = ({ currentStep }) => {
     { id: 4, label: 'Confirm' },
     { id: 5, label: 'Done' },
   ];
+  if (compact) {
+    // Thin progress bar for mobile header
+    const pct = Math.round(((currentStep - 1) / (steps.length - 1)) * 100);
+    const stepLabel = steps[currentStep - 1]?.label || 'Done';
+    return (
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[11px] font-medium text-[#a1a1aa]">
+            Step {currentStep} of {steps.length} — {stepLabel}
+          </span>
+          <span className="text-[10px] text-[#52525b]">{pct}%</span>
+        </div>
+        <div className="h-1 rounded-full bg-[#27272a] overflow-hidden">
+          <div
+            className="h-full rounded-full bg-[#3b82f6] transition-all duration-500"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="flex items-center">
       {steps.map((step, i) => (
@@ -282,12 +303,12 @@ const StepProgress = ({ currentStep }) => {
 const QuickReply = ({ label, onClick, variant = 'default' }) => (
   <button
     onClick={() => onClick(label)}
-    className={`px-3 py-1.5 rounded-full border text-[12px] font-medium transition-all duration-150 whitespace-nowrap ${
+    className={`px-3 py-2 sm:py-1.5 rounded-full border text-[12px] sm:text-[12px] font-medium transition-all duration-150 whitespace-nowrap active:scale-95 ${
       variant === 'warning'
-        ? 'border-[#ef4444]/40 text-[#ef4444] bg-[#ef4444]/5 hover:bg-[#ef4444]/15'
+        ? 'border-[#ef4444]/40 text-[#ef4444] bg-[#ef4444]/5 active:bg-[#ef4444]/20'
         : variant === 'success'
-        ? 'border-[#22c55e]/40 text-[#22c55e] bg-[#22c55e]/5 hover:bg-[#22c55e]/15'
-        : 'border-[#3b82f6]/40 text-[#3b82f6] bg-[#3b82f6]/5 hover:bg-[#3b82f6]/15 hover:border-[#3b82f6]'
+        ? 'border-[#22c55e]/40 text-[#22c55e] bg-[#22c55e]/5 active:bg-[#22c55e]/20'
+        : 'border-[#3b82f6]/40 text-[#3b82f6] bg-[#3b82f6]/5 hover:bg-[#3b82f6]/15 hover:border-[#3b82f6] active:bg-[#3b82f6]/20'
     }`}
   >
     {label}
@@ -296,7 +317,7 @@ const QuickReply = ({ label, onClick, variant = 'default' }) => (
 
 // ── Category grid shown at step 1 ─────────────────────────────────────────────
 const CategoryGrid = ({ onSelect }) => (
-  <div className="grid grid-cols-2 gap-1.5 px-4 pb-3 pt-3 border-t border-[#27272a]">
+  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-2 xl:grid-cols-3 gap-1.5 px-3 pb-3 pt-3 border-t border-[#27272a]">
     {CATEGORY_NAMES.map((name) => {
       const cfg = CATEGORIES[name];
       const Icon = CATEGORY_ICONS[name];
@@ -304,10 +325,10 @@ const CategoryGrid = ({ onSelect }) => (
         <button
           key={name}
           onClick={() => onSelect(name)}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[#27272a] bg-[#1c1c1f] hover:border-[#3b82f6]/40 hover:bg-[#27272a] transition-all text-left"
+          className="flex items-center gap-2 px-2.5 sm:px-3 py-2.5 sm:py-2 rounded-lg border border-[#27272a] bg-[#1c1c1f] hover:border-[#3b82f6]/40 hover:bg-[#27272a] active:scale-95 transition-all text-left"
         >
           {Icon && <Icon className="w-4 h-4 flex-shrink-0" style={{ color: cfg.color }} />}
-          <span className="text-[11.5px] font-medium text-[#e4e4e7] leading-tight">{name}</span>
+          <span className="text-[11px] sm:text-[11.5px] font-medium text-[#e4e4e7] leading-tight">{name}</span>
         </button>
       );
     })}
@@ -349,6 +370,88 @@ const TemplatesPanel = ({ onSelect }) => (
   </div>
 );
 
+// ── Mobile info drawer (progress + preview + dupes) ─────────────────────────
+const MobileInfoDrawer = ({ open, onClose, flowStep, ticketData, similarTickets, setSimilarTickets }) => {
+  if (!open) return null;
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-black/60 z-40 lg:hidden"
+        onClick={onClose}
+      />
+      {/* Sheet */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#18181b] border-t border-[#3f3f46] rounded-t-2xl max-h-[70vh] overflow-y-auto lg:hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[#27272a]">
+          <p className="text-[13px] font-semibold text-[#fafafa]">Ticket Details</p>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[#27272a] text-[#71717a] hover:text-[#fafafa] transition-colors">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div className="px-5 py-4 space-y-4">
+          {/* Progress */}
+          <div>
+            <p className="text-[11px] font-semibold text-[#a1a1aa] uppercase tracking-wider mb-3">Progress</p>
+            <StepProgress currentStep={flowStep} />
+          </div>
+
+          {/* Duplicate warning */}
+          {similarTickets.length > 0 && flowStep >= 2 && (
+            <div className="bg-[#f59e0b]/8 border border-[#f59e0b]/30 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <svg className="w-3.5 h-3.5 text-[#f59e0b]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <p className="text-[11px] font-semibold text-[#f59e0b] uppercase tracking-wider">Similar Open Tickets</p>
+              </div>
+              <p className="text-[11.5px] text-[#71717a] mb-2">You may already have an open ticket:</p>
+              <div className="space-y-1.5">
+                {similarTickets.map((t) => (
+                  <a key={t._id} href={`/tickets/${t._id}`}
+                    className="flex items-start gap-2 px-2.5 py-2 rounded-lg bg-[#27272a] block">
+                    <span className="text-[10px] font-mono text-[#3b82f6] shrink-0 mt-0.5">{t.ticketId}</span>
+                    <span className="text-[11.5px] text-[#a1a1aa] leading-tight line-clamp-2">{t.title}</span>
+                  </a>
+                ))}
+              </div>
+              <button onClick={() => setSimilarTickets([])} className="mt-2 text-[11px] text-[#52525b] underline">Dismiss</button>
+            </div>
+          )}
+
+          {/* Live preview */}
+          {ticketData.category && (
+            <div className="space-y-2.5">
+              <p className="text-[11px] font-semibold text-[#a1a1aa] uppercase tracking-wider">Live Preview</p>
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-[#52525b]">Category</span>
+                <span className="text-[12px] text-[#e4e4e7] font-medium">{ticketData.category}</span>
+              </div>
+              {ticketData.subType && (
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-[#52525b]">Sub-type</span>
+                  <span className="text-[11.5px] text-[#a1a1aa]">{ticketData.subType}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-[#52525b]">Priority</span>
+                <span className={`text-[11px] font-semibold px-2 py-0.5 rounded border ${PRIORITY_BG[ticketData.priority]}`}>
+                  {ticketData.priority}
+                </span>
+              </div>
+              {ticketData.ticketId && (
+                <div className="flex items-center justify-between pt-1 border-t border-[#27272a]">
+                  <span className="text-[11px] text-[#52525b]">Ticket ID</span>
+                  <span className="text-[12px] font-mono text-[#22c55e]">{ticketData.ticketId}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        {/* Safe area spacer for phones */}
+        <div className="h-safe-bottom pb-4" />
+      </div>
+    </>
+  );
+};
+
 // ── Main Chatbot component ────────────────────────────────────────────────────
 const Chatbot = () => {
   const navigate = useNavigate();
@@ -381,6 +484,7 @@ const Chatbot = () => {
   const [similarTickets, setSimilarTickets] = useState([]);
   const [dupeChecking, setDupeChecking] = useState(false);
   const dupeTimerRef = useRef(null);
+  const [showMobileDrawer, setShowMobileDrawer] = useState(false);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -603,44 +707,75 @@ const Chatbot = () => {
 
   return (
     <PageWrapper>
-      <div className="w-full px-4 sm:px-6 lg:px-8 py-5">
-        <Breadcrumb />
+      <div className="w-full px-0 sm:px-4 lg:px-8 py-0 sm:py-5">
+        <div className="hidden sm:block px-4 sm:px-0"><Breadcrumb /></div>
 
-        <div className="grid lg:grid-cols-[1fr_360px] gap-6 mt-6">
+        {/* Mobile info drawer */}
+        <MobileInfoDrawer
+          open={showMobileDrawer}
+          onClose={() => setShowMobileDrawer(false)}
+          flowStep={flowStep}
+          ticketData={ticketData}
+          similarTickets={similarTickets}
+          setSimilarTickets={setSimilarTickets}
+        />
+
+        <div className="grid lg:grid-cols-[1fr_360px] gap-6 mt-0 sm:mt-6">
           {/* ── Chat panel ── */}
           <div
-            className="flex flex-col bg-[#18181b] border border-[#27272a] rounded-xl overflow-hidden"
-            style={{ height: 'calc(100vh - 200px)', minHeight: '540px' }}
+            className="flex flex-col bg-[#18181b] sm:border border-[#27272a] sm:rounded-xl overflow-hidden"
+            style={{ height: 'calc(100dvh - 120px)', minHeight: '480px', maxHeight: '900px' }}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#27272a] shrink-0">
-              <div className="flex items-center gap-3">
+            <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-3.5 border-b border-[#27272a] shrink-0">
+              <div className="flex items-center gap-2.5 sm:gap-3">
                 <div className="relative">
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#3b82f6] to-[#2563eb] flex items-center justify-center shadow-md shadow-[#3b82f6]/20">
-                    <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
+                  <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-br from-[#3b82f6] to-[#2563eb] flex items-center justify-center shadow-md shadow-[#3b82f6]/20">
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7H3a7 7 0 0 1 7-7h1V5.73A2 2 0 0 1 10 4a2 2 0 0 1 2-2m-4 9.5a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1m8 0a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1M3 15h18v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1Z" />
                     </svg>
                   </div>
-                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-[#22c55e] rounded-full border-2 border-[#18181b]" />
+                  <span className="absolute bottom-0 right-0 w-2 h-2 sm:w-2.5 sm:h-2.5 bg-[#22c55e] rounded-full border-2 border-[#18181b]" />
                 </div>
-                <div>
-                  <p className="text-[13.5px] font-semibold text-[#fafafa]">HiTicket AI</p>
-                  <p className="text-[11px] text-[#22c55e]">● Online — typically replies instantly</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] sm:text-[13.5px] font-semibold text-[#fafafa]">HiTicket AI</p>
+                  <p className="text-[10px] sm:text-[11px] text-[#22c55e]">● Online — typically replies instantly</p>
                 </div>
               </div>
-              <button
-                onClick={() => window.location.reload()}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#27272a] transition-colors"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                New chat
-              </button>
+              <div className="flex items-center gap-2">
+                {/* Mobile: compact progress bar */}
+                {flowStep > 1 && (
+                  <div className="flex lg:hidden items-center gap-2 flex-1 max-w-[120px] sm:max-w-[160px]">
+                    <StepProgress currentStep={flowStep} compact />
+                  </div>
+                )}
+                {/* Mobile: info/drawer button */}
+                <button
+                  onClick={() => setShowMobileDrawer(true)}
+                  className="lg:hidden flex items-center justify-center w-8 h-8 rounded-lg text-[#71717a] hover:text-[#fafafa] hover:bg-[#27272a] transition-colors relative"
+                  aria-label="View ticket details"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                  {(similarTickets.length > 0 || ticketData.category) && (
+                    <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#3b82f6]" />
+                  )}
+                </button>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#27272a] transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  <span className="hidden xs:inline sm:inline">New chat</span>
+                </button>
+              </div>
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 min-h-0">
+            <div className="flex-1 overflow-y-auto px-3 sm:px-5 py-3 sm:py-4 space-y-3 sm:space-y-4 min-h-0">
               {messages.map((msg, i) => (
                 <ChatBubble key={i} {...msg} />
               ))}
@@ -653,8 +788,9 @@ const Chatbot = () => {
 
             {/* Quick-reply chips (all other steps) */}
             {chipType && chipType !== 'category' && quickReplies.length > 0 && (
-              <div className="px-4 pb-3 pt-3 border-t border-[#27272a] shrink-0">
-                <div className="flex flex-wrap gap-1.5">
+              <div className="px-3 sm:px-4 pb-2 sm:pb-3 pt-2 sm:pt-3 border-t border-[#27272a] shrink-0">
+                {/* Scrollable on mobile so long chip lists don't wrap into 3+ rows */}
+                <div className="flex gap-1.5 overflow-x-auto pb-0.5 sm:flex-wrap sm:overflow-x-visible no-scrollbar">
                   {quickReplies.map((q) => (
                     <QuickReply
                       key={q}
@@ -674,8 +810,8 @@ const Chatbot = () => {
             )}
 
             {/* Input bar */}
-            <div className="px-4 pb-4 pt-2 shrink-0">
-              <div className="flex items-end gap-2 bg-[#09090b] border border-[#27272a] rounded-xl px-3 py-2 focus-within:border-[#3b82f6]/60 transition-colors">
+            <div className="px-3 sm:px-4 pb-3 sm:pb-4 pt-2 shrink-0">
+              <div className="flex items-end gap-2 bg-[#09090b] border border-[#27272a] rounded-xl px-3 py-2 sm:py-2 focus-within:border-[#3b82f6]/60 transition-colors">
                 <textarea
                   ref={inputRef}
                   rows={1}
@@ -683,25 +819,25 @@ const Chatbot = () => {
                   onChange={(e) => {
                     setInput(e.target.value);
                     e.target.style.height = 'auto';
-                    e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+                    e.target.style.height = Math.min(e.target.scrollHeight, 100) + 'px';
                   }}
                   onKeyDown={handleKeyDown}
                   placeholder={inputPlaceholder}
-                  className="flex-1 bg-transparent text-[13.5px] text-[#fafafa] placeholder-[#52525b] resize-none outline-none leading-relaxed py-1"
-                  style={{ minHeight: '24px', maxHeight: '120px' }}
+                  className="flex-1 bg-transparent text-[14px] sm:text-[13.5px] text-[#fafafa] placeholder-[#52525b] resize-none outline-none leading-relaxed py-1"
+                  style={{ minHeight: '26px', maxHeight: '100px' }}
                   disabled={submitted && chipType === null}
                 />
                 <button
                   onClick={handleSend}
                   disabled={!input.trim()}
-                  className="flex-shrink-0 w-8 h-8 rounded-lg bg-[#3b82f6] hover:bg-[#2563eb] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors mb-0.5"
+                  className="flex-shrink-0 w-9 h-9 sm:w-8 sm:h-8 rounded-xl sm:rounded-lg bg-[#3b82f6] hover:bg-[#2563eb] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-all active:scale-95 mb-0.5"
                 >
-                  <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <svg className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0 1 21.485 12 59.77 59.77 0 0 1 3.27 20.876L5.999 12Zm0 0h7.5" />
                   </svg>
                 </button>
               </div>
-              <p className="text-[10px] text-[#52525b] text-center mt-2">
+              <p className="hidden sm:block text-[10px] text-[#52525b] text-center mt-1.5">
                 <kbd className="px-1 py-0.5 rounded bg-[#27272a] text-[#a1a1aa] text-[10px]">Enter</kbd>
                 {' '}to send ·{' '}
                 <kbd className="px-1 py-0.5 rounded bg-[#27272a] text-[#a1a1aa] text-[10px]">Shift+Enter</kbd>
@@ -710,8 +846,8 @@ const Chatbot = () => {
             </div>
           </div>
 
-          {/* ── Sidebar ── */}
-          <div className="hidden lg:flex flex-col gap-4" style={{ maxHeight: 'calc(100vh - 200px)', overflowY: 'auto' }}>
+          {/* ── Sidebar (desktop only) ── */}
+          <div className="hidden lg:flex flex-col gap-4" style={{ maxHeight: 'calc(100dvh - 200px)', overflowY: 'auto' }}>
             {/* Duplicate ticket warning */}
             {similarTickets.length > 0 && flowStep >= 2 && !submitted && (
               <div className="bg-[#18181b] border border-[#f59e0b]/40 rounded-xl p-4 shrink-0">
