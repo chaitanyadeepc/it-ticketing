@@ -56,6 +56,22 @@ const saveToHistory = (entry) => {
     localStorage.setItem(HISTORY_KEY, JSON.stringify(hist.slice(0, 40)));
   } catch {}
 };
+const deleteHistoryEntry = (id) => {
+  try {
+    const updated = getHistory().filter(h => h.id !== id);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+  } catch {}
+};
+
+// ── Slash commands ─────────────────────────────────────────────────────────────
+const SLASH_COMMANDS = [
+  { cmd: '/status',   desc: 'Check a ticket status',    icon: '🎫' },
+  { cmd: '/new',      desc: 'Start a new chat',          icon: '✏️' },
+  { cmd: '/agent',    desc: 'Talk to a human agent',     icon: '👤' },
+  { cmd: '/history',  desc: 'Open chat history',         icon: '📚' },
+  { cmd: '/download', desc: 'Download chat transcript',  icon: '⬇️' },
+  { cmd: '/help',     desc: 'Show available commands',   icon: '❓' },
+];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Category configuration — 10 categories with sub-types & guided questions
@@ -238,6 +254,14 @@ const CATEGORIES = {
 };
 
 const CATEGORY_NAMES = Object.keys(CATEGORIES);
+
+// ── Ambiguity detection (needs CATEGORIES defined first) ──────────────────────
+const detectAllCategories = (text) => {
+  const t = text.toLowerCase();
+  return Object.entries(CATEGORIES)
+    .filter(([, cfg]) => cfg.keywords.test(t))
+    .map(([name]) => name);
+};
 
 const detectCategory = (text) => {
   const t = text.toLowerCase();
@@ -635,6 +659,26 @@ const Chatbot = () => {
   const [chatHistory,  setChatHistory]     = useState(getHistory);
   const [activeSessionId]                  = useState(() => _s?.sessionId || null);
 
+  // ── Enhancement state ─────────────────────────────────────────────────────
+  const [streamingMsg,     setStreamingMsg]     = useState(null);       // { text, displayed, afterCb }
+  const messagesScrollRef                        = useRef(null);
+  const [showScrollBtn,    setShowScrollBtn]    = useState(false);
+  const [isListening,      setIsListening]      = useState(false);
+  const recognitionRef                           = useRef(null);
+  const fileInputRef                             = useRef(null);
+  const [attachedFile,     setAttachedFile]     = useState(null);
+  const [slashSuggestions, setSlashSuggestions] = useState([]);
+  const [showSurvey,       setShowSurvey]       = useState(null);       // { ticketId }
+  const [surveyRating,     setSurveyRating]     = useState(null);
+  const [undoPending,      setUndoPending]      = useState(null);
+  const undoTimerRef                             = useRef(null);
+  const undoSavedStateRef                        = useRef(null);
+  const [statusAlertDot,   setStatusAlertDot]   = useState(false);
+  const [historySearch,    setHistorySearch]    = useState('');
+  const [slaTarget,        setSlaTarget]        = useState(null);
+  const [slaDisplay,       setSlaDisplay]       = useState('');
+  const touchStartXRef                           = useRef(null);
+
   // Persist chat state across page refreshes within same browser tab
   useEffect(() => {
     saveSession({ sessionId, messages, flowStep, chipType, quickReplies, ticketData, submitted, lastTicketId });
@@ -658,6 +702,8 @@ const Chatbot = () => {
               message: `${meta.dot} Update on **${t.ticketId}**: status changed to **${t.status}**${assignPart}.`,
               timestamp: ts(), msgTime: now(),
             }]);
+            setStatusAlertDot(true);
+            setTimeout(() => setStatusAlertDot(false), 10000);
           }
           sessionStorage.setItem('hd_last_status', JSON.stringify({ status: t.status }));
         })
@@ -668,25 +714,178 @@ const Chatbot = () => {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isTyping]);
+  }, [messages, isTyping, streamingMsg]);
+
+  // ── Streaming / typewriter effect ─────────────────────────────────────────
+  useEffect(() => {
+    if (!streamingMsg) return;
+    if (streamingMsg.displayed.length >= streamingMsg.text.length) {
+      setMessages(prev => [...prev, { sender: 'bot', message: streamingMsg.text, timestamp: ts(), msgTime: now() }]);
+      if (streamingMsg.afterCb) streamingMsg.afterCb();
+      setStreamingMsg(null);
+      return;
+    }
+    const totalChars = streamingMsg.text.length;
+    const charsPerTick = Math.max(1, Math.ceil(totalChars / (Math.min(totalChars * 10, 1400) / 16)));
+    const timer = setTimeout(() => {
+      setStreamingMsg(prev => prev && ({
+        ...prev,
+        displayed: prev.text.slice(0, Math.min(prev.displayed.length + charsPerTick, prev.text.length)),
+      }));
+    }, 16);
+    return () => clearTimeout(timer);
+  }, [streamingMsg]);
+
+  // ── SLA countdown ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!slaTarget) return;
+    const tick = () => {
+      const diff = slaTarget - Date.now();
+      if (diff <= 0) { setSlaDisplay('Response overdue'); return; }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      setSlaDisplay(h > 0 ? `${h}h ${m}m remaining` : `${m}m remaining`);
+    };
+    tick();
+    const id = setInterval(tick, 60000);
+    return () => clearInterval(id);
+  }, [slaTarget]);
+
+  // ── Slash command filter ───────────────────────────────────────────────────
+  useEffect(() => {
+    if (input.startsWith('/') && input.length > 0) {
+      const q = input.toLowerCase();
+      setSlashSuggestions(SLASH_COMMANDS.filter(c =>
+        c.cmd.startsWith(q) || (q.length > 1 && c.desc.toLowerCase().includes(q.slice(1)))
+      ));
+    } else {
+      setSlashSuggestions([]);
+    }
+  }, [input]);
+
+  // ── Keyboard shortcut: ⌘N / Ctrl+N = new chat ─────────────────────────────
+  useEffect(() => {
+    const h = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'n') { e.preventDefault(); handleNewChat(); }
+    };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleDownloadTranscript = () => {
+    const txt = messages.map(m =>
+      `[${m.timestamp || ''}] ${m.sender === 'bot' ? 'HiTicket AI' : 'You'}: ${m.message}`
+    ).join('\n\n');
+    const blob = new Blob([txt], { type: 'text/plain' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `chat-${new Date().toISOString().slice(0, 10)}.txt`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  const handleDeleteHistory = (id, e) => {
+    e.stopPropagation();
+    deleteHistoryEntry(id);
+    setChatHistory(getHistory());
+  };
+
+  const handleUndo = () => {
+    clearTimeout(undoTimerRef.current);
+    const pending = undoPending;
+    setUndoPending(null);
+    setStreamingMsg(null);
+    setIsTyping(false);
+    const s = undoSavedStateRef.current;
+    if (s) {
+      setMessages(s.messages);
+      setChipType(s.chipType);
+      setQuickReplies(s.quickReplies);
+      setFlowStep(s.flowStep);
+      setTicketData(s.ticketData);
+    }
+    if (pending?.text) setInput(pending.text);
+  };
+
+  const handleVoiceInput = () => {
+    if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+      botReply('Voice input is not supported in this browser. Try Chrome or Edge.', 400);
+      return;
+    }
+    if (isListening) { recognitionRef.current?.stop(); setIsListening(false); return; }
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const r = new SR();
+    r.continuous = false; r.interimResults = true; r.lang = 'en-US';
+    r.onresult = (e) => {
+      const t = Array.from(e.results).map(res => res[0].transcript).join('');
+      setInput(t);
+      if (e.results[0].isFinal) setIsListening(false);
+    };
+    r.onerror = () => setIsListening(false);
+    r.onend = () => setIsListening(false);
+    r.start();
+    setIsListening(true);
+    recognitionRef.current = r;
+  };
+
+  const handleFileAttach = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { botReply('File must be under 5 MB.', 300); return; }
+    const reader = new FileReader();
+    reader.onload = (ev) => setAttachedFile({ name: file.name, size: file.size, type: file.type, dataUrl: ev.target.result });
+    reader.readAsDataURL(file);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleSubmitSurvey = (rating) => {
+    setSurveyRating(rating);
+    if (showSurvey?.ticketId) {
+      logActivity('SURVEY_SUBMITTED', {
+        category: 'TICKET', severity: 'info',
+        detail: `User rated chatbot experience ${rating}/5 for ${showSurvey.ticketId}`,
+        metadata: { rating, ticketId: showSurvey.ticketId },
+      });
+      api.post(`/tickets/${showSurvey.ticketId}/feedback`, { rating, source: 'chatbot' }).catch(() => {});
+    }
+    setTimeout(() => setShowSurvey(null), 2000);
+  };
+
+  const handleTouchStart = (e) => { touchStartXRef.current = e.touches[0].clientX; };
+  const handleTouchEnd = (e) => {
+    if (touchStartXRef.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartXRef.current;
+    if (dx > 60 && touchStartXRef.current < 40) setSidebarOpen(true);
+    else if (dx < -60 && sidebarOpen) setSidebarOpen(false);
+    touchStartXRef.current = null;
+  };
 
   const botReply = (message, delay = 950, afterCb = null) => {
     setIsTyping(true);
     setTimeout(() => {
       setIsTyping(false);
-      setMessages((prev) => [...prev, { sender: 'bot', message, timestamp: ts(), msgTime: now() }]);
-      if (afterCb) afterCb();
+      setStreamingMsg({ text: message, displayed: '', afterCb });
     }, delay);
   };
 
-  const userSend = (text) => {
+  const userSend = (text, skipUndo = false) => {
     if (!text.trim()) return;
     const trimmed = text.trim();
+    if (!skipUndo) {
+      undoSavedStateRef.current = { messages: [...messages], chipType, quickReplies, flowStep, ticketData };
+    }
     setMessages((prev) => [...prev, { sender: 'user', message: trimmed, timestamp: ts(), msgTime: now() }]);
     setInput('');
     setIntentBadge(null);
     setChipType(null);
     setQuickReplies([]);
+    setSlashSuggestions([]);
+    if (!skipUndo) {
+      setUndoPending({ text: trimmed });
+      clearTimeout(undoTimerRef.current);
+      undoTimerRef.current = setTimeout(() => setUndoPending(null), 3000);
+    }
     processInput(trimmed);
   };
 
@@ -731,6 +930,22 @@ const Chatbot = () => {
   };
 
   const processInput = (text) => {
+    // Slash commands — always handled first
+    if (text.startsWith('/')) {
+      const parts = text.split(' ');
+      const cmd = parts[0].toLowerCase();
+      const rest = parts.slice(1).join(' ').trim();
+      if (cmd === '/status') { handleStatusLookup(rest || 'check status'); return; }
+      if (cmd === '/new') { handleNewChat(); return; }
+      if (cmd === '/agent') { handleEscalation(); return; }
+      if (cmd === '/history') { setSidebarOpen(true); return; }
+      if (cmd === '/download') { handleDownloadTranscript(); return; }
+      if (cmd === '/help') {
+        botReply('**Available commands:**\n\n• `/status [TKT-XXXX]` — check ticket status\n• `/new` — start fresh chat\n• `/agent` — talk to a human agent\n• `/history` — open chat history sidebar\n• `/download` — download this transcript', 400);
+        return;
+      }
+    }
+
     // KB prompt — did the KB article solve it?
     if (chipType === 'kbprompt') { handleKbPrompt(text); return; }
 
@@ -786,6 +1001,20 @@ const Chatbot = () => {
     const pickedCat = CATEGORY_NAMES.find(
       (n) => n.toLowerCase() === text.toLowerCase()
     );
+
+    // Smart disambiguation: if 2+ categories matched, ask user to clarify
+    if (!pickedCat) {
+      const allMatches = detectAllCategories(text);
+      if (allMatches.length >= 2) {
+        const [a, b] = allMatches;
+        botReply(`Your issue could relate to **${a}** or **${b}** — which fits best?`, 700, () => {
+          setChipType('subtype');
+          setQuickReplies([a, b, 'Something else']);
+        });
+        return;
+      }
+    }
+
     const detected = pickedCat || detectCategory(text);
 
     if (detected) {
@@ -934,7 +1163,7 @@ const Chatbot = () => {
         title: ticketData.description.length > 80
           ? ticketData.description.substring(0, 80) + '…'
           : ticketData.description,
-        description: ticketData.description + (ticketData.details ? '\n\nAdditional details: ' + ticketData.details : ''),
+        description: ticketData.description + (ticketData.details ? '\n\nAdditional details: ' + ticketData.details : '') + (attachedFile ? `\n\n[Attachment: ${attachedFile.name}]` : ''),
         category: ticketData.category,
         subType: ticketData.subType || '',
         priority: ticketData.priority,
@@ -943,6 +1172,10 @@ const Chatbot = () => {
         setTicketData((prev) => ({ ...prev, ticketId: id }));
         setLastTicketId(id); // enables proactive status polling
         sessionStorage.removeItem('hd_last_status'); // reset baseline for polling
+        const etaMs = ticketData.priority === 'Critical' ? 3600000 : ticketData.priority === 'High' ? 14400000 : 86400000;
+        setSlaTarget(Date.now() + etaMs);
+        setTimeout(() => setShowSurvey({ ticketId: id }), 3000);
+        setAttachedFile(null);
         logActivity('TICKET_CREATED', {
           category: 'TICKET', severity: 'info',
           detail: `Ticket ${id} created via AI chatbot`,
@@ -1070,6 +1303,20 @@ const Chatbot = () => {
       "I'll connect you with a support agent.\n\n📞 IT Helpdesk\nextension 1234  (Mon–Fri 8 am–6 pm)\n\n📧 Email\nhelpdesk@company.com\n\n🎫 Or raise a ticket marked High priority — an agent will respond within 4 business hours.",
       900, () => { setChipType('category'); }
     );
+    // Auto-create reference ticket with chat context so the agent is briefed
+    const userMsgs = messages.filter(m => m.sender === 'user').slice(0, 5).map(m => m.message).join(' | ');
+    if (userMsgs.length > 10) {
+      api.post('/tickets', {
+        title: 'Human agent requested — AI chatbot escalation',
+        description: `User requested human agent support.\n\nChat context: ${userMsgs}`,
+        category: ticketData.category || 'General',
+        priority: 'High',
+        subType: '',
+      }).then(({ data }) => {
+        const id = data.ticket?.ticketId;
+        if (id) botReply(`📋 Reference ticket **${id}** created with your chat context so the agent is fully briefed.`, 1500);
+      }).catch(() => {});
+    }
   };
 
   // STEP 5: post-submit or post-status navigation
@@ -1128,7 +1375,8 @@ const Chatbot = () => {
   }, [input, flowStep]);
 
   return (
-    <div className="flex overflow-hidden" style={{ height: 'calc(100dvh - 64px)' }}>
+    <div className="flex overflow-hidden" style={{ height: 'calc(100dvh - 64px)' }}
+      onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
 
       {/* ── Left sidebar overlay (mobile) ── */}
       {sidebarOpen && (
@@ -1162,6 +1410,29 @@ const Chatbot = () => {
             </button>
           </div>
 
+          {/* Sidebar search */}
+          <div className="px-3 pb-2">
+            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-[#1c1c1f] border border-[#27272a]">
+              <svg className="w-3 h-3 text-[#52525b] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                value={historySearch}
+                onChange={e => setHistorySearch(e.target.value)}
+                placeholder="Search history…"
+                className="flex-1 bg-transparent text-[11px] text-[#d4d4d8] placeholder-[#3f3f46] outline-none"
+              />
+              {historySearch && (
+                <button onClick={() => setHistorySearch('')} className="text-[#52525b] hover:text-[#a1a1aa]">
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* Chat history list */}
           <div className="flex-1 overflow-y-auto px-2 pb-2">
             {chatHistory.length === 0 ? (
@@ -1173,8 +1444,11 @@ const Chatbot = () => {
               (() => {
                 const today = new Date().toDateString();
                 const yesterday = new Date(Date.now() - 86400000).toDateString();
+                const filtered = historySearch.trim()
+                  ? chatHistory.filter(s => s.title.toLowerCase().includes(historySearch.toLowerCase()))
+                  : chatHistory;
                 const groups = {};
-                chatHistory.forEach(s => {
+                filtered.forEach(s => {
                   const d = new Date(s.date).toDateString();
                   const label = d === today ? 'Today' : d === yesterday ? 'Yesterday'
                     : new Date(s.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
@@ -1185,20 +1459,30 @@ const Chatbot = () => {
                   <div key={label} className="mb-3">
                     <p className="text-[10px] font-semibold text-[#3f3f46] uppercase tracking-wider px-2.5 py-1.5">{label}</p>
                     {sessions.map(s => (
-                      <button
-                        key={s.id}
-                        onClick={() => loadHistorySession(s)}
-                        className={`w-full text-left flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors ${
-                          s.id === activeSessionId
-                            ? 'bg-[#27272a] text-[#fafafa]'
-                            : 'text-[#71717a] hover:bg-[#1c1c1f] hover:text-[#d4d4d8]'
-                        }`}
-                      >
-                        <svg className="w-3.5 h-3.5 text-[#3f3f46] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                        </svg>
-                        <span className="truncate flex-1 text-[12px]">{s.title}</span>
-                      </button>
+                      <div key={s.id} className="group relative">
+                        <button
+                          onClick={() => loadHistorySession(s)}
+                          className={`w-full text-left flex items-center gap-2 px-2.5 py-1.5 pr-8 rounded-lg transition-colors ${
+                            s.id === activeSessionId
+                              ? 'bg-[#27272a] text-[#fafafa]'
+                              : 'text-[#71717a] hover:bg-[#1c1c1f] hover:text-[#d4d4d8]'
+                          }`}
+                        >
+                          <svg className="w-3.5 h-3.5 text-[#3f3f46] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                          </svg>
+                          <span className="truncate flex-1 text-[12px]">{s.title}</span>
+                        </button>
+                        <button
+                          onClick={(e) => handleDeleteHistory(s.id, e)}
+                          title="Delete"
+                          className="absolute right-1.5 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 text-[#52525b] hover:text-[#ef4444] transition-all"
+                        >
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
                     ))}
                   </div>
                 ));
@@ -1256,6 +1540,9 @@ const Chatbot = () => {
                   </svg>
                 </div>
                 <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-[#22c55e] rounded-full border border-[#111113]" />
+                {statusAlertDot && (
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[#ef4444] rounded-full border border-[#111113] animate-pulse" title="Status update" />
+                )}
               </div>
               <div>
                 <span className="text-[13.5px] font-semibold text-[#fafafa]">HiTicket AI</span>
@@ -1270,16 +1557,7 @@ const Chatbot = () => {
               </div>
             )}
             <button
-              onClick={() => {
-                const txt = messages.map(m =>
-                  `[${m.timestamp || ''}] ${m.sender === 'bot' ? 'HiTicket AI' : 'You'}: ${m.message}`
-                ).join('\n\n');
-                const blob = new Blob([txt], { type: 'text/plain' });
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = `chat-${new Date().toISOString().slice(0, 10)}.txt`;
-                a.click(); URL.revokeObjectURL(a.href);
-              }}
+              onClick={handleDownloadTranscript}
               className="flex items-center justify-center w-8 h-8 rounded-lg text-[#71717a] hover:text-[#fafafa] hover:bg-[#27272a] transition-colors"
               title="Download transcript"
             >
@@ -1300,9 +1578,28 @@ const Chatbot = () => {
         </div>
 
         {/* ── Messages ── */}
-        <div className="flex-1 overflow-y-auto">
+        <div
+          className="flex-1 overflow-y-auto relative"
+          ref={messagesScrollRef}
+          onScroll={() => {
+            const el = messagesScrollRef.current;
+            if (!el) return;
+            setShowScrollBtn(el.scrollHeight - el.scrollTop - el.clientHeight > 120);
+          }}
+        >
+          {showScrollBtn && (
+            <button
+              onClick={() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })}
+              className="absolute bottom-4 right-4 z-10 w-8 h-8 rounded-full bg-[#27272a] border border-[#3f3f46] text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#3f3f46] flex items-center justify-center shadow-lg transition-all"
+              title="Scroll to bottom"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+          )}
           <div className="max-w-3xl mx-auto px-4 py-6">
-            {messages.length <= 1 && !isTyping ? (
+            {messages.length <= 1 && !isTyping && !streamingMsg ? (
               <>
                 <WelcomeScreen
                   firstName={_firstName}
@@ -1315,7 +1612,7 @@ const Chatbot = () => {
             ) : (
               <div className="space-y-5">
                 {messages.map((msg, i) => (
-                  <div key={i}>
+                  <div key={i} className="animate-fade-in">
                     <ChatBubble {...msg} />
                     {msg.sender === 'bot' && i > 0 && (
                       <div className="flex items-center gap-0.5 ml-11 mt-0.5">
@@ -1343,6 +1640,35 @@ const Chatbot = () => {
                   </div>
                 ))}
                 {isTyping && <TypingIndicator />}
+                {streamingMsg && !isTyping && (
+                  <div className="animate-fade-in">
+                    <ChatBubble sender="bot" message={streamingMsg.displayed + '\u25ae'} timestamp="" msgTime={null} />
+                  </div>
+                )}
+                {showSurvey && (
+                  <div className="flex justify-start ml-11 py-1 animate-fade-in">
+                    <div className="bg-[#1c1c1f] border border-[#27272a] rounded-2xl px-4 py-3 max-w-xs">
+                      {surveyRating ? (
+                        <p className="text-[12px] text-[#22c55e]">Thanks for your feedback! {'⭐'.repeat(surveyRating)} ({surveyRating}/5)</p>
+                      ) : (
+                        <>
+                          <p className="text-[12px] font-semibold text-[#d4d4d8] mb-1">How was your experience?</p>
+                          <p className="text-[10px] text-[#52525b] mb-2">Rate our AI assistant for {showSurvey.ticketId}</p>
+                          <div className="flex gap-1 mb-2">
+                            {[1, 2, 3, 4, 5].map(n => (
+                              <button
+                                key={n}
+                                onClick={() => handleSubmitSurvey(n)}
+                                className="w-8 h-8 rounded-lg text-lg hover:bg-[#27272a] transition-all active:scale-90 text-[#a1a1aa] hover:text-[#f59e0b]"
+                              >☆</button>
+                            ))}
+                          </div>
+                          <button onClick={() => setShowSurvey(null)} className="text-[10px] text-[#52525b] hover:text-[#a1a1aa]">Dismiss</button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
                 <div ref={messagesEndRef} />
               </div>
             )}
@@ -1454,6 +1780,66 @@ const Chatbot = () => {
               </div>
             )}
 
+            {/* Slash command dropdown */}
+            {slashSuggestions.length > 0 && (
+              <div className="mb-1 border border-[#27272a] rounded-xl overflow-hidden bg-[#111113]">
+                {slashSuggestions.map(c => (
+                  <button
+                    key={c.cmd}
+                    onClick={() => { setInput(c.cmd + ' '); inputRef.current?.focus(); }}
+                    className="w-full flex items-center gap-3 px-3 py-2 hover:bg-[#1c1c1f] transition-colors text-left"
+                  >
+                    <span className="text-base flex-shrink-0">{c.icon}</span>
+                    <code className="text-[12px] font-mono text-[#3b82f6]">{c.cmd}</code>
+                    <span className="text-[11px] text-[#71717a]">{c.desc}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Attached file preview */}
+            {attachedFile && (
+              <div className="mb-2 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#1c1c1f] border border-[#27272a]">
+                <svg className="w-3.5 h-3.5 text-[#3b82f6] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                </svg>
+                <span className="text-[11px] text-[#d4d4d8] truncate flex-1">{attachedFile.name}</span>
+                <span className="text-[10px] text-[#52525b]">{(attachedFile.size / 1024).toFixed(0)} KB</span>
+                <button onClick={() => setAttachedFile(null)} className="text-[#52525b] hover:text-[#ef4444] transition-colors">
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            )}
+
+            {/* Undo toast */}
+            {undoPending && (
+              <div className="mb-2 flex items-center gap-3 px-3 py-2 rounded-xl bg-[#1c1c1f] border border-[#27272a]">
+                <svg className="w-3.5 h-3.5 text-[#22c55e] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                <span className="text-[11px] text-[#71717a] flex-1">Message sent</span>
+                <button onClick={handleUndo} className="text-[11px] font-semibold text-[#3b82f6] hover:text-[#60a5fa] transition-colors">Undo</button>
+              </div>
+            )}
+
+            {/* SLA countdown banner */}
+            {slaDisplay && chipType === 'done' && (
+              <div className="mb-2 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#1c1c1f] border border-[#22c55e]/20">
+                <span className="text-[11px] text-[#22c55e]">⏱ {slaDisplay}</span>
+              </div>
+            )}
+
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.txt,.csv"
+              onChange={handleFileAttach}
+            />
+
             {/* The input box */}
             <div className="relative bg-[#1c1c1f] border border-[#27272a] rounded-2xl focus-within:border-[#3b82f6]/50 transition-colors shadow-lg">
               <textarea
@@ -1473,7 +1859,27 @@ const Chatbot = () => {
               />
               {/* Bottom row inside input box */}
               <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-3 pb-2.5 pointer-events-none">
-                <div className="pointer-events-auto">
+                <div className="flex items-center gap-1 pointer-events-auto">
+                  {/* Paperclip / file attach */}
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-7 h-7 rounded-lg flex items-center justify-center text-[#52525b] hover:text-[#a1a1aa] hover:bg-[#27272a] transition-colors"
+                    title="Attach file"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                    </svg>
+                  </button>
+                  {/* Microphone / voice input */}
+                  <button
+                    onClick={handleVoiceInput}
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${isListening ? 'text-[#ef4444] bg-[#ef4444]/10 animate-pulse' : 'text-[#52525b] hover:text-[#a1a1aa] hover:bg-[#27272a]'}`}
+                    title={isListening ? 'Stop listening' : 'Voice input'}
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                    </svg>
+                  </button>
                   {input.length > 80 && (
                     <span className={`text-[10px] ${input.length > 450 ? 'text-[#ef4444]' : 'text-[#52525b]'}`}>
                       {input.length}/500
@@ -1507,9 +1913,13 @@ const Chatbot = () => {
 
             <p className="text-[10px] text-center text-[#3f3f46] mt-2">
               <kbd className="px-1 py-0.5 rounded bg-[#1c1c1f] text-[#52525b] text-[9px]">Enter</kbd>
-              {' '}to send ·{' '}
+              {' '}send ·{' '}
               <kbd className="px-1 py-0.5 rounded bg-[#1c1c1f] text-[#52525b] text-[9px]">Shift+Enter</kbd>
-              {' '}for new line
+              {' '}new line ·{' '}
+              <kbd className="px-1 py-0.5 rounded bg-[#1c1c1f] text-[#52525b] text-[9px]">⌘N</kbd>
+              {' '}new chat ·{' '}
+              <span className="text-[#3f3f46]">/help</span>
+              {' '}commands
             </p>
           </div>
         </div>
