@@ -65,12 +65,22 @@ const deleteHistoryEntry = (id) => {
 
 // ── Slash commands ─────────────────────────────────────────────────────────────
 const SLASH_COMMANDS = [
-  { cmd: '/status',   desc: 'Check a ticket status',    icon: '🎫' },
-  { cmd: '/new',      desc: 'Start a new chat',          icon: '✏️' },
-  { cmd: '/agent',    desc: 'Talk to a human agent',     icon: '👤' },
-  { cmd: '/history',  desc: 'Open chat history',         icon: '📚' },
-  { cmd: '/download', desc: 'Download chat transcript',  icon: '⬇️' },
-  { cmd: '/help',     desc: 'Show available commands',   icon: '❓' },
+  { cmd: '/status',   desc: 'Check a ticket status',       icon: '🎫' },
+  { cmd: '/new',      desc: 'Start a new chat',             icon: '✏️' },
+  { cmd: '/agent',    desc: 'Talk to a human agent',        icon: '👤' },
+  { cmd: '/history',  desc: 'Open chat history',            icon: '📚' },
+  { cmd: '/download', desc: 'Download chat transcript',     icon: '⬇️' },
+  { cmd: '/template', desc: 'Use a pre-filled IT template', icon: '📋' },
+  { cmd: '/help',     desc: 'Show available commands',      icon: '❓' },
+];
+
+const TICKET_TEMPLATES = [
+  { label: '🔓 Reset Password',   text: 'I need to reset my account password. I am locked out and cannot access my email or company systems.' },
+  { label: '📶 VPN Not Working',   text: 'I am having trouble connecting to the VPN. The connection keeps timing out or fails to authenticate.' },
+  { label: '💻 New Laptop Setup',  text: 'I have a new laptop and need it set up with standard company software, network access, and email.' },
+  { label: '🖨️ Printer Issue',     text: 'My printer is not working. It is either not connecting, not printing, or showing an error message.' },
+  { label: '📧 Email Problem',     text: 'I am having issues with my email. Messages are not sending, receiving, or my mailbox may be full.' },
+  { label: '🔑 Software Access',   text: 'I need access to a software application or system. Please provide the required license or permissions.' },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -633,11 +643,10 @@ const Chatbot = () => {
   const dupeTimerRef = useRef(null);
   const [showMobileDrawer, setShowMobileDrawer] = useState(false);
   const [msgFeedback,    setMsgFeedback]    = useState({});
-  const [kbSuggestions,  setKbSuggestions]  = useState([]);
+  const [kbSuggestions,  setKbSuggestions]  = useState([]);   // articles shown before ticket submit
+  const [kbDismissed,    setKbDismissed]    = useState(false); // user chose to skip KB
   const [statusNavId,    setStatusNavId]    = useState(null);
   const [statusTickets,  setStatusTickets]  = useState([]);
-
-  // ── ChatGPT-style layout ───────────────────────────────────────────────────
   const [sessionId]                        = useState(() => _s?.sessionId || `sess_${Date.now()}`);
   const [sidebarOpen,  setSidebarOpen]     = useState(() => typeof window !== 'undefined' && window.innerWidth >= 1024);
   const [chatHistory,  setChatHistory]     = useState(getHistory);
@@ -980,8 +989,15 @@ const Chatbot = () => {
       if (cmd === '/agent') { handleEscalation(); return; }
       if (cmd === '/history') { setSidebarOpen(true); return; }
       if (cmd === '/download') { handleDownloadTranscript(); return; }
+      if (cmd === '/template') {
+        botReply('Choose a template to pre-fill your request:', 300, () => {
+          setChipType('subtype');
+          setQuickReplies(TICKET_TEMPLATES.map(t => t.label));
+        });
+        return;
+      }
       if (cmd === '/help') {
-        botReply('**Available commands:**\n\n• `/status [TKT-XXXX]` — check ticket status\n• `/new` — start fresh chat\n• `/agent` — talk to a human agent\n• `/history` — open chat history sidebar\n• `/download` — download this transcript', 400);
+        botReply('**Available commands:**\n\n• `/status [TKT-XXXX]` — check ticket status\n• `/new` — start fresh chat\n• `/agent` — talk to a human agent\n• `/history` — open chat history sidebar\n• `/download` — download this transcript\n• `/template` — use a pre-filled request template', 400);
         return;
       }
     }
@@ -1001,6 +1017,13 @@ const Chatbot = () => {
           });
         })
         .catch(() => botReply('Failed to add comment. Please try again.', 600));
+      return;
+    }
+
+    // Template selection — matches any template label
+    const matchedTemplate = TICKET_TEMPLATES.find(t => t.label === text || text.includes(t.label.replace(/^[^ ]+ /, '')));
+    if (matchedTemplate && flowStep <= 1) {
+      processInput(matchedTemplate.text);
       return;
     }
 
@@ -1032,7 +1055,45 @@ const Chatbot = () => {
     if (flowStep === 1) handleStep1(text);
     else if (flowStep === 2) handleStep2(text);
     else if (flowStep === 3) handleStep3(text);
-    else if (flowStep === 4) handleStep4(text);
+    else if (flowStep === 4) {
+      // Handle KB deflection responses
+      if (chipType === 'kb-deflect') {
+        const t = text.toLowerCase();
+        if (t.includes('skip') || t.includes('submit') || t.includes('create') || t.includes('no')) {
+          setKbDismissed(true);
+          setKbSuggestions([]);
+          _presentConfirm(ticketData.priority, ticketData);
+        } else {
+          // user wants to read an article
+          const match = text.match(/\d+/);
+          const idx = match ? parseInt(match[0], 10) - 1 : 0;
+          const article = kbSuggestions[idx];
+          if (article) {
+            botReply(
+              `**${article.title}**\n\n${article.content.slice(0, 600)}${article.content.length > 600 ? '…' : ''}\n\n_Found in ${article.category} · ${article.views || 0} views_\n\nDid this help, or do you still need to create a ticket?`,
+              600,
+              () => {
+                setChipType('kb-deflect');
+                setQuickReplies(['Yes, solved it! 🎉', 'No — Submit Ticket']);
+              }
+            );
+          }
+        }
+        return;
+      }
+      if (chipType === 'confirm' && text.toLowerCase().includes('yes, solved')) {
+        setKbDismissed(false);
+        setKbSuggestions([]);
+        botReply('Great! Glad the article helped. Let me know if you have another issue.', 500, () => {
+          setChipType('done');
+          setQuickReplies(['New Issue', 'View Knowledge Base']);
+          setFlowStep(5);
+          setSubmitted(false);
+        });
+        return;
+      }
+      handleStep4(text);
+    }
     else handleDone(text);
   };
 
@@ -1157,21 +1218,50 @@ const Chatbot = () => {
   };
 
   // STEP 3: additional detail capture
-  const handleStep3 = (text) => {
+  const handleStep3 = async (text) => {
     const allText = ticketData.description + ' ' + ticketData.subType + ' ' + text;
     const priority = detectPriority(allText, ticketData.category, ticketData.subType);
     setTicketData((prev) => ({ ...prev, details: text, priority }));
     setFlowStep(4);
 
-    const descPreview =
-      ticketData.description.length > 90
-        ? ticketData.description.substring(0, 90) + '…'
-        : ticketData.description;
+    // KB deflection — search for relevant articles before asking to submit
+    try {
+      const q = encodeURIComponent(ticketData.description.slice(0, 80));
+      const { data } = await api.get(`/kb?q=${q}`);
+      const articles = (data.articles || []).slice(0, 3);
+      if (articles.length > 0 && !kbDismissed) {
+        setKbSuggestions(articles);
+        const titles = articles.map((a, i) => `${i + 1}. ${a.title}`).join('\n');
+        botReply(
+          `Before I submit your ticket — I found ${articles.length} knowledge base article${articles.length > 1 ? 's' : ''} that might help:\n\n${titles}\n\nWould you like to read one, or shall I go ahead and create the ticket?`,
+          1100,
+          () => {
+            setChipType('kb-deflect');
+            setQuickReplies([
+              ...articles.map((a, i) => `Read article ${i + 1}`),
+              'Skip — Submit Ticket',
+            ]);
+          }
+        );
+        return;
+      }
+    } catch { /* ignore KB errors — fall through to normal flow */ }
+
+    _presentConfirm(priority, ticketData);
+  };
+
+  const _presentConfirm = (priority, td) => {
+    const descPreview = (td || ticketData).description.length > 90
+      ? (td || ticketData).description.substring(0, 90) + '…'
+      : (td || ticketData).description;
+    const cat = (td || ticketData).category;
+    const sub = (td || ticketData).subType || 'General';
 
     botReply(
-      `Thanks for the details! Here's your ticket summary:\n\nCategory: ${ticketData.category}\nSub-type: ${ticketData.subType || 'General'}\nPriority: **${priority}**\nIssue: ${descPreview}\n\nShall I go ahead and submit this ticket?\n\n_Say "change priority to Critical/High/Low" to adjust before submitting._`,
-      1100,
+      `Thanks for the details! Here's your ticket summary:\n\nCategory: ${cat}\nSub-type: ${sub}\nPriority: **${priority}**\nIssue: ${descPreview}\n\nShall I go ahead and submit this ticket?\n\n_Say "change priority to Critical/High/Low" to adjust before submitting._`,
+      400,
       () => {
+        setKbSuggestions([]);
         setChipType('confirm');
         setQuickReplies(['Confirm & Submit', 'Change Priority to Critical', 'Change Priority to High', 'Edit Details', 'Cancel']);
       }

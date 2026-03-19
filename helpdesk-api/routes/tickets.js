@@ -314,4 +314,40 @@ router.delete('/:id', adminOnly, async (req, res) => {
   }
 });
 
+// PATCH /api/tickets/:id/watch  — toggle current user as watcher
+router.patch('/:id/watch', protect, async (req, res) => {
+  try {
+    const ticket = await Ticket.findById(req.params.id);
+    if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
+
+    const userId = req.user._id;
+    const isWatching = ticket.watchers.some(w => w.equals(userId));
+    if (isWatching) {
+      ticket.watchers = ticket.watchers.filter(w => !w.equals(userId));
+    } else {
+      ticket.watchers.push(userId);
+    }
+    await ticket.save();
+    res.json({ watching: !isWatching, watcherCount: ticket.watchers.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PATCH /api/tickets/:id/due-date  — set or clear due date (agent/admin)
+router.patch('/:id/due-date', agentOrAdmin, async (req, res) => {
+  try {
+    const { dueDate } = req.body; // ISO string or null
+    const ticket = await Ticket.findByIdAndUpdate(
+      req.params.id,
+      { dueDate: dueDate ? new Date(dueDate) : null },
+      { new: true }
+    );
+    if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
+    res.json({ dueDate: ticket.dueDate });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

@@ -2,14 +2,16 @@ const mongoose = require('mongoose');
 
 const kbArticleSchema = new mongoose.Schema(
   {
-    title:    { type: String, required: true, trim: true },
-    content:  { type: String, required: true },
-    category: { type: String, default: 'General' },
-    tags:     [{ type: String }],
-    author:   { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    authorName: String,
+    title:       { type: String, required: true, trim: true },
+    content:     { type: String, required: true },
+    category:    { type: String, default: 'General' },
+    tags:        [{ type: String }],
+    author:      { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    authorName:  String,
     isPublished: { type: Boolean, default: true },
-    views:    { type: Number, default: 0 },
+    views:       { type: Number, default: 0 },
+    helpful:     { type: Number, default: 0 },
+    notHelpful:  { type: Number, default: 0 },
   },
   { timestamps: true }
 );

@@ -36,6 +36,24 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// POST /api/kb/:id/helpful — anyone authenticated can rate
+router.post('/:id/helpful', protect, async (req, res) => {
+  try {
+    const { vote } = req.body; // 'yes' | 'no'
+    if (!['yes', 'no'].includes(vote)) return res.status(400).json({ error: 'vote must be yes or no' });
+    const field = vote === 'yes' ? 'helpful' : 'notHelpful';
+    const article = await KbArticle.findByIdAndUpdate(
+      req.params.id,
+      { $inc: { [field]: 1 } },
+      { new: true }
+    );
+    if (!article) return res.status(404).json({ error: 'Article not found' });
+    res.json({ helpful: article.helpful, notHelpful: article.notHelpful });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // All write routes require auth
 router.use(protect);
 

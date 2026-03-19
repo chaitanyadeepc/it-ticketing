@@ -65,6 +65,8 @@ const ticketSchema = new mongoose.Schema(
       submittedAt: { type: Date },
     },
     resolvedAt:  { type: Date },
+    dueDate:     { type: Date, default: null },
+    watchers:    [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   },
   { timestamps: true }
 );

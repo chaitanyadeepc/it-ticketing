@@ -22,6 +22,8 @@ import ActivityLog from './pages/ActivityLog';
 import Survey from './pages/Survey';
 import FeedbackResults from './pages/FeedbackResults';
 import { logActivity } from './utils/activityLog';
+import OnboardingTour from './components/OnboardingTour';
+import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
 
 const ProtectedRoute = ({ children }) => {
   const isAuthenticated = !!localStorage.getItem('token') && localStorage.getItem('isAuthenticated') === 'true';
@@ -49,6 +51,7 @@ function App() {
   const location = useLocation();
   const isLogin = location.pathname === '/login';
   const [cmdOpen, setCmdOpen] = React.useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = React.useState(false);
   useInactivityLogout();
 
   // Log every page navigation for authenticated users
@@ -68,6 +71,11 @@ function App() {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         setCmdOpen(v => !v);
+      }
+      // '?' shortcut — only when not typing in an input/textarea
+      if (e.key === '?' && !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)) {
+        e.preventDefault();
+        setShortcutsOpen(v => !v);
       }
     };
     document.addEventListener('keydown', handler);
@@ -102,6 +110,8 @@ function App() {
       <BottomNav />
       <ScrollToTop />
       {cmdOpen && <CommandPalette onClose={() => setCmdOpen(false)} />}
+      {shortcutsOpen && <KeyboardShortcutsModal onClose={() => setShortcutsOpen(false)} />}
+      <OnboardingTour />
     </div>
   );
 }

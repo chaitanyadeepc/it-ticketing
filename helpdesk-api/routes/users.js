@@ -70,4 +70,25 @@ router.patch('/:id', adminOnly, async (req, res) => {
   }
 });
 
+// POST /api/users/change-password
+router.post('/change-password', protect, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword)
+      return res.status(400).json({ error: 'Both current and new password are required' });
+    if (newPassword.length < 8)
+      return res.status(400).json({ error: 'New password must be at least 8 characters' });
+
+    const user = await User.findById(req.user._id).select('+password');
+    if (!(await user.matchPassword(currentPassword)))
+      return res.status(401).json({ error: 'Current password is incorrect' });
+
+    user.password = newPassword;
+    await user.save(); // triggers bcrypt hash via pre-save hook
+    res.json({ message: 'Password changed successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

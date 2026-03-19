@@ -49,11 +49,27 @@ export default function KnowledgeBase() {
     }
   };
 
+  const [ratedIds, setRatedIds] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('hd_kb_rated') || '[]'); } catch { return []; }
+  });
+
   const handleView = async (article) => {
     setSelected(article);
-    // Increment views
     try { await api.get(`/kb/${article._id}`); } catch { /* ignore */ }
   };
+
+  const handleRate = async (vote) => {
+    if (!selected || ratedIds.includes(selected._id)) return;
+    try {
+      const { data } = await api.post(`/kb/${selected._id}/helpful`, { vote });
+      setSelected(a => ({ ...a, helpful: data.helpful, notHelpful: data.notHelpful }));
+      const updated = [...ratedIds, selected._id];
+      setRatedIds(updated);
+      localStorage.setItem('hd_kb_rated', JSON.stringify(updated));
+    } catch { /* ignore */ }
+  };
+
+  const hasRated = selected ? ratedIds.includes(selected._id) : false;
 
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this article?')) return;
@@ -247,18 +263,29 @@ export default function KnowledgeBase() {
               </div>
 
               {/* Was this helpful */}
-              <div className="mt-8 pt-5 border-t border-[#27272a] flex items-center gap-3">
+              <div className="mt-8 pt-5 border-t border-[#27272a] flex flex-wrap items-center gap-3">
                 <p className="text-[13px] text-[#52525b]">Was this article helpful?</p>
-                <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#22c55e]/10 text-[#22c55e] text-[12px] hover:bg-[#22c55e]/20 transition-colors">
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"/></svg>
-                  Yes
-                </button>
-                <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#ef4444]/10 text-[#ef4444] text-[12px] hover:bg-[#ef4444]/20 transition-colors">
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018c.163 0 .326.02.485.06L17 4m-7 10v2a2 2 0 002 2h.095c.5 0 .905-.405.905-.905 0-.714.211-1.412.608-2.006L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5"/></svg>
-                  No
-                </button>
+                {hasRated ? (
+                  <span className="text-[12px] text-[#22c55e] flex items-center gap-1.5">
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    Thanks for your feedback!
+                  </span>
+                ) : (
+                  <>
+                    <button onClick={() => handleRate('yes')}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#22c55e]/10 text-[#22c55e] text-[12px] hover:bg-[#22c55e]/20 transition-colors">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"/></svg>
+                      Yes {selected?.helpful > 0 && <span className="text-[10px] opacity-70">({selected.helpful})</span>}
+                    </button>
+                    <button onClick={() => handleRate('no')}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#ef4444]/10 text-[#ef4444] text-[12px] hover:bg-[#ef4444]/20 transition-colors">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018c.163 0 .326.02.485.06L17 4m-7 10v2a2 2 0 002 2h.095c.5 0 .905-.405.905-.905 0-.714.211-1.412.608-2.006L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5"/></svg>
+                      No {selected?.notHelpful > 0 && <span className="text-[10px] opacity-70">({selected.notHelpful})</span>}
+                    </button>
+                  </>
+                )}
                 <button
-                  onClick={() => navigate('/new-ticket')}
+                  onClick={() => navigate('/raise-ticket')}
                   className="ml-auto text-[12px] text-[#3b82f6] hover:underline"
                 >
                   Still need help? Open a ticket →

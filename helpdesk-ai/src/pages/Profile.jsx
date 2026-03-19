@@ -5,6 +5,26 @@ import Button from '../components/ui/Button';
 import api from '../api/api';
 import { useToast } from '../context/ToastContext';
 
+// Password strength scoring
+const getPasswordStrength = (pw) => {
+  if (!pw) return { score: 0, label: '', color: '' };
+  let score = 0;
+  if (pw.length >= 8) score++;
+  if (pw.length >= 12) score++;
+  if (/[A-Z]/.test(pw)) score++;
+  if (/[0-9]/.test(pw)) score++;
+  if (/[^A-Za-z0-9]/.test(pw)) score++;
+  const levels = [
+    { label: 'Very Weak', color: '#ef4444' },
+    { label: 'Weak',      color: '#f97316' },
+    { label: 'Fair',      color: '#f59e0b' },
+    { label: 'Good',      color: '#3b82f6' },
+    { label: 'Strong',    color: '#22c55e' },
+    { label: 'Very Strong', color: '#22c55e' },
+  ];
+  return { score, ...levels[Math.min(score, levels.length - 1)] };
+};
+
 const Profile = () => {
   const userEmail = localStorage.getItem('userEmail') || '';
   const userRole  = localStorage.getItem('userRole') || 'user';
@@ -17,6 +37,13 @@ const Profile = () => {
 
   // Ticket stats from API
   const [stats, setStats] = useState({ total: 0, active: 0, resolved: 0 });
+
+  // Password change state
+  const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' });
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwError, setPwError] = useState('');
+  const [showPw, setShowPw] = useState({ current: false, next: false, confirm: false });
+  const strength = getPasswordStrength(pwForm.next);
 
   useEffect(() => {
     Promise.all([api.get('/users/profile'), api.get('/tickets')])
@@ -52,6 +79,23 @@ const Profile = () => {
       setError('Failed to save changes');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setPwError('');
+    if (pwForm.next !== pwForm.confirm) { setPwError('New passwords do not match'); return; }
+    if (strength.score < 2) { setPwError('Password is too weak — use at least 8 characters with mixed case and numbers'); return; }
+    setPwSaving(true);
+    try {
+      await api.post('/users/change-password', { currentPassword: pwForm.current, newPassword: pwForm.next });
+      addToast('Password changed successfully');
+      setPwForm({ current: '', next: '', confirm: '' });
+    } catch (err) {
+      setPwError(err.response?.data?.error || 'Failed to change password');
+    } finally {
+      setPwSaving(false);
     }
   };
 
@@ -205,6 +249,61 @@ const Profile = () => {
               <div className="absolute -right-4 -bottom-4 w-14 h-14 rounded-full blur-2xl opacity-20" style={{ backgroundColor: color }} />
             </div>
           ))}
+        </div>
+
+        {/* Change Password */}
+        <div className="mt-5 bg-[#18181b] border border-[#27272a] border-l-[3px] rounded-xl p-5" style={{ borderLeftColor: '#8b5cf6' }}>
+          <div className="flex items-center gap-2 mb-4">
+            <svg className="w-4 h-4 text-[#8b5cf6]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+            <h2 className="text-[14px] font-semibold text-[#fafafa]">Change Password</h2>
+          </div>
+          {pwError && <div className="mb-3 px-3 py-2 rounded-lg bg-[#ef4444]/10 border border-[#ef4444]/20 text-[#ef4444] text-[12px]">{pwError}</div>}
+          <form onSubmit={handleChangePassword} className="space-y-3">
+            {[
+              { key: 'current', label: 'Current Password' },
+              { key: 'next',    label: 'New Password' },
+              { key: 'confirm', label: 'Confirm New Password' },
+            ].map(({ key, label }) => (
+              <div key={key}>
+                <label className="block text-[11px] font-semibold text-[#a1a1aa] mb-1.5 uppercase tracking-wider">{label}</label>
+                <div className="relative">
+                  <input
+                    type={showPw[key] ? 'text' : 'password'}
+                    value={pwForm[key]}
+                    onChange={e => setPwForm(f => ({ ...f, [key]: e.target.value }))}
+                    placeholder={key === 'current' ? 'Enter current password' : key === 'next' ? 'Min 8 characters' : 'Repeat new password'}
+                    required
+                    className="w-full h-10 pl-3.5 pr-10 rounded-lg bg-[#111113] border border-[#27272a] text-[13.5px] text-[#fafafa] focus:outline-none focus:border-[#8b5cf6] focus:ring-2 focus:ring-[#8b5cf6]/20 transition-all placeholder-[#52525b]"
+                  />
+                  <button type="button" onClick={() => setShowPw(p => ({ ...p, [key]: !p[key] }))}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#52525b] hover:text-[#a1a1aa] transition-colors">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                      {showPw[key]
+                        ? <><path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></>
+                        : <><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></>
+                      }
+                    </svg>
+                  </button>
+                </div>
+                {/* Password strength bar for new password field */}
+                {key === 'next' && pwForm.next && (
+                  <div className="mt-1.5">
+                    <div className="flex gap-1 mb-1">
+                      {[1,2,3,4,5].map(i => (
+                        <div key={i} className="h-1 flex-1 rounded-full transition-all duration-200"
+                          style={{ backgroundColor: i <= strength.score ? strength.color : '#27272a' }} />
+                      ))}
+                    </div>
+                    <p className="text-[11px]" style={{ color: strength.color }}>{strength.label}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+            <button type="submit" disabled={pwSaving}
+              className="px-5 py-2 bg-[#8b5cf6] hover:bg-[#7c3aed] disabled:opacity-50 text-white text-[13px] font-semibold rounded-lg transition-colors mt-1">
+              {pwSaving ? 'Changing…' : 'Change Password'}
+            </button>
+          </form>
         </div>
       </div>
     </PageWrapper>

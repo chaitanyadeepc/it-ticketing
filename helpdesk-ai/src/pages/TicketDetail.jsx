@@ -91,6 +91,12 @@ export default function TicketDetail() {
   const [showCanned, setShowCanned] = useState(false);
   const fileInputRef = React.useRef(null);
 
+  // Watch + due date state
+  const [watching, setWatching] = useState(false);
+  const [watchLoading, setWatchLoading] = useState(false);
+  const [dueDateInput, setDueDateInput] = useState('');
+  const [dueDateSaving, setDueDateSaving] = useState(false);
+
   // Canned responses stored in localStorage
   const DEFAULT_CANNED = [
     { label: 'Acknowledge', text: 'Thank you for reaching out. We have received your ticket and will investigate shortly.' },
@@ -133,6 +139,14 @@ export default function TicketDetail() {
       .then(({ data }) => {
         setTicket(data.ticket);
         setAssignValue(data.ticket.assignedTo || '');
+        // Sync watch state — check if current user is in watchers array
+        const myId = localStorage.getItem('userId');
+        if (myId && Array.isArray(data.ticket.watchers)) {
+          setWatching(data.ticket.watchers.some(w => (w._id || w) === myId));
+        }
+        if (data.ticket.dueDate) {
+          setDueDateInput(data.ticket.dueDate.slice(0, 10)); // YYYY-MM-DD
+        }
         setLoading(false);
         logActivity('TICKET_VIEWED', {
           category: 'TICKET', severity: 'info',
@@ -157,6 +171,31 @@ export default function TicketDetail() {
       api.get('/users').then(({ data }) => setAgents(data.users?.filter(u => u.isActive && u.role !== 'user') || [])).catch(() => {});
     }
   }, [isStaff]);
+
+  const handleWatch = async () => {
+    setWatchLoading(true);
+    try {
+      const { data } = await api.patch(`/tickets/${id}/watch`);
+      setWatching(data.watching);
+      addToast(data.watching ? '👀 Watching ticket' : 'Unwatched ticket');
+    } catch {
+      addToast('Failed to update watch status', 'error');
+    } finally {
+      setWatchLoading(false);
+    }
+  };
+
+  const handleSaveDueDate = async () => {
+    setDueDateSaving(true);
+    try {
+      await api.patch(`/tickets/${id}/due-date`, { dueDate: dueDateInput || null });
+      addToast('Due date saved');
+    } catch {
+      addToast('Failed to save due date', 'error');
+    } finally {
+      setDueDateSaving(false);
+    }
+  };
 
   const handleCsatSubmit = async (e) => {
     e.preventDefault();
@@ -451,6 +490,60 @@ export default function TicketDetail() {
               <span className="text-[13px] text-[#fafafa]">{value}</span>
             </div>
           ))}
+        </div>
+        {/* Watch + Due Date row */}
+        <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-[#27272a] mt-3">
+          <button
+            onClick={handleWatch}
+            disabled={watchLoading}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
+            style={{
+              backgroundColor: watching ? '#3b82f620' : 'var(--surface)',
+              border: `1px solid ${watching ? '#3b82f6' : '#3f3f46'}`,
+              color: watching ? '#3b82f6' : '#a1a1aa',
+            }}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+            {watching ? 'Watching' : 'Watch'}
+            {ticket.watchers?.length > 0 && (
+              <span className="ml-0.5 text-[11px]">({ticket.watchers.length})</span>
+            )}
+          </button>
+          {isStaff && (
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] uppercase font-semibold tracking-wider text-[#52525b]">Due date</span>
+              <input
+                type="date"
+                value={dueDateInput}
+                onChange={e => setDueDateInput(e.target.value)}
+                className="text-[12px] rounded-lg px-2 py-1 bg-[#27272a] border border-[#3f3f46] text-[#fafafa]"
+              />
+              <button
+                onClick={handleSaveDueDate}
+                disabled={dueDateSaving}
+                className="text-[12px] px-2 py-1 rounded-lg bg-[#7c3aed] hover:bg-[#6d28d9] text-white transition-colors"
+              >
+                {dueDateSaving ? '…' : 'Save'}
+              </button>
+              {dueDateInput && (
+                <button
+                  onClick={() => { setDueDateInput(''); handleSaveDueDate(); }}
+                  className="text-[12px] text-[#71717a] hover:text-[#fafafa]"
+                  title="Clear due date"
+                >×</button>
+              )}
+            </div>
+          )}
+          {!isStaff && ticket.dueDate && (
+            <span className="text-[12px] text-[#a1a1aa]">
+              Due: <span className={Date.now() > new Date(ticket.dueDate) ? 'text-red-400 font-semibold' : 'text-[#fafafa]'}>
+                {new Date(ticket.dueDate).toLocaleDateString()}
+              </span>
+            </span>
+          )}
         </div>
       </div>
 

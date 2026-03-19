@@ -53,6 +53,8 @@ const AdminDashboard = () => {
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [chartRange, setChartRange] = useState(30); // days — 7 | 30 | 90 | 0=all
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'sla' | 'aging'
   const [savedFilters, setSavedFilters] = useState(() => {
     try { return JSON.parse(localStorage.getItem('hd_savedFilters') || '[]'); } catch { return []; }
   });
@@ -176,21 +178,52 @@ const AdminDashboard = () => {
     return h < 48 ? `${h}h` : `${Math.floor(h / 24)}d`;
   })();
 
-  // 30-day line chart data
+  // 30-day line chart data (respects chartRange)
   const thirtyDayData = (() => {
-    const days = [];
-    for (let i = 29; i >= 0; i--) {
+    const days = chartRange === 0 ? 90 : chartRange;
+    const arr = [];
+    for (let i = days - 1; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      days.push({ date: d.toISOString().slice(0, 10), label: d.toLocaleDateString([], { month: 'short', day: 'numeric' }), count: 0 });
+      arr.push({ date: d.toISOString().slice(0, 10), label: d.toLocaleDateString([], { month: 'short', day: 'numeric' }), count: 0 });
     }
+    const cutoff = chartRange === 0 ? null : Date.now() - chartRange * 86400000;
     tickets.forEach(t => {
+      if (cutoff && new Date(t.createdAt) < cutoff) return;
       const day = new Date(t.createdAt).toISOString().slice(0, 10);
-      const entry = days.find(d => d.date === day);
+      const entry = arr.find(d => d.date === day);
       if (entry) entry.count++;
     });
-    return days;
+    return arr;
   })();
+
+  // SLA thresholds (hours)
+  const SLA_HOURS = { Critical: 4, High: 8, Medium: 24, Low: 72 };
+
+  // SLA breach report — open/in-progress tickets past their SLA
+  const slaBreaches = tickets.filter(t => {
+    if (t.status === 'Resolved' || t.status === 'Closed') return false;
+    const threshold = SLA_HOURS[t.priority];
+    if (!threshold) return false;
+    const ageHours = (Date.now() - new Date(t.createdAt)) / 3600000;
+    return ageHours > threshold;
+  }).sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+  // Ticket aging — open tickets grouped by age bucket
+  const agingBuckets = { '< 1 day': 0, '1–3 days': 0, '3–7 days': 0, '> 7 days': 0 };
+  tickets.filter(t => t.status === 'Open' || t.status === 'In Progress').forEach(t => {
+    const days = (Date.now() - new Date(t.createdAt)) / 86400000;
+    if (days < 1) agingBuckets['< 1 day']++;
+    else if (days < 3) agingBuckets['1–3 days']++;
+    else if (days < 7) agingBuckets['3–7 days']++;
+    else agingBuckets['> 7 days']++;
+  });
+
+  // Open tickets sorted by age (oldest first) for aging table
+  const agingTickets = tickets
+    .filter(t => t.status === 'Open' || t.status === 'In Progress')
+    .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+    .slice(0, 20);
 
   // Agent leaderboard — top agents by resolved tickets
   const agentLeaderboard = (() => {
@@ -334,6 +367,25 @@ const AdminDashboard = () => {
           </div>
         </div>
 
+        {/* View tabs */}
+        <div className="flex items-center gap-1 mb-5 bg-[#18181b] border border-[#27272a] rounded-xl p-1 w-fit">
+          {[
+            { key: 'overview', label: 'Overview' },
+            { key: 'sla', label: `SLA Breaches${slaBreaches.length > 0 ? ` (${slaBreaches.length})` : ''}`, warn: slaBreaches.length > 0 },
+            { key: 'aging', label: 'Ticket Aging' },
+          ].map(({ key, label, warn }) => (
+            <button key={key} onClick={() => setActiveTab(key)}
+              className={`px-4 py-1.5 rounded-lg text-[12px] font-medium transition-all ${
+                activeTab === key
+                  ? 'bg-[#27272a] text-[#fafafa] shadow-sm'
+                  : `text-[#71717a] hover:text-[#fafafa] ${warn ? 'text-[#ef4444]' : ''}`
+              }`}>
+              {warn && activeTab !== key && <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#ef4444] mr-1.5 mb-0.5" />}
+              {label}
+            </button>
+          ))}
+        </div>
+
         {error && (
           <div className="flex items-center gap-3 p-4 mb-6 bg-[#ef4444]/10 border border-[#ef4444]/20 rounded-xl text-[#ef4444] text-[13px]">
             <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -341,8 +393,119 @@ const AdminDashboard = () => {
           </div>
         )}
 
+        {/* SLA Breach tab */}
+        {activeTab === 'sla' && (
+          <Card className="p-5 mb-5 border-t-[3px]" style={{ borderTopColor: '#ef4444' }}>
+            <h2 className="text-[14px] font-semibold text-[#fafafa] mb-1 flex items-center gap-2">
+              <svg className="w-4 h-4 text-[#ef4444]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+              SLA Breach Report
+              {slaBreaches.length > 0 && <span className="ml-1 px-2 py-0.5 rounded-full bg-[#ef4444]/15 text-[#ef4444] text-[11px] font-bold">{slaBreaches.length}</span>}
+            </h2>
+            <p className="text-[12px] text-[#52525b] mb-4">Open tickets that exceeded their SLA threshold — Critical ≤4h, High ≤8h, Medium ≤24h, Low ≤72h.</p>
+            {slaBreaches.length === 0 ? (
+              <div className="text-center py-10">
+                <svg className="w-8 h-8 text-[#22c55e] mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <p className="text-[13px] text-[#52525b]">No SLA breaches — all tickets are within targets 🎉</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-[12px]">
+                  <thead>
+                    <tr className="text-[11px] text-[#52525b] uppercase tracking-wider border-b border-[#27272a]">
+                      <th className="pb-2 text-left font-semibold">Ticket</th>
+                      <th className="pb-2 text-left font-semibold">Title</th>
+                      <th className="pb-2 text-center font-semibold">Priority</th>
+                      <th className="pb-2 text-center font-semibold">SLA</th>
+                      <th className="pb-2 text-center font-semibold">Age</th>
+                      <th className="pb-2 text-center font-semibold">Overdue By</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {slaBreaches.map(t => {
+                      const slaH = SLA_HOURS[t.priority] || 24;
+                      const ageH = (Date.now() - new Date(t.createdAt)) / 3600000;
+                      const overdueH = ageH - slaH;
+                      const fmtH = h => h < 48 ? `${Math.floor(h)}h` : `${Math.floor(h/24)}d`;
+                      const PCOLOR = { Critical: '#ef4444', High: '#f97316', Medium: '#3b82f6', Low: '#22c55e' };
+                      return (
+                        <tr key={t._id} className="border-b border-[#27272a]/50 last:border-0 cursor-pointer hover:bg-[#27272a]/40"
+                          onClick={() => navigate(`/tickets/${t._id}`)}>
+                          <td className="py-2.5 font-mono text-[11px] text-[#3b82f6]">{t.ticketId}</td>
+                          <td className="py-2.5 text-[#e4e4e7] max-w-[180px] truncate">{t.title}</td>
+                          <td className="py-2.5 text-center"><span className="px-2 py-0.5 rounded-full text-[10px] font-bold" style={{ color: PCOLOR[t.priority], background: `${PCOLOR[t.priority]}18` }}>{t.priority}</span></td>
+                          <td className="py-2.5 text-center text-[#a1a1aa]">{slaH}h</td>
+                          <td className="py-2.5 text-center text-[#a1a1aa]">{fmtH(ageH)}</td>
+                          <td className="py-2.5 text-center text-[#ef4444] font-semibold">+{fmtH(overdueH)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+        )}
+
+        {/* Aging tab */}
+        {activeTab === 'aging' && (
+          <div className="mb-5 space-y-4">
+            {/* Bucket summary */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {Object.entries(agingBuckets).map(([label, count]) => {
+                const color = label === '> 7 days' ? '#ef4444' : label === '3–7 days' ? '#f97316' : label === '1–3 days' ? '#f59e0b' : '#22c55e';
+                return (
+                  <div key={label} className="rounded-xl border p-4" style={{ borderColor: `${color}30`, background: `${color}0d` }}>
+                    <div className="text-[26px] font-bold mb-0.5" style={{ color }}>{count}</div>
+                    <div className="text-[11px] text-[#71717a]">{label}</div>
+                  </div>
+                );
+              })}
+            </div>
+            <Card className="p-5 border-t-[3px]" style={{ borderTopColor: '#f59e0b' }}>
+              <h2 className="text-[14px] font-semibold text-[#fafafa] mb-4">Open Tickets by Age (oldest first)</h2>
+              {agingTickets.length === 0 ? (
+                <p className="text-[13px] text-[#52525b] text-center py-8">No open tickets.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[12px]">
+                    <thead>
+                      <tr className="text-[11px] text-[#52525b] uppercase tracking-wider border-b border-[#27272a]">
+                        <th className="pb-2 text-left font-semibold">Ticket</th>
+                        <th className="pb-2 text-left font-semibold">Title</th>
+                        <th className="pb-2 text-center font-semibold">Status</th>
+                        <th className="pb-2 text-center font-semibold">Priority</th>
+                        <th className="pb-2 text-center font-semibold">Age</th>
+                        <th className="pb-2 text-left font-semibold">Assigned To</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {agingTickets.map(t => {
+                        const days = (Date.now() - new Date(t.createdAt)) / 86400000;
+                        const ageColor = days > 7 ? '#ef4444' : days > 3 ? '#f97316' : days > 1 ? '#f59e0b' : '#22c55e';
+                        const PCOLOR = { Critical: '#ef4444', High: '#f97316', Medium: '#3b82f6', Low: '#22c55e' };
+                        const fmtAge = d => d < 1 ? `${Math.floor(d*24)}h` : d < 2 ? '1 day' : `${Math.floor(d)} days`;
+                        return (
+                          <tr key={t._id} className="border-b border-[#27272a]/50 last:border-0 cursor-pointer hover:bg-[#27272a]/40"
+                            onClick={() => navigate(`/tickets/${t._id}`)}>
+                            <td className="py-2.5 font-mono text-[11px] text-[#3b82f6]">{t.ticketId}</td>
+                            <td className="py-2.5 text-[#e4e4e7] max-w-[180px] truncate">{t.title}</td>
+                            <td className="py-2.5 text-center text-[#a1a1aa]">{t.status}</td>
+                            <td className="py-2.5 text-center"><span className="text-[10px] font-bold" style={{ color: PCOLOR[t.priority] }}>{t.priority}</span></td>
+                            <td className="py-2.5 text-center font-semibold" style={{ color: ageColor }}>{fmtAge(days)}</td>
+                            <td className="py-2.5 text-[#71717a]">{t.assignedTo || '—'}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Card>
+          </div>
+        )}
+
         {/* Stat cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-5">
+        {activeTab === 'overview' && <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-5">
           {[
             { label: 'Total Tickets', value: stats.total,      color: '#3b82f6', sub: 'All time',        trend: getTrend(thisWeekTickets, lastWeekTickets), icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
             { label: 'Open',         value: stats.open,       color: '#22c55e', sub: 'Needs attention', trend: null, icon: 'M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4' },
@@ -392,16 +555,26 @@ const AdminDashboard = () => {
               </div>
             );
           })}
-        </div>
+        </div>}
 
         {/* Charts row */}
-        {tickets.length > 0 && (
+        {activeTab === 'overview' && tickets.length > 0 && (
           <>
             {/* Line chart + leaderboard row */}
             <div className="grid md:grid-cols-3 gap-4 mb-4">
-              {/* 30-day line chart */}
+              {/* Line chart with date range filter */}
               <Card className="md:col-span-2 p-5 border-t-[3px]" style={{ borderTopColor: '#22c55e' }}>
-                <h2 className="text-[14px] font-semibold text-[#fafafa] mb-4">Tickets Created — Last 30 Days</h2>
+                <div className="flex items-center justify-between mb-4 gap-3">
+                  <h2 className="text-[14px] font-semibold text-[#fafafa]">Tickets Created</h2>
+                  <div className="flex items-center gap-1 bg-[#27272a] rounded-lg p-0.5">
+                    {[{ label: '7d', val: 7 }, { label: '30d', val: 30 }, { label: '90d', val: 90 }, { label: 'All', val: 0 }].map(({ label, val }) => (
+                      <button key={val} onClick={() => setChartRange(val)}
+                        className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${chartRange === val ? 'bg-[#3b82f6] text-white' : 'text-[#71717a] hover:text-[#fafafa]'}`}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <ResponsiveContainer width="100%" height={180}>
                   <LineChart data={thirtyDayData} margin={{ left: -10, right: 8 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
@@ -501,7 +674,7 @@ const AdminDashboard = () => {
         )}
 
         {/* Heatmap + Agent performance */}
-        {tickets.length > 0 && (
+        {activeTab === 'overview' && tickets.length > 0 && (
           <div className="grid md:grid-cols-2 gap-4 mb-5">
             {/* Day-of-week heatmap */}
             <Card className="p-5 border-t-[3px]" style={{ borderTopColor: '#6366f1' }}>

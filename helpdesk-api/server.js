@@ -13,6 +13,11 @@ const kbRoutes = require('./routes/kb');
 const logRoutes      = require('./routes/logs');
 const feedbackRoutes = require('./routes/feedback');
 
+const cron = require('node-cron');
+const User   = require('./models/User');
+const Ticket = require('./models/Ticket');
+const { sendWeeklyDigest } = require('./utils/email');
+
 const app = express();
 
 // ── Security headers (helmet) ────────────────────────────────────────────
@@ -94,6 +99,41 @@ mongoose
         process.exit(1);
       }
     });
+
+    // ── Weekly digest cron — runs every Monday at 08:00 ─────────────────────
+    cron.schedule('0 8 * * 1', async () => {
+      console.log('[CRON] Sending weekly digest emails…');
+      try {
+        const users = await User.find({ isActive: true }).lean();
+        for (const user of users) {
+          const oneWeekAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000);
+          const tickets = await Ticket.find({
+            createdBy: user._id,
+            createdAt: { $gte: oneWeekAgo },
+          }).lean();
+
+          if (!tickets.length) continue;
+
+          const resolved = tickets.filter(t => ['Resolved', 'Closed'].includes(t.status)).length;
+          const recent = tickets.slice(0, 5).map(t => ({
+            ticketId: t.ticketId,
+            title: t.title,
+            status: t.status,
+          }));
+
+          await sendWeeklyDigest(user, {
+            total: tickets.length,
+            resolved,
+            open: tickets.length - resolved,
+            recentActivity: recent,
+          });
+        }
+        console.log('[CRON] Weekly digest complete');
+      } catch (err) {
+        console.error('[CRON] Weekly digest error:', err.message);
+      }
+    }, { timezone: 'UTC' });
+
   })
   .catch((err) => {
     console.error('❌ MongoDB connection failed:', err.message);
