@@ -214,7 +214,7 @@ const Navbar = () => {
       detail: `${localStorage.getItem('userEmail') || 'user'} signed out`,
       metadata: { email: localStorage.getItem('userEmail'), role: localStorage.getItem('userRole') },
     });
-    ['isAuthenticated', 'userEmail', 'userName', 'userRole', 'token'].forEach(k => localStorage.removeItem(k));
+    ['isAuthenticated', 'userEmail', 'userName', 'userRole', 'token', 'userId'].forEach(k => localStorage.removeItem(k));
     navigate('/login');
   };
 
@@ -303,6 +303,15 @@ const Navbar = () => {
               className="p-2 rounded-md text-[rgba(255,255,255,0.7)] hover:text-white hover:bg-[rgba(255,255,255,0.1)] transition-colors"
             >
               {isDark ? <SunIcon /> : <MoonIcon />}
+            </button>
+
+            {/* Keyboard shortcuts help */}
+            <button
+              onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: '?', bubbles: true }))}
+              title="Keyboard shortcuts (?)"
+              className="hidden md:flex items-center justify-center w-7 h-7 rounded-md text-[rgba(255,255,255,0.5)] hover:text-white hover:bg-[rgba(255,255,255,0.08)] transition-colors text-[13px] font-bold"
+            >
+              ?
             </button>
 
             {/* Command palette hint */}

@@ -13,6 +13,7 @@ export default function UserManagement() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [updating, setUpdating] = useState(null); // userId being updated
+  const [userSearch, setUserSearch] = useState('');
 
   useEffect(() => {
     api.get('/users')
@@ -106,13 +107,30 @@ export default function UserManagement() {
           </button>
         </div>
 
+        {/* Search bar */}
+        <div className="relative mb-4 max-w-sm">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#52525b]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
+          </svg>
+          <input
+            type="text"
+            value={userSearch}
+            onChange={e => setUserSearch(e.target.value)}
+            placeholder="Search by name or email…"
+            className="w-full bg-[#18181b] border border-[#27272a] text-[#fafafa] text-[13px] rounded-lg pl-9 pr-3 py-2 focus:outline-none focus:border-[#a855f7] placeholder-[#52525b]"
+          />
+          {userSearch && (
+            <button onClick={() => setUserSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#52525b] hover:text-[#fafafa]">×</button>
+          )}
+        </div>
+
         {error && (
           <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-[13px]">{error}</div>
         )}
 
         {/* Mobile card view */}
         <div className="sm:hidden bg-[#18181b] border border-[#27272a] rounded-xl divide-y divide-[#27272a]">
-          {users.map((user) => {
+          {users.filter(u => !userSearch || u.name?.toLowerCase().includes(userSearch.toLowerCase()) || u.email.toLowerCase().includes(userSearch.toLowerCase())).map((user) => {
             const isSelf = user._id === myId;
             const isUpdating = updating === user._id;
             return (
@@ -191,7 +209,7 @@ export default function UserManagement() {
                 </tr>
               </thead>
               <tbody>
-                {users.map((user) => {
+                {users.filter(u => !userSearch || u.name?.toLowerCase().includes(userSearch.toLowerCase()) || u.email.toLowerCase().includes(userSearch.toLowerCase())).map((user) => {
                   const isSelf = user._id === myId;
                   const isUpdating = updating === user._id;
                   return (

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Badge from './ui/Badge';
 import { getTimeAgo } from '../data/mockTickets';
 
@@ -56,6 +56,15 @@ const TicketCard = ({ ticket, onClick }) => {
   const PRIORITY_COLOR = { Critical: '#ef4444', High: '#f97316', Medium: '#3b82f6', Low: '#22c55e' };
   const priorityStrip = PRIORITY_COLOR[ticket.priority] || '#3b82f6';
 
+  const [copied, setCopied] = useState(false);
+  const copyId = (e) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(ticket.id || '').then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }).catch(() => {});
+  };
+
   // Avatar initials helper
   const getInitials = (name) => {
     if (!name || name === 'Unassigned') return '?';
@@ -71,8 +80,23 @@ const TicketCard = ({ ticket, onClick }) => {
       {/* Header */}
       <div className="flex justify-between items-start mb-3">
         <div className="flex-1">
-          <div className="text-[13px] font-['JetBrains_Mono'] font-medium text-[#3b82f6] mb-1">
-            {ticket.id}
+          <div className="flex items-center gap-1.5 mb-1">
+            <span className="text-[13px] font-['JetBrains_Mono'] font-medium text-[#3b82f6]">{ticket.id}</span>
+            <button
+              onClick={copyId}
+              title="Copy ticket ID"
+              className="text-[#52525b] hover:text-[#a1a1aa] transition-colors"
+            >
+              {copied ? (
+                <svg className="w-3 h-3 text-[#22c55e]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              ) : (
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              )}
+            </button>
           </div>
           <h3 className="text-[14px] font-medium text-[#fafafa] mb-3">
             {ticket.title}
@@ -93,6 +117,20 @@ const TicketCard = ({ ticket, onClick }) => {
         <Badge variant={priorityVariant}>{ticket.priority}</Badge>
         <Badge variant={statusVariant}>{ticket.status}</Badge>
       </div>
+
+      {/* Due date badge */}
+      {ticket.dueDate && (() => {
+        const isOverdue = Date.now() > new Date(ticket.dueDate) && !['Resolved','Closed'].includes(ticket.status);
+        const dueFmt = new Date(ticket.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        return (
+          <div className="flex items-center gap-1.5 mb-2 text-[11px] font-medium" style={{ color: isOverdue ? '#ef4444' : '#a1a1aa' }}>
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            {isOverdue ? `Overdue · ${dueFmt}` : `Due ${dueFmt}`}
+          </div>
+        );
+      })()}
 
       {/* SLA indicator */}
       {(() => {

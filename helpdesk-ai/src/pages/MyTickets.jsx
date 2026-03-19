@@ -7,6 +7,13 @@ import api from '../api/api';
 
 const PRIORITIES = ['All', 'Low', 'Medium', 'High', 'Critical'];
 const CATEGORIES = ['All', 'Hardware', 'Software', 'Network', 'Access', 'Email', 'Printer', 'VPN', 'Other'];
+const SORT_OPTIONS = [
+  { value: 'newest',   label: 'Newest first' },
+  { value: 'oldest',   label: 'Oldest first' },
+  { value: 'priority', label: 'Priority (high → low)' },
+  { value: 'updated',  label: 'Recently updated' },
+];
+const PRIORITY_RANK = { Critical: 4, High: 3, Medium: 2, Low: 1 };
 
 const MyTickets = () => {
   const navigate = useNavigate();
@@ -14,6 +21,7 @@ const MyTickets = () => {
   const [priority, setPriority] = useState('All');
   const [category, setCategory] = useState('All');
   const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState('newest');
   const [page, setPage] = useState(1);
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -35,7 +43,7 @@ const MyTickets = () => {
 
   useEffect(() => { fetchTickets(); }, []);
   useEffect(() => { const timer = setInterval(() => fetchTickets(true), 30000); return () => clearInterval(timer); }, []);
-  useEffect(() => { setPage(1); }, [activeTab, priority, category, search]);
+  useEffect(() => { setPage(1); }, [activeTab, priority, category, search, sortBy]);
 
   const counts = {
     open: tickets.filter((t) => t.status === 'Open').length,
@@ -60,6 +68,12 @@ const MyTickets = () => {
       if (!search) return true;
       const q = search.toLowerCase();
       return t.title.toLowerCase().includes(q) || (t.ticketId || '').toLowerCase().includes(q);
+    })
+    .sort((a, b) => {
+      if (sortBy === 'oldest')   return new Date(a.createdAt) - new Date(b.createdAt);
+      if (sortBy === 'priority') return (PRIORITY_RANK[b.priority] || 0) - (PRIORITY_RANK[a.priority] || 0);
+      if (sortBy === 'updated')  return new Date(b.updatedAt) - new Date(a.updatedAt);
+      return new Date(b.createdAt) - new Date(a.createdAt); // newest
     });
 
   const ITEMS_PER_PAGE = 9;
@@ -165,6 +179,14 @@ const MyTickets = () => {
               </button>
             )}
           </div>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="bg-[#27272a] border border-[#3f3f46] text-[#fafafa] text-[13px] rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#3b82f6] ml-auto"
+            title="Sort tickets"
+          >
+            {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
         </div>
 
         {loading ? (

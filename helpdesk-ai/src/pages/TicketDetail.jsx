@@ -63,6 +63,40 @@ const renderMarkdown = (text) => {
     .replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:#3b82f6;text-decoration:underline">$1</a>');
 };
 
+// Copy-link button
+const CopyLinkButton = ({ ticketId }) => {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    navigator.clipboard.writeText(window.location.href).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {});
+  };
+  return (
+    <button
+      onClick={copy}
+      title="Copy link to this ticket"
+      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] transition-colors border"
+      style={{
+        color: copied ? '#22c55e' : '#a1a1aa',
+        borderColor: copied ? '#22c55e40' : '#27272a',
+        backgroundColor: copied ? '#22c55e0d' : 'transparent',
+      }}
+    >
+      {copied ? (
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+      ) : (
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+        </svg>
+      )}
+      {copied ? 'Copied!' : 'Copy link'}
+    </button>
+  );
+};
+
 export default function TicketDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -428,13 +462,28 @@ export default function TicketDetail() {
   return (
     <>
     <div className="w-full px-4 sm:px-6 lg:px-8 py-5">
-      {/* Back */}
-      <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-[13px] text-[#a1a1aa] hover:text-[#fafafa] mb-5 transition-colors">
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-        </svg>
-        Back
-      </button>
+      {/* Back + share toolbar */}
+      <div className="flex items-center justify-between mb-5">
+        <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-[13px] text-[#a1a1aa] hover:text-[#fafafa] transition-colors">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Back
+        </button>
+        <div className="flex items-center gap-2">
+          <CopyLinkButton ticketId={ticket?.ticketId} />
+          <button
+            onClick={() => window.print()}
+            title="Print ticket"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] text-[#a1a1aa] hover:text-[#fafafa] transition-colors border border-[#27272a] hover:border-[#3f3f46]"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+            </svg>
+            Print
+          </button>
+        </div>
+      </div>
 
       {/* SLA alert banner */}
       {sla && (
@@ -530,7 +579,13 @@ export default function TicketDetail() {
               </button>
               {dueDateInput && (
                 <button
-                  onClick={() => { setDueDateInput(''); handleSaveDueDate(); }}
+                  onClick={async () => {
+                    setDueDateInput('');
+                    setDueDateSaving(true);
+                    try { await api.patch(`/tickets/${id}/due-date`, { dueDate: null }); addToast('Due date cleared'); }
+                    catch { addToast('Failed to clear due date', 'error'); }
+                    finally { setDueDateSaving(false); }
+                  }}
                   className="text-[12px] text-[#71717a] hover:text-[#fafafa]"
                   title="Clear due date"
                 >×</button>
