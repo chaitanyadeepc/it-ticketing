@@ -41,11 +41,11 @@ HiTicket is a decoupled full-stack web application with three infrastructure tie
 │  CLIENT TIER                                                        │
 │                                                                     │
 │  Browser / PWA                                                      │
-│  React 19 SPA (Vite 8)                                             │
-│  Tailwind CSS v3 · Recharts · React Router v7 · Axios              │
+│  React 19 SPA (Vite 8)                                              │
+│  Tailwind CSS v3 · Recharts · React Router v7 · Axios               │
 │                                                                     │
-│  Hosted: Vercel (CDN-distributed static assets)                    │
-│  URL: https://hiticket.vercel.app                              │
+│  Hosted: Vercel (CDN-distributed static assets)                     │
+│  URL: https://hiticket.vercel.app                                   │
 └───────────────────────┬─────────────────────────────────────────────┘
                         │  HTTPS (port 443) REST JSON
                         │  Authorization: Bearer <JWT>
@@ -53,12 +53,12 @@ HiTicket is a decoupled full-stack web application with three infrastructure tie
 ┌─────────────────────────────────────────────────────────────────────┐
 │  APPLICATION TIER                                                   │
 │                                                                     │
-│  Node.js 20 + Express 4                                            │
+│  Node.js 20 + Express 4                                             │
 │  helmet · cors · express-rate-limit · express-mongo-sanitize        │
-│  jsonwebtoken · bcryptjs · speakeasy · multer · node-cron          │
+│  jsonwebtoken · bcryptjs · speakeasy · multer · node-cron           │
 │                                                                     │
 │  Hosted: Render Web Service                                         │
-│  Port: 10000 (Render assigns; $PORT env var)                       │
+│  Port: 10000 (Render assigns; $PORT env var)                        │
 └─────┬─────────────────────────────────────────────────────────┬─────┘
       │  Mongoose ODM (TLS)                                      │  OAuth2 (HTTPS)
       ▼                                                          ▼
