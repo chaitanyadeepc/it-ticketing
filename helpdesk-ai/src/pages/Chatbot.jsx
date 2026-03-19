@@ -316,6 +316,54 @@ const QuickReply = ({ label, onClick, variant = 'default' }) => (
   </button>
 );
 
+// ── Ticket status cards ─────────────────────────────────────────────────────
+const STATUS_META = {
+  'Open':        { color: '#3b82f6', dot: '🔵' },
+  'In Progress': { color: '#f59e0b', dot: '🟡' },
+  'Resolved':    { color: '#22c55e', dot: '🟢' },
+  'Closed':      { color: '#71717a', dot: '⚫' },
+};
+
+const TicketCards = ({ tickets, onNavigate }) => (
+  <div className="px-3 sm:px-4 pb-2 shrink-0 border-t border-[#27272a]">
+    <p className="text-[10px] font-semibold text-[#52525b] uppercase tracking-wider pt-2.5 pb-2">Tap a ticket to open</p>
+    <div className="space-y-1.5">
+      {tickets.map((t) => {
+        const meta = STATUS_META[t.status] || STATUS_META['Open'];
+        const updated = t.updatedAt
+          ? new Date(t.updatedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
+          : '';
+        return (
+          <button
+            key={t._id}
+            onClick={() => onNavigate(`/tickets/${t._id}`)}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-[#1c1c1f] border border-[#27272a] hover:border-[#3b82f6]/40 hover:bg-[#27272a] active:scale-[0.98] transition-all text-left group"
+          >
+            <div className="flex-shrink-0 w-2 h-2 rounded-full" style={{ background: meta.color }} />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[11px] font-mono font-bold" style={{ color: meta.color }}>{t.ticketId}</span>
+                <span
+                  className="text-[10px] px-1.5 py-0.5 rounded-full border font-semibold"
+                  style={{ color: meta.color, borderColor: `${meta.color}40`, background: `${meta.color}10` }}
+                >{t.status}</span>
+                {t.priority && (
+                  <span className="text-[10px] text-[#52525b]">{t.priority}</span>
+                )}
+              </div>
+              <p className="text-[12px] text-[#a1a1aa] group-hover:text-[#d4d4d8] leading-tight truncate mt-0.5">{t.title}</p>
+              {updated && <p className="text-[10px] text-[#52525b] mt-0.5">Updated {updated}</p>}
+            </div>
+            <svg className="w-4 h-4 text-[#3f3f46] group-hover:text-[#3b82f6] flex-shrink-0 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/>
+            </svg>
+          </button>
+        );
+      })}
+    </div>
+  </div>
+);
+
 // ── Category grid shown at step 1 ─────────────────────────────────────────────
 const CategoryGrid = ({ onSelect }) => (
   <div className="border-t border-[#27272a] shrink-0 bg-[#111113]">
@@ -508,6 +556,7 @@ const Chatbot = () => {
   const [msgFeedback, setMsgFeedback]     = useState({});   // { [msgIdx]: 'up'|'down' }
   const [kbSuggestions, setKbSuggestions] = useState([]);   // related KB articles
   const [statusNavId, setStatusNavId]     = useState(null); // mongo _id for nav after status lookup
+  const [statusTickets, setStatusTickets] = useState([]);   // tickets to show as clickable cards
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -545,6 +594,10 @@ const Chatbot = () => {
     if (/\b(human|agent|person|real person|speak to|talk to|escalate|representative|support staff)\b/i.test(text)) {
       handleEscalation(); return;
     }
+    // Ticket ID or status-check intent — always available
+    if (/TKT-\d+/i.test(text) || /\b(status|check status|my tickets|track ticket|ticket update)\b/i.test(text)) {
+      handleStatusLookup(text); return;
+    }
     if (flowStep === 1) handleStep1(text);
     else if (flowStep === 2) handleStep2(text);
     else if (flowStep === 3) handleStep3(text);
@@ -554,11 +607,6 @@ const Chatbot = () => {
 
   // STEP 1: initial description or category selection from grid
   const handleStep1 = (text) => {
-    // Status lookup intent — route to status handler
-    if (/\b(status|check|track|where is|update on|progress of)\b/i.test(text) || /TKT-\d+/i.test(text)) {
-      handleStatusLookup(text); return;
-    }
-
     const pickedCat = CATEGORY_NAMES.find(
       (n) => n.toLowerCase() === text.toLowerCase()
     );
@@ -728,50 +776,84 @@ const Chatbot = () => {
     }
   };
 
-  // ── Status lookup — triggered from step 1 or quick action ─────────────────
+  // ── Status lookup — triggered globally for TKT-XXXX or status intents ───────────────
   const handleStatusLookup = (rawText) => {
     const tktId = rawText.match(/TKT-\d+/i)?.[0]?.toUpperCase();
+    setStatusTickets([]);
     botReply('Looking that up for you…', 350, null);
-    const ep = tktId ? `/tickets?q=${encodeURIComponent(tktId)}` : '/tickets?limit=5';
-    api.get(ep)
-      .then(({ data }) => {
-        const all = data.tickets || [];
-        if (tktId) {
-          const found = all.find(t => t.ticketId?.toUpperCase() === tktId);
+
+    if (tktId) {
+      // Auth'd search — finds by ticketId field (backend now includes it in $or)
+      api.get(`/tickets?q=${encodeURIComponent(tktId)}&limit=10`)
+        .then(({ data }) => {
+          const found = (data.tickets || []).find(
+            t => t.ticketId?.toUpperCase() === tktId
+          );
           if (found) {
             setStatusNavId(found._id);
+            setStatusTickets([found]);
+            const meta = STATUS_META[found.status] || STATUS_META['Open'];
+            const updated = new Date(found.updatedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
             botReply(
-              `Here's the status for **${tktId}**:\n\n📋 ${found.title}\n\nStatus: ${found.status}\nPriority: ${found.priority}\nCategory: ${found.category}${found.assignedTo && found.assignedTo !== 'Unassigned' ? `\nAssigned to: ${found.assignedTo}` : ''}\n\nLast updated: ${new Date(found.updatedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`,
+              `${meta.dot} **${found.ticketId}** — ${found.title}\n\nStatus: **${found.status}**  ·  Priority: **${found.priority}**\nCategory: ${found.category}\nLast updated: ${updated}\n\nTap the card below to open the full ticket:`,
               700, () => {
-                setChipType('done');
-                setQuickReplies(['View Full Ticket', 'Check Another', 'Raise New Ticket']);
+                setChipType('tickets');
+                setQuickReplies(['Check Another Ticket', 'Raise New Ticket']);
               }
             );
           } else {
-            botReply(`I couldn't find **${tktId}**. Double-check the ID (e.g. TKT-0012) and try again.`, 700, () => {
-              setChipType(null);
-              setQuickReplies(['Check Another', 'Raise New Ticket']);
-            });
+            // Fallback: public endpoint (works even if ticket belongs to another user)
+            api.get(`/tickets/public/${tktId}`)
+              .then(({ data: pd }) => {
+                const p = pd.ticket;
+                const meta = STATUS_META[p.status] || STATUS_META['Open'];
+                const updated = new Date(p.updatedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+                botReply(
+                  `${meta.dot} **${p.ticketId}** — ${p.title}\n\nStatus: **${p.status}**  ·  Priority: **${p.priority}**\nCategory: ${p.category}\nLast updated: ${updated}\n\n(This ticket doesn't appear to be yours — view it via My Tickets if needed.)`,
+                  700, () => {
+                    setChipType(null);
+                    setQuickReplies(['Check Another Ticket', 'Raise New Ticket']);
+                  }
+                );
+              })
+              .catch(() => {
+                botReply(`I couldn't find **${tktId}**. Double-check the ID (e.g. TKT-0012) and make sure it belongs to your account.`, 700, () => {
+                  setChipType(null);
+                  setQuickReplies(['Check Another Ticket', 'Raise New Ticket']);
+                });
+              });
           }
-        } else {
+        })
+        .catch(() => {
+          botReply("Couldn't retrieve tickets right now. Please try again.", 700);
+        });
+    } else {
+      // No ticket ID — show recent tickets as clickable cards
+      api.get('/tickets?limit=5')
+        .then(({ data }) => {
+          const all = data.tickets || [];
           if (all.length === 0) {
             botReply("You don't have any tickets yet. Shall I help you raise one?", 700, () => setChipType('category'));
           } else {
-            const preview = all.slice(0, 3).map(t =>
-              `• ${t.ticketId}: ${t.title?.slice(0, 45)}${(t.title?.length ?? 0) > 45 ? '…' : ''} — **${t.status}**`
-            ).join('\n');
+            setStatusTickets(all.slice(0, 5));
+            const count = Math.min(all.length, 5);
             botReply(
-              `Your recent tickets:\n\n${preview}\n\nType a ticket ID (e.g. TKT-0012) to see full details.`,
-              800, () => { setChipType(null); setQuickReplies(['Raise New Ticket', 'View All Tickets']); }
+              count === 1
+                ? `Here's your ticket. Tap it to view full details:`
+                : `Here are your ${count} most recent tickets. Tap any to open it:`,
+              700, () => {
+                setChipType('tickets');
+                setQuickReplies(['Raise New Ticket', 'View All Tickets']);
+              }
             );
           }
-        }
-      })
-      .catch(() => {
-        botReply("Couldn't retrieve tickets right now. Please try 'My Tickets' in the navigation.", 700, () => {
-          setChipType(null); setQuickReplies(['Raise New Ticket', 'View All Tickets']);
+        })
+        .catch(() => {
+          botReply("Couldn't retrieve tickets right now. Please try 'My Tickets' in the navigation.", 700, () => {
+            setChipType(null); setQuickReplies(['Raise New Ticket', 'View All Tickets']);
+          });
         });
-      });
+    }
   };
 
   // ── Escalation to human agent ─────────────────────────────────────────────
@@ -782,14 +864,14 @@ const Chatbot = () => {
     );
   };
 
-  // STEP 5: post-submit navigation
+  // STEP 5: post-submit or post-status navigation
   const handleDone = (text) => {
     const t = text.toLowerCase();
     if (t.includes('view all') || t.includes('my tickets') || t.includes('all tickets')) {
       navigate('/my-tickets');
     } else if (t.includes('view full') || t.includes('full ticket')) {
       statusNavId ? navigate(`/tickets/${statusNavId}`) : navigate('/my-tickets');
-    } else if (t.includes('check another') || t.includes('check another')) {
+    } else if (t.includes('check another') || t.includes('another ticket')) {
       botReply('Type the ticket ID you want to check (e.g. TKT-0012):', 450, () => {
         setChipType(null); setQuickReplies([]);
       });
@@ -931,6 +1013,11 @@ const Chatbot = () => {
 
             {/* Category grid (step 1) */}
             {chipType === 'category' && <CategoryGrid onSelect={userSend} />}
+
+            {/* Ticket status cards */}
+            {chipType === 'tickets' && statusTickets.length > 0 && (
+              <TicketCards tickets={statusTickets} onNavigate={navigate} />
+            )}
 
             {/* Quick-reply chips (all other steps) */}
             {chipType && chipType !== 'category' && quickReplies.length > 0 && (
