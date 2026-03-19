@@ -191,7 +191,6 @@ const Navbar = () => {
       items: [
         { name: 'AI Assistant',   path: '/raise-ticket',    desc: 'Raise a ticket with AI guidance',       icon: 'chat' },
         { name: 'My Tickets',     path: '/my-tickets',      desc: 'View and manage your open tickets',     icon: 'tickets' },
-        { name: 'Track Status',   path: '/status',          desc: 'Look up any ticket ID instantly',       icon: 'search' },
       ],
     },
     { label: 'Knowledge Base', path: '/knowledge-base', icon: 'book' },
