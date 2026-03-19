@@ -255,6 +255,27 @@ const CATEGORIES = {
 
 const CATEGORY_NAMES = Object.keys(CATEGORIES);
 
+// ── Smart title generator (ChatGPT-style auto-naming) ─────────────────────────
+const generateSmartTitle = (messages) => {
+  const userMsgs = (messages || []).filter(m => m.sender === 'user');
+  if (userMsgs.length === 0) return 'New Chat';
+  const first = userMsgs[0].message.trim();
+  if (CATEGORY_NAMES.some(n => n.toLowerCase() === first.toLowerCase())) {
+    const next = userMsgs[1]?.message?.trim();
+    return next ? `${first}: ${next.slice(0, 28)}` : `${first} Support`;
+  }
+  const tktMatch = first.match(/TKT-\d+/i);
+  if (tktMatch) return `Status check — ${tktMatch[0].toUpperCase()}`;
+  if (/\b(status|check status|my tickets|track)\b/i.test(first)) return 'Ticket status check';
+  if (/\b(human|agent|person|escalate)\b/i.test(first)) return 'Human agent request';
+  const detected = Object.entries(CATEGORIES).find(([, cfg]) => cfg.keywords.test(first.toLowerCase()));
+  const prefix = detected ? `${detected[0]}: ` : '';
+  const stripped = first.replace(/^(hi|hello|hey|i |my |the |i'm |im |i have |i've |i need |please |can you |help me |help with )+/gi, '').trim();
+  const words = stripped.split(/\s+/).slice(0, 8).join(' ');
+  const title = (prefix + words.charAt(0).toUpperCase() + words.slice(1)).trim();
+  return title.length > 55 ? title.slice(0, 55) + '…' : title || 'New Chat';
+};
+
 // ── Ambiguity detection (needs CATEGORIES defined first) ──────────────────────
 const detectAllCategories = (text) => {
   const t = text.toLowerCase();
@@ -678,6 +699,11 @@ const Chatbot = () => {
   const [slaTarget,        setSlaTarget]        = useState(null);
   const [slaDisplay,       setSlaDisplay]       = useState('');
   const touchStartXRef                           = useRef(null);
+  // ── History context menu + rename ────────────────────────────────────────
+  const [contextMenuId,  setContextMenuId]  = useState(null);   // session id with open menu
+  const [renamingId,     setRenamingId]     = useState(null);   // session id being renamed
+  const [renameValue,    setRenameValue]    = useState('');
+  const contextMenuRef                       = useRef(null);
 
   // Persist chat state across page refreshes within same browser tab
   useEffect(() => {
@@ -789,7 +815,59 @@ const Chatbot = () => {
     e.stopPropagation();
     deleteHistoryEntry(id);
     setChatHistory(getHistory());
+    setContextMenuId(null);
   };
+
+  const handleRenameHistory = (id, newTitle) => {
+    try {
+      const hist = getHistory();
+      const idx = hist.findIndex(h => h.id === id);
+      if (idx >= 0 && newTitle.trim()) {
+        hist[idx] = { ...hist[idx], title: newTitle.trim() };
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(hist));
+        setChatHistory(getHistory());
+      }
+    } catch {}
+    setRenamingId(null);
+    setRenameValue('');
+  };
+
+  const handleAutoRename = (session, e) => {
+    e.stopPropagation();
+    const newTitle = generateSmartTitle(session.messages || []);
+    handleRenameHistory(session.id, newTitle);
+    setContextMenuId(null);
+  };
+
+  const handleDownloadSession = (session, e) => {
+    e.stopPropagation();
+    const txt = (session.messages || []).map(m =>
+      `[${m.timestamp || ''}] ${m.sender === 'bot' ? 'HiTicket AI' : 'You'}: ${m.message}`
+    ).join('\n\n');
+    const blob = new Blob([txt], { type: 'text/plain' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `chat-${session.id}.txt`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    setContextMenuId(null);
+  };
+
+  // Close context menu on outside click
+  useEffect(() => {
+    if (!contextMenuId) return;
+    const handler = (e) => {
+      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target)) {
+        setContextMenuId(null);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    document.addEventListener('touchstart', handler);
+    return () => {
+      document.removeEventListener('mousedown', handler);
+      document.removeEventListener('touchstart', handler);
+    };
+  }, [contextMenuId]);
 
   const handleUndo = () => {
     clearTimeout(undoTimerRef.current);
@@ -900,8 +978,7 @@ const Chatbot = () => {
   const _buildHistoryEntry = () => {
     const userMsgs = messages.filter(m => m.sender === 'user');
     if (userMsgs.length === 0) return null;
-    const rawTitle = userMsgs[0].message;
-    const title = rawTitle.length > 54 ? rawTitle.slice(0, 54) + '…' : rawTitle;
+    const title = generateSmartTitle(messages);
     return { id: sessionId, title, date: new Date().toISOString(), messages, flowStep, ticketData, submitted, lastTicketId };
   };
 
@@ -1393,7 +1470,7 @@ const Chatbot = () => {
           <div className="flex items-center gap-2 px-3 pt-3 pb-2 flex-shrink-0">
             <div className="flex-1 flex items-center gap-2.5 px-2 py-1.5">
               <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[#3b82f6] to-[#2563eb] flex items-center justify-center flex-shrink-0">
-                <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="currentColor">
+                <svg style={{ width: '14px', height: '14px' }} viewBox="0 0 24 24" fill="currentColor" className="text-white">
                   <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7H3a7 7 0 0 1 7-7h1V5.73A2 2 0 0 1 10 4a2 2 0 0 1 2-2m-4 9.5a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1m8 0a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1M3 15h18v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1Z" />
                 </svg>
               </div>
@@ -1404,7 +1481,7 @@ const Chatbot = () => {
               title="New chat"
               className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-lg text-[#71717a] hover:text-[#fafafa] hover:bg-[#27272a] transition-colors"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg style={{ width: '16px', height: '16px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
             </button>
@@ -1459,29 +1536,93 @@ const Chatbot = () => {
                   <div key={label} className="mb-3">
                     <p className="text-[10px] font-semibold text-[#3f3f46] uppercase tracking-wider px-2.5 py-1.5">{label}</p>
                     {sessions.map(s => (
-                      <div key={s.id} className="group relative">
-                        <button
-                          onClick={() => loadHistorySession(s)}
-                          className={`w-full text-left flex items-center gap-2 px-2.5 py-1.5 pr-8 rounded-lg transition-colors ${
-                            s.id === activeSessionId
-                              ? 'bg-[#27272a] text-[#fafafa]'
-                              : 'text-[#71717a] hover:bg-[#1c1c1f] hover:text-[#d4d4d8]'
-                          }`}
-                        >
-                          <svg className="w-3.5 h-3.5 text-[#3f3f46] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                          </svg>
-                          <span className="truncate flex-1 text-[12px]">{s.title}</span>
-                        </button>
-                        <button
-                          onClick={(e) => handleDeleteHistory(s.id, e)}
-                          title="Delete"
-                          className="absolute right-1.5 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 text-[#52525b] hover:text-[#ef4444] transition-all"
-                        >
-                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
+                      <div key={s.id} className="group relative" ref={contextMenuId === s.id ? contextMenuRef : null}>
+                        {/* Inline rename input */}
+                        {renamingId === s.id ? (
+                          <div className="flex items-center gap-1.5 px-2.5 py-1.5">
+                            <input
+                              autoFocus
+                              value={renameValue}
+                              onChange={e => setRenameValue(e.target.value)}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') handleRenameHistory(s.id, renameValue);
+                                if (e.key === 'Escape') { setRenamingId(null); setRenameValue(''); }
+                              }}
+                              className="flex-1 bg-[#27272a] text-[12px] text-[#fafafa] px-2 py-1 rounded-lg outline-none border border-[#3b82f6]/50 min-w-0"
+                            />
+                            <button onClick={() => handleRenameHistory(s.id, renameValue)} className="text-[#22c55e] text-[11px] font-semibold px-1.5 py-1 rounded hover:bg-[#27272a] transition-colors flex-shrink-0">Save</button>
+                            <button onClick={() => { setRenamingId(null); setRenameValue(''); }} className="text-[#52525b] text-[11px] px-1 py-1 rounded hover:bg-[#27272a] transition-colors flex-shrink-0">✕</button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => loadHistorySession(s)}
+                            className={`w-full text-left flex items-center gap-2 px-2.5 py-1.5 pr-8 rounded-lg transition-colors ${
+                              s.id === activeSessionId
+                                ? 'bg-[#27272a] text-[#fafafa]'
+                                : 'text-[#71717a] hover:bg-[#1c1c1f] hover:text-[#d4d4d8]'
+                            }`}
+                          >
+                            <svg style={{ width: '14px', height: '14px' }} className="text-[#3f3f46] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                            </svg>
+                            <span className="truncate flex-1 text-[12px]">{s.title}</span>
+                          </button>
+                        )}
+
+                        {/* 3-dot menu button */}
+                        {renamingId !== s.id && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setContextMenuId(contextMenuId === s.id ? null : s.id); }}
+                            className="absolute right-1.5 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 text-[#52525b] hover:text-[#a1a1aa] hover:bg-[#27272a] transition-all"
+                          >
+                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                              <circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/>
+                            </svg>
+                          </button>
+                        )}
+
+                        {/* Context menu dropdown */}
+                        {contextMenuId === s.id && (
+                          <div className="absolute right-0 top-full mt-0.5 z-50 w-44 bg-[#1c1c1f] border border-[#27272a] rounded-xl shadow-xl overflow-hidden">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setRenamingId(s.id); setRenameValue(s.title); setContextMenuId(null); }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] text-[#d4d4d8] hover:bg-[#27272a] transition-colors text-left"
+                            >
+                              <svg className="w-3.5 h-3.5 text-[#71717a] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                              Rename
+                            </button>
+                            <button
+                              onClick={(e) => handleAutoRename(s, e)}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] text-[#d4d4d8] hover:bg-[#27272a] transition-colors text-left"
+                            >
+                              <svg className="w-3.5 h-3.5 text-[#71717a] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                              </svg>
+                              Auto-rename
+                            </button>
+                            <button
+                              onClick={(e) => handleDownloadSession(s, e)}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] text-[#d4d4d8] hover:bg-[#27272a] transition-colors text-left"
+                            >
+                              <svg className="w-3.5 h-3.5 text-[#71717a] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                              </svg>
+                              Download
+                            </button>
+                            <div className="border-t border-[#27272a]" />
+                            <button
+                              onClick={(e) => handleDeleteHistory(s.id, e)}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] text-[#ef4444] hover:bg-[#ef4444]/10 transition-colors text-left"
+                            >
+                              <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                              Delete
+                            </button>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1494,21 +1635,21 @@ const Chatbot = () => {
           <div className="border-t border-[#27272a] px-2 py-2 space-y-0.5 flex-shrink-0">
             <button onClick={() => navigate('/my-tickets')}
               className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[12px] text-[#71717a] hover:text-[#fafafa] hover:bg-[#1c1c1f] transition-colors text-left">
-              <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+              <svg style={{ width: '14px', height: '14px', flexShrink: 0 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
               </svg>
               My Tickets
             </button>
             <button onClick={() => navigate('/knowledge-base')}
               className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[12px] text-[#71717a] hover:text-[#fafafa] hover:bg-[#1c1c1f] transition-colors text-left">
-              <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+              <svg style={{ width: '14px', height: '14px', flexShrink: 0 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
               </svg>
               Knowledge Base
             </button>
             <button onClick={handleEscalation}
               className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[12px] text-[#71717a] hover:text-[#fafafa] hover:bg-[#1c1c1f] transition-colors text-left">
-              <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+              <svg style={{ width: '14px', height: '14px', flexShrink: 0 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
               Talk to Agent
@@ -1679,27 +1820,53 @@ const Chatbot = () => {
         <div className="px-3 sm:px-4 pt-2 shrink-0" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
           <div className="max-w-3xl mx-auto">
 
-            {/* Category grid */}
+            {/* Category grid — horizontal scroll on mobile, grid on desktop */}
             {chipType === 'category' && (
-              <div className="mb-2 border border-[#27272a] rounded-2xl overflow-hidden bg-[#0f0f11]">
-                <div className="px-4 pt-2.5 pb-1">
-                  <span className="text-[10px] font-semibold text-[#52525b] uppercase tracking-wider">Choose a category</span>
+              <>
+                {/* Mobile: compact scrollable pill row (no large grid blocking chat) */}
+                <div className="sm:hidden mb-2">
+                  <p className="text-[10px] font-semibold text-[#52525b] uppercase tracking-wider mb-1.5 px-1">Choose a category</p>
+                  <div className="overflow-x-auto pb-1 -mx-1 px-1">
+                    <div className="flex gap-1.5" style={{ minWidth: 'max-content' }}>
+                      {CATEGORY_NAMES.map((name) => {
+                        const cfg = CATEGORIES[name];
+                        const Icon = CATEGORY_ICONS[name];
+                        return (
+                          <button
+                            key={name}
+                            onClick={() => userSend(name)}
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-full border flex-shrink-0 active:scale-95 transition-all"
+                            style={{ borderColor: `${cfg.color}50`, background: `${cfg.color}12` }}
+                          >
+                            {Icon && <Icon style={{ color: cfg.color, width: '13px', height: '13px', flexShrink: 0 }} />}
+                            <span className="text-[12px] font-medium whitespace-nowrap" style={{ color: cfg.color }}>{name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 px-3 pb-3">
-                  {CATEGORY_NAMES.map((name) => {
-                    const cfg = CATEGORIES[name];
-                    const Icon = CATEGORY_ICONS[name];
-                    return (
-                      <button key={name} onClick={() => userSend(name)}
-                        className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-[#1c1c1f] hover:bg-[#27272a] active:scale-[0.97] transition-all text-left border"
-                        style={{ borderColor: `${cfg.color}20`, borderLeftWidth: 3, borderLeftColor: cfg.color }}>
-                        {Icon && <Icon className="w-4 h-4 flex-shrink-0" style={{ color: cfg.color }} />}
-                        <span className="text-[11.5px] font-medium text-[#d4d4d8] leading-tight">{name}</span>
-                      </button>
-                    );
-                  })}
+                {/* Desktop: 3-column grid */}
+                <div className="hidden sm:block mb-2 border border-[#27272a] rounded-2xl overflow-hidden bg-[#0f0f11]">
+                  <div className="px-4 pt-2.5 pb-1">
+                    <span className="text-[10px] font-semibold text-[#52525b] uppercase tracking-wider">Choose a category</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1.5 px-3 pb-3">
+                    {CATEGORY_NAMES.map((name) => {
+                      const cfg = CATEGORIES[name];
+                      const Icon = CATEGORY_ICONS[name];
+                      return (
+                        <button key={name} onClick={() => userSend(name)}
+                          className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-[#1c1c1f] hover:bg-[#27272a] active:scale-[0.97] transition-all text-left border"
+                          style={{ borderColor: `${cfg.color}20`, borderLeftWidth: 3, borderLeftColor: cfg.color }}>
+                          {Icon && <Icon className="w-4 h-4 flex-shrink-0" style={{ color: cfg.color }} />}
+                          <span className="text-[11.5px] font-medium text-[#d4d4d8] leading-tight">{name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              </>
             )}
 
             {/* Ticket ID chips */}
