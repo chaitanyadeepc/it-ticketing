@@ -47,7 +47,7 @@ router.get('/', async (req, res) => {
     if (category) filter.category = category;
     if (q) {
       const re = new RegExp(q.split(' ').filter(Boolean).join('|'), 'i');
-      filter.$or = [{ title: re }, { description: re }];
+      filter.$or = [{ title: re }, { description: re }, { ticketId: re }];
     }
 
     let query = Ticket.find(filter).populate('createdBy', 'name email').sort({ createdAt: -1 });
