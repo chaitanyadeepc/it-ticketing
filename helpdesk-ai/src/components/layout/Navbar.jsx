@@ -19,18 +19,99 @@ const MoonIcon = () => (
   </svg>
 );
 
+// ── Icon library for nav items ───────────────────────────────────────────────
+const NavIcon = ({ id, className = 'w-4 h-4' }) => {
+  const icons = {
+    home:      'M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H5a1 1 0 01-1-1V9.5z M9 21V12h6v9',
+    chat:      'M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z',
+    tickets:   'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01',
+    search:    'M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z',
+    book:      'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253',
+    dashboard: 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6z M14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6z M4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2z M14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z',
+    users:     'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z',
+    log:       'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2M9 12h6M9 16h4',
+    survey:    'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
+  };
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7}>
+      {icons[id]?.split(' M').map((d, i) => (
+        <path key={i} strokeLinecap="round" strokeLinejoin="round" d={(i === 0 ? '' : 'M') + d} />
+      ))}
+    </svg>
+  );
+};
+
+// ── Desktop dropdown panel ───────────────────────────────────────────────────
+const NavDropdown = ({ items, onNavigate, currentPath }) => (
+  <div
+    className="absolute top-[calc(100%+8px)] left-1/2 -translate-x-1/2 w-64 rounded-xl shadow-2xl shadow-black/40 border overflow-hidden z-50 animate-fade-in"
+    style={{ backgroundColor: 'var(--color-canvas-overlay)', borderColor: 'var(--color-border-default)' }}
+  >
+    <div className="p-1.5 space-y-0.5">
+      {items.map((item) => {
+        const isActive = currentPath === item.path || currentPath.startsWith(item.path + '/');
+        return (
+          <button
+            key={item.path}
+            onClick={() => onNavigate(item.path)}
+            className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-lg text-left transition-all group ${
+              isActive
+                ? 'bg-[#FF634A]/10'
+                : 'hover:bg-[rgba(255,255,255,0.06)]'
+            }`}
+          >
+            <span className={`mt-0.5 flex-shrink-0 ${isActive ? 'text-[#FF634A]' : 'text-[rgba(255,255,255,0.45)] group-hover:text-[rgba(255,255,255,0.8)]'} transition-colors`}>
+              <NavIcon id={item.icon} className="w-4 h-4" />
+            </span>
+            <div>
+              <p className={`text-[13px] font-medium leading-none mb-0.5 ${isActive ? 'text-[#FF634A]' : 'text-[rgba(255,255,255,0.85)] group-hover:text-white'} transition-colors`}>
+                {item.name}
+              </p>
+              {item.desc && (
+                <p className="text-[11px] text-[rgba(255,255,255,0.38)] group-hover:text-[rgba(255,255,255,0.55)] transition-colors leading-snug">
+                  {item.desc}
+                </p>
+              )}
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  </div>
+);
+
+// ── Chevron icon ─────────────────────────────────────────────────────────────
+const Chevron = ({ open }) => (
+  <svg
+    className={`w-3 h-3 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+    fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+  >
+    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+  </svg>
+);
+
 const Navbar = () => {
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [openDropdown, setOpenDropdown] = useState(null); // key of open desktop dropdown
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isBellOpen, setIsBellOpen] = useState(false);
+  const [isAvatarOpen, setIsAvatarOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const dropdownRef = useRef(null);
+  const navRef = useRef(null);
   const bellRef = useRef(null);
+  const avatarRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
   const isVisible = useScrollHide();
-  const { theme, toggleTheme, isDark } = useTheme();
+  const { toggleTheme, isDark } = useTheme();
+
+  // Close all dropdowns when route changes
+  useEffect(() => {
+    setOpenDropdown(null);
+    setIsBellOpen(false);
+    setIsAvatarOpen(false);
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
 
   // Fetch recent ticket updates for notifications
   useEffect(() => {
@@ -77,25 +158,17 @@ const Navbar = () => {
   };
 
   useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setIsDropdownOpen(false);
-      }
-      if (bellRef.current && !bellRef.current.contains(e.target)) {
-        setIsBellOpen(false);
-      }
+    const handler = (e) => {
+      if (navRef.current && !navRef.current.contains(e.target)) setOpenDropdown(null);
+      if (bellRef.current && !bellRef.current.contains(e.target)) setIsBellOpen(false);
+      if (avatarRef.current && !avatarRef.current.contains(e.target)) setIsAvatarOpen(false);
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Lock body scroll when mobile menu is open
   useEffect(() => {
-    if (isMobileMenuOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
+    document.body.style.overflow = isMobileMenuOpen ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
   }, [isMobileMenuOpen]);
 
@@ -105,16 +178,35 @@ const Navbar = () => {
 
   const isAdmin = localStorage.getItem('userRole') === 'admin';
   const isAgent = localStorage.getItem('userRole') === 'agent';
-  const isStaff = isAdmin || isAgent;
 
-  const navLinks = [
-    { name: 'Home', path: '/' },
-    { name: 'Raise Ticket', path: '/raise-ticket' },
-    { name: 'My Tickets', path: '/my-tickets' },
-    { name: 'Knowledge Base', path: '/knowledge-base' },
-    ...(isStaff ? [{ name: isAdmin ? 'Admin' : 'Dashboard', path: '/admin' }] : []),
-    ...(isAdmin ? [{ name: 'Activity Log', path: '/admin/logs' }] : []),
-    ...(isAdmin ? [{ name: 'Survey Results', path: '/admin/feedback' }] : []),
+  // ── Role-based nav groups ─────────────────────────────────────────────────
+  // shape: { label, path?, key?, items? }
+  //   - path → direct link (no dropdown)
+  //   - key + items → dropdown
+  const navGroups = [
+    { label: 'Home', path: '/', icon: 'home' },
+    {
+      label: 'Support',
+      key: 'support',
+      items: [
+        { name: 'AI Assistant',   path: '/raise-ticket',    desc: 'Raise a ticket with AI guidance',       icon: 'chat' },
+        { name: 'My Tickets',     path: '/my-tickets',      desc: 'View and manage your open tickets',     icon: 'tickets' },
+        { name: 'Track Status',   path: '/status',          desc: 'Look up any ticket ID instantly',       icon: 'search' },
+      ],
+    },
+    { label: 'Knowledge Base', path: '/knowledge-base', icon: 'book' },
+    ...(isAdmin ? [{
+      label: 'Admin',
+      key: 'admin',
+      items: [
+        { name: 'Dashboard',       path: '/admin',          desc: 'Tickets, analytics & team overview',    icon: 'dashboard' },
+        { name: 'User Management', path: '/admin/users',    desc: 'Manage staff and user accounts',        icon: 'users' },
+        { name: 'Activity Log',    path: '/admin/logs',     desc: 'System events and audit trail',         icon: 'log' },
+        { name: 'Survey Results',  path: '/admin/feedback', desc: 'User satisfaction and feedback scores', icon: 'survey' },
+      ],
+    }] : isAgent ? [
+      { label: 'Dashboard', path: '/admin', icon: 'dashboard' },
+    ] : []),
   ];
 
   const handleLogout = () => {
@@ -123,21 +215,29 @@ const Navbar = () => {
       detail: `${localStorage.getItem('userEmail') || 'user'} signed out`,
       metadata: { email: localStorage.getItem('userEmail'), role: localStorage.getItem('userRole') },
     });
-    localStorage.removeItem('isAuthenticated');
-    localStorage.removeItem('userEmail');
-    localStorage.removeItem('userName');
-    localStorage.removeItem('userRole');
-    localStorage.removeItem('token');
+    ['isAuthenticated', 'userEmail', 'userName', 'userRole', 'token'].forEach(k => localStorage.removeItem(k));
     navigate('/login');
   };
 
   const userEmail = localStorage.getItem('userEmail') || 'user@company.com';
-  const initials = userEmail.slice(0, 2).toUpperCase();
+  const userName  = localStorage.getItem('userName') || '';
+  const initials  = userName
+    ? userName.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase()
+    : userEmail.slice(0, 2).toUpperCase();
+
+  const toggle = (key) => setOpenDropdown(prev => (prev === key ? null : key));
+
+  // Is any item in a group currently active?
+  const groupActive = (group) => {
+    if (group.path) return location.pathname === group.path;
+    return group.items?.some(it => location.pathname === it.path || location.pathname.startsWith(it.path + '/'));
+  };
 
   return (
     <nav
       className={`fixed top-0 left-0 right-0 z-50 backdrop-blur-sm border-b border-[#27272a] transition-transform duration-300 ${isVisible ? 'translate-y-0' : '-translate-y-full'}`}
       style={{ backgroundColor: 'var(--color-header-bg)' }}
+      ref={navRef}
     >
       <div className="w-full px-6 xl:px-10">
         <div className="flex justify-between items-center h-16">
@@ -146,21 +246,50 @@ const Navbar = () => {
           <Link to="/"><LogoMark size="lg" /></Link>
 
           {/* Desktop Nav */}
-          <div className="hidden md:flex items-center gap-1">
-            {navLinks.map((link) => {
-              const isActive = location.pathname === link.path;
+          <div className="hidden md:flex items-center gap-0.5">
+            {navGroups.map((group) => {
+              const active = groupActive(group);
+
+              // Direct link
+              if (group.path) {
+                return (
+                  <Link
+                    key={group.path}
+                    to={group.path}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-medium transition-all duration-75 ${
+                      active
+                        ? 'text-[#FF634A] font-semibold'
+                        : 'text-[rgba(255,255,255,0.7)] hover:text-white hover:bg-[rgba(255,255,255,0.08)]'
+                    }`}
+                  >
+                    {group.label}
+                  </Link>
+                );
+              }
+
+              // Dropdown
+              const isOpen = openDropdown === group.key;
               return (
-                <Link
-                  key={link.path}
-                  to={link.path}
-                  className={`px-3 py-1.5 rounded-md text-[13px] font-medium transition-all duration-75 ${
-                    isActive
-                      ? 'text-[#FF634A] font-semibold'
-                      : 'text-[rgba(255,255,255,0.7)] hover:text-white hover:bg-[rgba(255,255,255,0.08)]'
-                  }`}
-                >
-                  {link.name}
-                </Link>
+                <div key={group.key} className="relative">
+                  <button
+                    onClick={() => toggle(group.key)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-medium transition-all duration-75 ${
+                      active || isOpen
+                        ? 'text-[#FF634A] bg-[#FF634A]/8'
+                        : 'text-[rgba(255,255,255,0.7)] hover:text-white hover:bg-[rgba(255,255,255,0.08)]'
+                    }`}
+                  >
+                    {group.label}
+                    <Chevron open={isOpen} />
+                  </button>
+                  {isOpen && (
+                    <NavDropdown
+                      items={group.items}
+                      currentPath={location.pathname}
+                      onNavigate={(path) => { navigate(path); setOpenDropdown(null); }}
+                    />
+                  )}
+                </div>
               );
             })}
           </div>
@@ -251,26 +380,26 @@ const Navbar = () => {
             </div>
 
             {/* Avatar + Dropdown */}
-            <div className="relative" ref={dropdownRef}>
+            <div className="relative" ref={avatarRef}>
               <button
-                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                onClick={() => setIsAvatarOpen(v => !v)}
                 className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[12px] font-semibold transition-colors ring-2"
                 style={{ backgroundColor: 'var(--color-accent-emphasis)', ringColor: 'var(--color-accent-muted)' }}
               >
                 {initials}
               </button>
 
-              {isDropdownOpen && (
+              {isAvatarOpen && (
                 <div className="absolute right-0 top-10 w-52 rounded-[6px] shadow-2xl shadow-black/50 p-1.5 animate-fade-in z-50 border" style={{ backgroundColor: 'var(--color-canvas-overlay)', borderColor: 'var(--color-border-default)' }}>
                   <div className="px-3 py-2 border-b mb-1" style={{ borderColor: 'var(--color-border-muted)' }}>
-                    <p className="text-[12px] text-[#a1a1aa] truncate">{userEmail}</p>
+                    {userName && <p className="text-[12px] font-semibold truncate" style={{ color: 'var(--color-fg-default)' }}>{userName}</p>}
+                    <p className="text-[11px] text-[#a1a1aa] truncate">{userEmail}</p>
                   </div>
                   {[
-                    { to: '/profile', label: 'Profile', d: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
-                    { to: '/my-tickets', label: 'My Tickets', d: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
+                    { to: '/profile',  label: 'Profile',  d: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
                     { to: '/settings', label: 'Settings', d: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
                   ].map(({ to, label, d }) => (
-                    <Link key={to} to={to} onClick={() => setIsDropdownOpen(false)}
+                    <Link key={to} to={to} onClick={() => setIsAvatarOpen(false)}
                       className="flex items-center gap-2.5 px-3 py-2 text-[13px] rounded-md transition-colors hover:bg-[rgba(0,0,0,0.04)] dark:hover:bg-[rgba(255,255,255,0.07)]" style={{ color: 'var(--color-fg-muted)' }}>
                       <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d={d} />
@@ -291,7 +420,7 @@ const Navbar = () => {
               )}
             </div>
 
-            {/* Mobile toggle */}
+            {/* Mobile hamburger */}
             <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className="md:hidden p-2 rounded-md text-[rgba(255,255,255,0.7)] hover:text-white hover:bg-[rgba(255,255,255,0.1)] transition-colors">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -304,36 +433,116 @@ const Navbar = () => {
         </div>
       </div>
 
-      {/* Mobile Drawer */}
+      {/* ── Mobile Drawer ─────────────────────────────────────────────────── */}
       {isMobileMenuOpen && (
         <>
           <div className="fixed inset-0 bg-black/60 z-40 md:hidden" onClick={() => setIsMobileMenuOpen(false)} />
-          <div className="fixed top-16 left-0 w-64 h-[calc(100vh-4rem)] border-r z-50 md:hidden animate-slide-right flex flex-col" style={{ backgroundColor: 'var(--color-canvas-default)', borderColor: 'var(--color-border-default)' }}>
-            {/* Scrollable nav links */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-1 pb-2">
-              {navLinks.map((link) => {
-                const isActive = location.pathname === link.path;
+          <div
+            className="fixed top-16 left-0 w-72 h-[calc(100vh-4rem)] border-r z-50 md:hidden animate-slide-right flex flex-col"
+            style={{ backgroundColor: 'var(--color-canvas-default)', borderColor: 'var(--color-border-default)' }}
+          >
+            {/* User info */}
+            <div className="px-4 pt-4 pb-3 border-b" style={{ borderColor: 'var(--color-border-muted)' }}>
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[13px] font-semibold flex-shrink-0"
+                  style={{ backgroundColor: 'var(--color-accent-emphasis)' }}>
+                  {initials}
+                </div>
+                <div className="min-w-0">
+                  {userName && <p className="text-[13px] font-semibold truncate" style={{ color: 'var(--color-fg-default)' }}>{userName}</p>}
+                  <p className="text-[11px] truncate" style={{ color: 'var(--color-fg-subtle)' }}>{userEmail}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Scrollable nav groups */}
+            <div className="flex-1 overflow-y-auto py-3 px-3 space-y-4">
+              {navGroups.map((group) => {
+                // Direct link group
+                if (group.path) {
+                  const isActive = location.pathname === group.path;
+                  return (
+                    <Link
+                      key={group.path}
+                      to={group.path}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium transition-colors ${
+                        isActive ? 'text-[#FF634A] bg-[#FF634A]/8' : ''
+                      }`}
+                      style={!isActive ? { color: 'var(--color-fg-muted)' } : {}}
+                    >
+                      <NavIcon id={group.icon} className="w-4.5 h-4.5 flex-shrink-0" />
+                      {group.label}
+                    </Link>
+                  );
+                }
+
+                // Dropdown group — rendered as section with header
                 return (
-                  <Link key={link.path} to={link.path} onClick={() => setIsMobileMenuOpen(false)}
-                    className={`flex items-center px-3 py-2.5 rounded-md text-[14px] font-medium transition-colors ${isActive ? 'font-semibold' : ''}`}
-                    style={isActive ? { color: 'var(--color-fg-default)', backgroundColor: 'var(--color-neutral-subtle)' } : { color: 'var(--color-fg-muted)' }}>
-                    {link.name}
-                  </Link>
+                  <div key={group.key}>
+                    <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--color-fg-subtle)' }}>
+                      {group.label}
+                    </p>
+                    <div className="space-y-0.5">
+                      {group.items.map((item) => {
+                        const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
+                        return (
+                          <Link
+                            key={item.path}
+                            to={item.path}
+                            onClick={() => setIsMobileMenuOpen(false)}
+                            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13.5px] font-medium transition-colors ${
+                              isActive ? 'text-[#FF634A] bg-[#FF634A]/8' : ''
+                            }`}
+                            style={!isActive ? { color: 'var(--color-fg-muted)' } : {}}
+                          >
+                            <NavIcon id={item.icon} className="w-[17px] h-[17px] flex-shrink-0" />
+                            {item.name}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
                 );
               })}
-              <div className="pt-2 mt-2 border-t" style={{ borderColor: 'var(--color-border-muted)' }}>
+
+              {/* Account links */}
+              <div>
+                <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--color-fg-subtle)' }}>
+                  Account
+                </p>
+                <div className="space-y-0.5">
+                  {[
+                    { to: '/profile',  label: 'Profile',  icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
+                    { to: '/settings', label: 'Settings', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
+                  ].map(({ to, label, icon }) => {
+                    const isActive = location.pathname === to;
+                    return (
+                      <Link key={to} to={to} onClick={() => setIsMobileMenuOpen(false)}
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13.5px] font-medium transition-colors ${isActive ? 'text-[#FF634A] bg-[#FF634A]/8' : ''}`}
+                        style={!isActive ? { color: 'var(--color-fg-muted)' } : {}}>
+                        <svg className="w-[17px] h-[17px] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d={icon} />
+                        </svg>
+                        {label}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Theme toggle */}
+              <div className="border-t pt-3" style={{ borderColor: 'var(--color-border-muted)' }}>
                 <button onClick={toggleTheme}
-                  className="flex items-center gap-2.5 w-full px-3 py-2.5 rounded-md text-[14px] font-medium transition-colors"
+                  className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-[13.5px] font-medium transition-colors"
                   style={{ color: 'var(--color-fg-muted)' }}>
-                  {isDark
-                    ? <><SunIcon /><span>Light Mode</span></>
-                    : <><MoonIcon /><span>Dark Mode</span></>}
+                  {isDark ? <><SunIcon /><span>Light Mode</span></> : <><MoonIcon /><span>Dark Mode</span></>}
                 </button>
               </div>
             </div>
-            {/* Footer — sits above BottomNav (pb accounts for 64px bottom bar) */}
+
+            {/* Sign out footer */}
             <div className="flex-shrink-0 p-4 pb-20 border-t" style={{ borderColor: 'var(--color-border-muted)' }}>
-              <p className="text-[11px] text-[#52525b] mb-3 truncate">{userEmail}</p>
               <button onClick={handleLogout}
                 className="w-full flex items-center justify-center gap-2 px-3 py-2 text-[13px] text-[#ef4444] border border-[#ef4444]/20 bg-[#ef4444]/5 hover:bg-[#ef4444]/10 rounded-lg transition-colors">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
