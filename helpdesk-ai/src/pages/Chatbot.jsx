@@ -581,70 +581,22 @@ const MobileInfoDrawer = ({ open, onClose, flowStep, ticketData, similarTickets,
 };
 
 // ── Welcome screen (shown when chat is empty — ChatGPT–style) ────────────────
-const WelcomeScreen = ({ firstName, onSelect, onCheckStatus, onEscalate }) => (
-  <div className="flex flex-col items-center justify-center py-10 sm:py-14 px-4">
-
-    {/* Avatar */}
-    <div className="relative mb-5">
-      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#3b82f6] to-[#1d4ed8] flex items-center justify-center shadow-lg shadow-[#3b82f6]/20">
-        <svg className="w-7 h-7 text-white" viewBox="0 0 24 24" fill="currentColor">
+const WelcomeScreen = ({ firstName }) => (
+  <div className="flex flex-col items-center justify-center py-14 px-4">
+    <div className="relative mb-4">
+      <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#3b82f6] to-[#1d4ed8] flex items-center justify-center shadow-lg shadow-[#3b82f6]/20">
+        <svg style={{ width: '22px', height: '22px' }} className="text-white" viewBox="0 0 24 24" fill="currentColor">
           <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7H3a7 7 0 0 1 7-7h1V5.73A2 2 0 0 1 10 4a2 2 0 0 1 2-2m-4 9.5a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1m8 0a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1M3 15h18v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1Z" />
         </svg>
       </div>
-      <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-[#22c55e] rounded-full border-2 border-[#0a0a0b]" />
+      <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-[#22c55e] rounded-full border-2 border-[#0a0a0b]" />
     </div>
-
-    {/* Greeting */}
-    <h1 className="text-[22px] sm:text-[26px] font-semibold text-[#fafafa] text-center leading-tight mb-1.5">
-      {firstName ? `Hi ${firstName}` : 'Hi there'} 👋
+    <h1 className="text-[20px] font-semibold text-[#fafafa] text-center mb-1">
+      {firstName ? `Hi ${firstName} 👋` : 'Hi there 👋'}
     </h1>
-    <p className="text-[#52525b] text-[13px] text-center mb-7 max-w-[260px] leading-relaxed">
-      What IT issue can I help you with today?
+    <p className="text-[#3f3f46] text-[13px] text-center">
+      Describe your IT issue or pick a category below
     </p>
-
-    {/* Quick-start suggestion cards */}
-    <div className="grid grid-cols-2 gap-2 w-full max-w-sm mb-5">
-      {[
-        { icon: '💻', title: 'Hardware',       sub: 'Laptop, monitor, peripherals',  query: 'I have a hardware problem with my laptop or computer' },
-        { icon: '🔑', title: 'Password / MFA', sub: 'Reset account or fix lockout',   query: 'I need to reset my password or fix an account access issue' },
-        { icon: '🌐', title: 'Network / VPN',  sub: 'WiFi, internet or VPN issue',   query: 'I have a network or VPN connectivity issue' },
-        { icon: '📧', title: 'Email & Teams',  sub: 'Outlook, calendar or collab',   query: 'I have an issue with Outlook, Teams or email' },
-      ].map(s => (
-        <button
-          key={s.title}
-          onClick={() => onSelect(s.query)}
-          className="flex flex-col items-start gap-1.5 p-3.5 rounded-xl bg-[#111113] hover:bg-[#1c1c1f] border border-[#1f1f22] hover:border-[#2e2e32] text-left transition-all active:scale-[0.97]"
-        >
-          <span className="text-lg leading-none">{s.icon}</span>
-          <div>
-            <p className="text-[12.5px] font-medium text-[#e4e4e7] leading-snug">{s.title}</p>
-            <p className="text-[10.5px] text-[#3f3f46] mt-0.5 leading-snug">{s.sub}</p>
-          </div>
-        </button>
-      ))}
-    </div>
-
-    {/* Utility action row */}
-    <div className="flex items-center gap-2 flex-wrap justify-center">
-      <button
-        onClick={onCheckStatus}
-        className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-[12px] text-[#71717a] border border-[#27272a] hover:border-[#3f3f46] hover:text-[#a1a1aa] hover:bg-[#111113] transition-all"
-      >
-        <svg style={{ width: '13px', height: '13px', flexShrink: 0 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-        </svg>
-        Check ticket status
-      </button>
-      <button
-        onClick={onEscalate}
-        className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-[12px] text-[#71717a] border border-[#27272a] hover:border-[#3f3f46] hover:text-[#a1a1aa] hover:bg-[#111113] transition-all"
-      >
-        <svg style={{ width: '13px', height: '13px', flexShrink: 0 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-        </svg>
-        Talk to an agent
-      </button>
-    </div>
   </div>
 );
 
@@ -1642,30 +1594,7 @@ const Chatbot = () => {
             )}
           </div>
 
-          {/* Bottom quick-links */}
-          <div className="border-t border-[#27272a] px-2 py-2 space-y-0.5 flex-shrink-0">
-            <button onClick={() => navigate('/my-tickets')}
-              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[12px] text-[#71717a] hover:text-[#fafafa] hover:bg-[#1c1c1f] transition-colors text-left">
-              <svg style={{ width: '14px', height: '14px', flexShrink: 0 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-              </svg>
-              My Tickets
-            </button>
-            <button onClick={() => navigate('/knowledge-base')}
-              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[12px] text-[#71717a] hover:text-[#fafafa] hover:bg-[#1c1c1f] transition-colors text-left">
-              <svg style={{ width: '14px', height: '14px', flexShrink: 0 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
-              Knowledge Base
-            </button>
-            <button onClick={handleEscalation}
-              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[12px] text-[#71717a] hover:text-[#fafafa] hover:bg-[#1c1c1f] transition-colors text-left">
-              <svg style={{ width: '14px', height: '14px', flexShrink: 0 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-              Talk to Agent
-            </button>
-          </div>
+          {/* Bottom quick-links — removed (accessible via navbar + bottom nav) */}
         </div>
       </aside>
 
@@ -1755,9 +1684,6 @@ const Chatbot = () => {
               <>
                 <WelcomeScreen
                   firstName={_firstName}
-                  onSelect={userSend}
-                  onCheckStatus={() => userSend('check status')}
-                  onEscalate={handleEscalation}
                 />
                 <div ref={messagesEndRef} />
               </>
@@ -1831,53 +1757,38 @@ const Chatbot = () => {
         <div className="px-3 sm:px-4 pt-2 shrink-0" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
           <div className="max-w-3xl mx-auto">
 
-            {/* Category grid — horizontal scroll on mobile, grid on desktop */}
+            {/* Category picker — floating command-palette panel (all screen sizes) */}
             {chipType === 'category' && (
-              <>
-                {/* Mobile: compact scrollable pill row (no large grid blocking chat) */}
-                <div className="sm:hidden mb-2">
-                  <p className="text-[10px] font-semibold text-[#52525b] uppercase tracking-wider mb-1.5 px-1">Choose a category</p>
-                  <div className="overflow-x-auto pb-1 -mx-1 px-1">
-                    <div className="flex gap-1.5" style={{ minWidth: 'max-content' }}>
-                      {CATEGORY_NAMES.map((name) => {
-                        const cfg = CATEGORIES[name];
-                        const Icon = CATEGORY_ICONS[name];
-                        return (
-                          <button
-                            key={name}
-                            onClick={() => userSend(name)}
-                            className="flex items-center gap-1.5 px-3 py-2 rounded-full border flex-shrink-0 active:scale-95 transition-all"
-                            style={{ borderColor: `${cfg.color}50`, background: `${cfg.color}12` }}
-                          >
-                            {Icon && <Icon style={{ color: cfg.color, width: '13px', height: '13px', flexShrink: 0 }} />}
-                            <span className="text-[12px] font-medium whitespace-nowrap" style={{ color: cfg.color }}>{name}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
+              <div className="mb-2 bg-[#111113] border border-[#27272a] rounded-2xl overflow-hidden shadow-xl">
+                <div className="flex items-center gap-2 px-3 py-2 border-b border-[#1f1f22]">
+                  <svg style={{ width: '12px', height: '12px', flexShrink: 0 }} className="text-[#3f3f46]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
+                  </svg>
+                  <span className="text-[11px] text-[#3f3f46]">Pick a category — or just describe your issue above</span>
                 </div>
-                {/* Desktop: 3-column grid */}
-                <div className="hidden sm:block mb-2 border border-[#27272a] rounded-2xl overflow-hidden bg-[#0f0f11]">
-                  <div className="px-4 pt-2.5 pb-1">
-                    <span className="text-[10px] font-semibold text-[#52525b] uppercase tracking-wider">Choose a category</span>
-                  </div>
-                  <div className="grid grid-cols-3 gap-1.5 px-3 pb-3">
-                    {CATEGORY_NAMES.map((name) => {
-                      const cfg = CATEGORIES[name];
-                      const Icon = CATEGORY_ICONS[name];
-                      return (
-                        <button key={name} onClick={() => userSend(name)}
-                          className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-[#1c1c1f] hover:bg-[#27272a] active:scale-[0.97] transition-all text-left border"
-                          style={{ borderColor: `${cfg.color}20`, borderLeftWidth: 3, borderLeftColor: cfg.color }}>
-                          {Icon && <Icon className="w-4 h-4 flex-shrink-0" style={{ color: cfg.color }} />}
-                          <span className="text-[11.5px] font-medium text-[#d4d4d8] leading-tight">{name}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
+                <div className="grid grid-cols-2 sm:grid-cols-5 divide-x divide-y divide-[#1a1a1c]">
+                  {CATEGORY_NAMES.map((name, idx) => {
+                    const cfg = CATEGORIES[name];
+                    const Icon = CATEGORY_ICONS[name];
+                    const row = Math.floor(idx / 2); // for mobile 2-col divide
+                    return (
+                      <button
+                        key={name}
+                        onClick={() => userSend(name)}
+                        className="flex items-center gap-2 px-3 py-2.5 hover:bg-[#1a1a1d] active:bg-[#222226] transition-colors text-left group"
+                      >
+                        <span
+                          className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110"
+                          style={{ background: `${cfg.color}18` }}
+                        >
+                          {Icon && <Icon style={{ color: cfg.color, width: '13px', height: '13px' }} />}
+                        </span>
+                        <span className="text-[11.5px] font-medium text-[#a1a1aa] group-hover:text-[#e4e4e7] leading-tight transition-colors">{name}</span>
+                      </button>
+                    );
+                  })}
                 </div>
-              </>
+              </div>
             )}
 
             {/* Ticket ID chips */}
