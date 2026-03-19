@@ -461,7 +461,7 @@ const Chatbot = () => {
     {
       sender: 'bot',
       message:
-        "👋 Hi! I'm HiTicket AI.\n\nDescribe your IT issue and I'll classify it automatically — or browse the categories below to find your issue faster.",
+        "👋 Hi! I'm HiTicket AI.\n\nDescribe your IT issue and I'll classify it automatically — or browse the categories below.\n\nYou can also:\n• Type a ticket ID (e.g. TKT-0012) to check its status\n• Type \"check status\" to see your recent tickets\n• Type \"talk to agent\" to reach human support",
       timestamp: ts(),
     },
   ]);
@@ -486,6 +486,9 @@ const Chatbot = () => {
   const [dupeChecking, setDupeChecking] = useState(false);
   const dupeTimerRef = useRef(null);
   const [showMobileDrawer, setShowMobileDrawer] = useState(false);
+  const [msgFeedback, setMsgFeedback]     = useState({});   // { [msgIdx]: 'up'|'down' }
+  const [kbSuggestions, setKbSuggestions] = useState([]);   // related KB articles
+  const [statusNavId, setStatusNavId]     = useState(null); // mongo _id for nav after status lookup
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -519,6 +522,10 @@ const Chatbot = () => {
   };
 
   const processInput = (text) => {
+    // Global intents — handled regardless of current step
+    if (/\b(human|agent|person|real person|speak to|talk to|escalate|representative|support staff)\b/i.test(text)) {
+      handleEscalation(); return;
+    }
     if (flowStep === 1) handleStep1(text);
     else if (flowStep === 2) handleStep2(text);
     else if (flowStep === 3) handleStep3(text);
@@ -528,6 +535,11 @@ const Chatbot = () => {
 
   // STEP 1: initial description or category selection from grid
   const handleStep1 = (text) => {
+    // Status lookup intent — route to status handler
+    if (/\b(status|check|track|where is|update on|progress of)\b/i.test(text) || /TKT-\d+/i.test(text)) {
+      handleStatusLookup(text); return;
+    }
+
     const pickedCat = CATEGORY_NAMES.find(
       (n) => n.toLowerCase() === text.toLowerCase()
     );
@@ -553,6 +565,12 @@ const Chatbot = () => {
             .finally(() => setDupeChecking(false));
         }, 600);
       }
+
+      // Fetch related KB articles for the sidebar
+      setKbSuggestions([]);
+      api.get(`/kb?q=${encodeURIComponent(detected)}`)
+        .then(({ data }) => setKbSuggestions((data.articles || []).slice(0, 3)))
+        .catch(() => {});
 
       const cfg = CATEGORIES[detected];
       botReply(
@@ -691,24 +709,84 @@ const Chatbot = () => {
     }
   };
 
+  // ── Status lookup — triggered from step 1 or quick action ─────────────────
+  const handleStatusLookup = (rawText) => {
+    const tktId = rawText.match(/TKT-\d+/i)?.[0]?.toUpperCase();
+    botReply('Looking that up for you…', 350, null);
+    const ep = tktId ? `/tickets?q=${encodeURIComponent(tktId)}` : '/tickets?limit=5';
+    api.get(ep)
+      .then(({ data }) => {
+        const all = data.tickets || [];
+        if (tktId) {
+          const found = all.find(t => t.ticketId?.toUpperCase() === tktId);
+          if (found) {
+            setStatusNavId(found._id);
+            botReply(
+              `Here's the status for **${tktId}**:\n\n📋 ${found.title}\n\nStatus: ${found.status}\nPriority: ${found.priority}\nCategory: ${found.category}${found.assignedTo && found.assignedTo !== 'Unassigned' ? `\nAssigned to: ${found.assignedTo}` : ''}\n\nLast updated: ${new Date(found.updatedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`,
+              700, () => {
+                setChipType('done');
+                setQuickReplies(['View Full Ticket', 'Check Another', 'Raise New Ticket']);
+              }
+            );
+          } else {
+            botReply(`I couldn't find **${tktId}**. Double-check the ID (e.g. TKT-0012) and try again.`, 700, () => {
+              setChipType(null);
+              setQuickReplies(['Check Another', 'Raise New Ticket']);
+            });
+          }
+        } else {
+          if (all.length === 0) {
+            botReply("You don't have any tickets yet. Shall I help you raise one?", 700, () => setChipType('category'));
+          } else {
+            const preview = all.slice(0, 3).map(t =>
+              `• ${t.ticketId}: ${t.title?.slice(0, 45)}${(t.title?.length ?? 0) > 45 ? '…' : ''} — **${t.status}**`
+            ).join('\n');
+            botReply(
+              `Your recent tickets:\n\n${preview}\n\nType a ticket ID (e.g. TKT-0012) to see full details.`,
+              800, () => { setChipType(null); setQuickReplies(['Raise New Ticket', 'View All Tickets']); }
+            );
+          }
+        }
+      })
+      .catch(() => {
+        botReply("Couldn't retrieve tickets right now. Please try 'My Tickets' in the navigation.", 700, () => {
+          setChipType(null); setQuickReplies(['Raise New Ticket', 'View All Tickets']);
+        });
+      });
+  };
+
+  // ── Escalation to human agent ─────────────────────────────────────────────
+  const handleEscalation = () => {
+    botReply(
+      "I'll connect you with a support agent.\n\n📞 IT Helpdesk\nextension 1234  (Mon–Fri 8 am–6 pm)\n\n📧 Email\nhelpdesk@company.com\n\n🎫 Or raise a ticket marked High priority — an agent will respond within 4 business hours.",
+      900, () => { setChipType('category'); }
+    );
+  };
+
   // STEP 5: post-submit navigation
   const handleDone = (text) => {
     const t = text.toLowerCase();
-    if (t.includes('view') || t.includes('my tickets')) {
+    if (t.includes('view all') || t.includes('my tickets') || t.includes('all tickets')) {
       navigate('/my-tickets');
+    } else if (t.includes('view full') || t.includes('full ticket')) {
+      statusNavId ? navigate(`/tickets/${statusNavId}`) : navigate('/my-tickets');
+    } else if (t.includes('check another') || t.includes('check another')) {
+      botReply('Type the ticket ID you want to check (e.g. TKT-0012):', 450, () => {
+        setChipType(null); setQuickReplies([]);
+      });
     } else if (t.includes('another') || t.includes('new') || t.includes('raise')) {
       window.location.reload();
     } else {
-      botReply("You can view your ticket in 'My Tickets' or raise a new one anytime.", 800, () => {
+      botReply("You can view your tickets in 'My Tickets' or raise a new one anytime.", 800, () => {
         setChipType('done');
-        setQuickReplies(['View My Tickets', 'Raise Another Ticket']);
+        setQuickReplies(['View All Tickets', 'Raise Another Ticket']);
       });
     }
   };
 
   const inputPlaceholder =
     flowStep === 1
-      ? 'Describe your IT issue…'
+      ? 'Describe your issue, or type a ticket ID to check status…'
       : flowStep === 2
       ? 'Select a sub-type above or type it…'
       : flowStep === 3
@@ -789,7 +867,34 @@ const Chatbot = () => {
             {/* Messages */}
             <div className="flex-1 overflow-y-auto px-3 sm:px-5 py-3 sm:py-4 space-y-3 sm:space-y-4 min-h-0">
               {messages.map((msg, i) => (
-                <ChatBubble key={i} {...msg} />
+                <div key={i}>
+                  <ChatBubble {...msg} />
+                  {msg.sender === 'bot' && i > 0 && (
+                    <div className="flex items-center gap-0.5 ml-11 mt-0.5">
+                      <button
+                        title="Helpful"
+                        onClick={() => setMsgFeedback(p => ({ ...p, [i]: p[i] === 'up' ? null : 'up' }))}
+                        className={`p-1 rounded transition-colors ${msgFeedback[i] === 'up' ? 'text-[#22c55e]' : 'text-[#3f3f46] hover:text-[#71717a]'}`}
+                      >
+                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M2 10.5a1.5 1.5 0 113 0v6a1.5 1.5 0 01-3 0v-6zM6 10.333v5.43a2 2 0 001.106 1.79l.05.025A4 4 0 008.943 18h5.416a2 2 0 001.962-1.608l1.2-6A2 2 0 0015.56 8H12V4a2 2 0 00-2-2 1 1 0 00-1 1v.667a4 4 0 01-.8 2.4L6.8 7.933a4 4 0 00-.8 2.4z"/>
+                        </svg>
+                      </button>
+                      <button
+                        title="Not helpful"
+                        onClick={() => setMsgFeedback(p => ({ ...p, [i]: p[i] === 'down' ? null : 'down' }))}
+                        className={`p-1 rounded transition-colors ${msgFeedback[i] === 'down' ? 'text-[#ef4444]' : 'text-[#3f3f46] hover:text-[#71717a]'}`}
+                      >
+                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M18 9.5a1.5 1.5 0 11-3 0v-6a1.5 1.5 0 013 0v6zM14 9.667v-5.43a2 2 0 00-1.106-1.79l-.05-.025A4 4 0 0011.057 2H5.641a2 2 0 00-1.962 1.608l-1.2 6A2 2 0 004.44 12H8v4a2 2 0 002 2 1 1 0 001-1v-.667a4 4 0 01.8-2.4l1.4-1.866a4 4 0 00.8-2.4z"/>
+                        </svg>
+                      </button>
+                      {msgFeedback[i] && (
+                        <span className="text-[9px] text-[#52525b] ml-0.5">Thanks!</span>
+                      )}
+                    </div>
+                  )}
+                </div>
               ))}
               {isTyping && <TypingIndicator />}
               <div ref={messagesEndRef} />
@@ -987,10 +1092,41 @@ const Chatbot = () => {
               </div>
             )}
 
+            {/* KB article suggestions — shown when category detected */}
+            {kbSuggestions.length > 0 && (
+              <div className="bg-[#18181b] border border-[#22c55e]/25 rounded-xl p-4 shrink-0">
+                <p className="text-[11px] font-semibold text-[#22c55e] uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                  Self-Service Articles
+                </p>
+                <p className="text-[10px] text-[#52525b] mb-2">These might resolve your issue without raising a ticket:</p>
+                <div className="space-y-0.5">
+                  {kbSuggestions.map(art => (
+                    <a key={art._id} href="/knowledge-base"
+                      className="flex items-start gap-2 px-2.5 py-2 rounded-lg hover:bg-[#27272a] transition-colors group">
+                      <svg className="w-3.5 h-3.5 text-[#3b82f6] flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                      </svg>
+                      <span className="text-[11.5px] text-[#71717a] group-hover:text-[#fafafa] transition-colors leading-tight flex-1 line-clamp-2">{art.title}</span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Quick Actions */}
             <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 shrink-0">
               <p className="text-[11px] font-semibold text-[#a1a1aa] uppercase tracking-wider mb-3">Quick Actions</p>
               <div className="space-y-1">
+                <button
+                  onClick={() => userSend('check status')}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[12.5px] text-[#71717a] hover:text-[#fafafa] hover:bg-[#27272a] transition-colors text-left"
+                >
+                  <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                  </svg>
+                  Check Ticket Status
+                </button>
                 <button
                   onClick={() => navigate('/my-tickets')}
                   className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[12.5px] text-[#71717a] hover:text-[#fafafa] hover:bg-[#27272a] transition-colors text-left"
@@ -999,6 +1135,24 @@ const Chatbot = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2" />
                   </svg>
                   View My Tickets
+                </button>
+                <button
+                  onClick={() => {
+                    const txt = messages.map(m =>
+                      `[${m.timestamp || ''}] ${m.sender === 'bot' ? 'HiTicket AI' : 'You'}: ${m.message}`
+                    ).join('\n\n');
+                    const blob = new Blob([txt], { type: 'text/plain' });
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = `chat-${new Date().toISOString().slice(0, 10)}.txt`;
+                    a.click(); URL.revokeObjectURL(a.href);
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[12.5px] text-[#71717a] hover:text-[#fafafa] hover:bg-[#27272a] transition-colors text-left"
+                >
+                  <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Download Chat Log
                 </button>
                 <button
                   onClick={() => window.location.reload()}
