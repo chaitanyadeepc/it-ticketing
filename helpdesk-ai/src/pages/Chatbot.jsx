@@ -27,6 +27,21 @@ const CATEGORY_ICONS = {
 
 const ts = () =>
   new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+const now = () => Date.now(); // epoch ms for live timestamp aging
+
+// ── Session storage helpers ────────────────────────────────────────────────────
+const SESSION_KEY = 'hd_chat_session';
+const loadSession = () => {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch { return null; }
+};
+const saveSession = (s) => {
+  try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(s)); } catch { /* quota */ }
+};
+const clearSession = () => sessionStorage.removeItem(SESSION_KEY);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Category configuration — 10 categories with sub-types & guided questions
@@ -511,39 +526,68 @@ const Chatbot = () => {
   const navigate = useNavigate();
 
   const _firstName = (() => { const n = localStorage.getItem('userName'); return n ? n.trim().split(/\s+/)[0] : ''; })();
-  const [messages, setMessages] = useState([
-    {
-      sender: 'bot',
-      message:
-        `👋 Hi${_firstName ? ` ${_firstName}` : ''}! I'm HiTicket AI.\n\nDescribe your IT issue and I'll classify it automatically — or browse the categories below.\n\nYou can also:\n• Type a ticket ID (e.g. TKT-0012) to check its status\n• Type "check status" to see your recent tickets\n• Type "talk to agent" to reach a human agent`,
-      timestamp: ts(),
-    },
-  ]);
+
+  const _initMsg = [{
+    sender: 'bot',
+    message: `👋 Hi${_firstName ? ` ${_firstName}` : ''}! I'm HiTicket AI.\n\nDescribe your IT issue and I'll classify it automatically — or browse the categories below.\n\nYou can also:\n• Type a ticket ID (e.g. TKT-0012) to check its status\n• Type "check status" to see your recent tickets\n• Type "talk to agent" to reach a human agent`,
+    timestamp: ts(),
+    msgTime: now(),
+  }];
+
+  const _s = loadSession();
+  const [messages,     setMessages]     = useState(_s?.messages     || _initMsg);
+  const [flowStep,     setFlowStep]     = useState(_s?.flowStep      || 1);
+  const [chipType,     setChipType]     = useState(_s?.chipType      ?? 'category');
+  const [quickReplies, setQuickReplies] = useState(_s?.quickReplies  || []);
+  const [ticketData,   setTicketData]   = useState(_s?.ticketData    || { category: '', subType: '', description: '', details: '', priority: 'Medium', ticketId: '' });
+  const [submitted,    setSubmitted]    = useState(_s?.submitted     || false);
+  const [lastTicketId, setLastTicketId] = useState(_s?.lastTicketId  || null);
+
   const [input, setInput] = useState('');
-  const [flowStep, setFlowStep] = useState(1);
   const [isTyping, setIsTyping] = useState(false);
-  // chipType: 'category' | 'subtype' | 'detail' | 'confirm' | 'done' | null
-  const [chipType, setChipType] = useState('category');
-  const [quickReplies, setQuickReplies] = useState([]);
-  const [ticketData, setTicketData] = useState({
-    category: '',
-    subType: '',
-    description: '',
-    details: '',
-    priority: 'Medium',
-    ticketId: '',
-  });
-  const [submitted, setSubmitted] = useState(false);
+  const [intentBadge, setIntentBadge] = useState(null);   // { label, color }
+  const [commentMode, setCommentMode] = useState(null);   // { ticketId, mongoId }
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const [similarTickets, setSimilarTickets] = useState([]);
   const [dupeChecking, setDupeChecking] = useState(false);
   const dupeTimerRef = useRef(null);
   const [showMobileDrawer, setShowMobileDrawer] = useState(false);
-  const [msgFeedback, setMsgFeedback]     = useState({});   // { [msgIdx]: 'up'|'down' }
-  const [kbSuggestions, setKbSuggestions] = useState([]);   // related KB articles
-  const [statusNavId, setStatusNavId]     = useState(null); // mongo _id for nav after status lookup
-  const [statusTickets, setStatusTickets] = useState([]);   // tickets to show as clickable cards
+  const [msgFeedback,    setMsgFeedback]    = useState({});
+  const [kbSuggestions,  setKbSuggestions]  = useState([]);
+  const [statusNavId,    setStatusNavId]    = useState(null);
+  const [statusTickets,  setStatusTickets]  = useState([]);
+
+  // Persist chat state across page refreshes within same browser tab
+  useEffect(() => {
+    saveSession({ messages, flowStep, chipType, quickReplies, ticketData, submitted, lastTicketId });
+  }, [messages, flowStep, chipType, quickReplies, ticketData, submitted, lastTicketId]);
+
+  // Proactive ticket update notification (polls every 90 s after ticket submitted)
+  useEffect(() => {
+    if (!lastTicketId) return;
+    const poll = setInterval(() => {
+      api.get(`/tickets?q=${encodeURIComponent(lastTicketId)}&limit=5`)
+        .then(({ data }) => {
+          const t = (data.tickets || []).find(t => t.ticketId === lastTicketId);
+          if (!t) return;
+          const prevRaw = sessionStorage.getItem('hd_last_status');
+          const prev = prevRaw ? JSON.parse(prevRaw) : null;
+          if (prev && prev.status !== t.status) {
+            const meta = STATUS_META[t.status] || STATUS_META['Open'];
+            const assignPart = t.assignedTo && t.assignedTo !== 'Unassigned' ? ` · Assigned to **${t.assignedTo}**` : '';
+            setMessages(m => [...m, {
+              sender: 'bot',
+              message: `${meta.dot} Update on **${t.ticketId}**: status changed to **${t.status}**${assignPart}.`,
+              timestamp: ts(), msgTime: now(),
+            }]);
+          }
+          sessionStorage.setItem('hd_last_status', JSON.stringify({ status: t.status }));
+        })
+        .catch(() => {});
+    }, 90000);
+    return () => clearInterval(poll);
+  }, [lastTicketId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -553,7 +597,7 @@ const Chatbot = () => {
     setIsTyping(true);
     setTimeout(() => {
       setIsTyping(false);
-      setMessages((prev) => [...prev, { sender: 'bot', message, timestamp: ts() }]);
+      setMessages((prev) => [...prev, { sender: 'bot', message, timestamp: ts(), msgTime: now() }]);
       if (afterCb) afterCb();
     }, delay);
   };
@@ -561,8 +605,9 @@ const Chatbot = () => {
   const userSend = (text) => {
     if (!text.trim()) return;
     const trimmed = text.trim();
-    setMessages((prev) => [...prev, { sender: 'user', message: trimmed, timestamp: ts() }]);
+    setMessages((prev) => [...prev, { sender: 'user', message: trimmed, timestamp: ts(), msgTime: now() }]);
     setInput('');
+    setIntentBadge(null);
     setChipType(null);
     setQuickReplies([]);
     processInput(trimmed);
@@ -577,12 +622,47 @@ const Chatbot = () => {
   };
 
   const processInput = (text) => {
+    // KB prompt — did the KB article solve it?
+    if (chipType === 'kbprompt') { handleKbPrompt(text); return; }
+
+    // Comment mode — user is typing a comment for an existing ticket
+    if (commentMode) {
+      const { ticketId, mongoId } = commentMode;
+      setCommentMode(null);
+      api.post(`/tickets/${mongoId}/comments`, { text })
+        .then(() => {
+          botReply(`Comment added to **${ticketId}** ✓\n\nThe support team will be notified.`, 700, () => {
+            setChipType('tickets');
+            setQuickReplies(['Check Status Again', 'Raise New Ticket']);
+          });
+        })
+        .catch(() => botReply('Failed to add comment. Please try again.', 600));
+      return;
+    }
+
+    // Priority override — works while in the ticket flow
+    if (ticketData.category && /\b(change priority|set priority|priority to|it.?s critical|it.?s urgent|mark (?:as )?critical|mark (?:as )?high|mark (?:as )?medium|mark (?:as )?low)\b/i.test(text)) {
+      let np = ticketData.priority;
+      if (/critical/i.test(text)) np = 'Critical';
+      else if (/high/i.test(text)) np = 'High';
+      else if (/medium/i.test(text)) np = 'Medium';
+      else if (/low/i.test(text)) np = 'Low';
+      setTicketData(prev => ({ ...prev, priority: np }));
+      botReply(`Priority updated to **${np}**. Anything else to adjust?`, 600, () => {
+        if (flowStep >= 4) {
+          setChipType('confirm');
+          setQuickReplies(['Confirm & Submit', 'Edit Details', 'Cancel']);
+        }
+      });
+      return;
+    }
+
     // Global intents — handled regardless of current step
     if (/\b(human|agent|person|real person|speak to|talk to|escalate|representative|support staff)\b/i.test(text)) {
       handleEscalation(); return;
     }
     // Ticket ID or status-check intent — always available
-    if (/TKT-\d+/i.test(text) || /\b(status|check status|my tickets|track ticket|ticket update)\b/i.test(text)) {
+    if (/TKT-\d+/i.test(text) || /\b(status|check status|my tickets|track ticket|ticket update|check again)\b/i.test(text)) {
       handleStatusLookup(text); return;
     }
     if (flowStep === 1) handleStep1(text);
@@ -620,27 +700,57 @@ const Chatbot = () => {
         }, 600);
       }
 
-      // Fetch related KB articles for the sidebar
+      // Fetch related KB articles and offer them in-chat first
       setKbSuggestions([]);
       api.get(`/kb?q=${encodeURIComponent(detected)}`)
-        .then(({ data }) => setKbSuggestions((data.articles || []).slice(0, 3)))
-        .catch(() => {});
-
-      const cfg = CATEGORIES[detected];
-      botReply(
-        `Got it — I've identified this as a **${detected}** issue.\n\n${cfg.subTypeQuestion}`,
-        1000,
-        () => {
-          setChipType('subtype');
-          setQuickReplies(cfg.subTypes);
-        }
-      );
+        .then(({ data }) => {
+          const arts = (data.articles || []).slice(0, 3);
+          setKbSuggestions(arts);
+          if (arts.length > 0) {
+            const titles = arts.map(a => `• ${a.title}`).join('\n');
+            botReply(
+              `Got it — I've identified this as a **${detected}** issue.\n\n💡 Before we continue, here are some articles that might solve your issue:\n\n${titles}`,
+              900, () => {
+                setChipType('kbprompt');
+                setQuickReplies(['✅ This solved my issue', '❌ Still need to raise a ticket']);
+              }
+            );
+          } else {
+            const cfg = CATEGORIES[detected];
+            botReply(`Got it — I've identified this as a **${detected}** issue.\n\n${cfg.subTypeQuestion}`, 1000, () => {
+              setChipType('subtype'); setQuickReplies(cfg.subTypes);
+            });
+          }
+        })
+        .catch(() => {
+          const cfg = CATEGORIES[detected];
+          botReply(`Got it — I've identified this as a **${detected}** issue.\n\n${cfg.subTypeQuestion}`, 1000, () => {
+            setChipType('subtype'); setQuickReplies(cfg.subTypes);
+          });
+        });
     } else {
       botReply(
         "I couldn't automatically classify that. Please pick a category below or try rephrasing with the device or app name:",
         800,
         () => setChipType('category')
       );
+    }
+  };
+
+  // Handle KB prompt decision (did the article solve it?)
+  const handleKbPrompt = (text) => {
+    if (/solved|yes|fixed|worked|thanks|great/i.test(text)) {
+      botReply("Great! Glad the article helped. 🎉\n\nFeel free to come back if you need anything else.", 700, () => {
+        setFlowStep(1);
+        setChipType('category');
+        setTicketData({ category: '', subType: '', description: '', details: '', priority: 'Medium', ticketId: '' });
+      });
+    } else {
+      const cfg = CATEGORIES[ticketData.category];
+      if (!cfg) { setChipType('category'); return; }
+      botReply(`No problem! Let's continue raising a ticket.\n\n${cfg.subTypeQuestion}`, 700, () => {
+        setChipType('subtype'); setQuickReplies(cfg.subTypes);
+      });
     }
   };
 
@@ -681,11 +791,11 @@ const Chatbot = () => {
         : ticketData.description;
 
     botReply(
-      `Thanks for the details! Here's your ticket summary:\n\nCategory: ${ticketData.category}\nSub-type: ${ticketData.subType || 'General'}\nPriority: ${priority}\nIssue: ${descPreview}\n\nShall I go ahead and submit this ticket?`,
+      `Thanks for the details! Here's your ticket summary:\n\nCategory: ${ticketData.category}\nSub-type: ${ticketData.subType || 'General'}\nPriority: **${priority}**\nIssue: ${descPreview}\n\nShall I go ahead and submit this ticket?\n\n_Say "change priority to Critical/High/Low" to adjust before submitting._`,
       1100,
       () => {
         setChipType('confirm');
-        setQuickReplies(['Confirm & Submit', 'Edit Details', 'Cancel']);
+        setQuickReplies(['Confirm & Submit', 'Change Priority to Critical', 'Change Priority to High', 'Edit Details', 'Cancel']);
       }
     );
   };
@@ -722,6 +832,8 @@ const Chatbot = () => {
       }).then(({ data }) => {
         const id = data.ticket.ticketId || data.ticket._id;
         setTicketData((prev) => ({ ...prev, ticketId: id }));
+        setLastTicketId(id); // enables proactive status polling
+        sessionStorage.removeItem('hd_last_status'); // reset baseline for polling
         logActivity('TICKET_CREATED', {
           category: 'TICKET', severity: 'info',
           detail: `Ticket ${id} created via AI chatbot`,
@@ -734,7 +846,7 @@ const Chatbot = () => {
           },
         });
         botReply(
-          `Ticket **${id}** submitted!\n\n${ticketData.category} — ${ticketData.subType || 'General'}\nPriority: ${ticketData.priority}\n\nExpected response within ${eta}.\n\nYou'll receive email updates as the status changes. Track your ticket in "My Tickets".`,
+          `Ticket **${id}** submitted! ✓\n\n${ticketData.category} — ${ticketData.subType || 'General'}\nPriority: ${ticketData.priority}\n\nExpected response within ${eta}.\n\nI'll notify you here if the status changes. Type the ticket ID anytime to check it.`,
           1300,
           () => {
             setChipType('done');
@@ -776,15 +888,21 @@ const Chatbot = () => {
             t => t.ticketId?.toUpperCase() === tktId
           );
           if (found) {
+            setStatusNavId(found._id);
+            setLastTicketId(found.ticketId);
             const meta = STATUS_META[found.status] || STATUS_META['Open'];
             const updated = new Date(found.updatedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
             const assignedLine = found.assignedTo && found.assignedTo !== 'Unassigned'
               ? `\nAssigned to: ${found.assignedTo}` : '';
+            const isResolved = ['Resolved', 'Closed'].includes(found.status);
             botReply(
               `${meta.dot} **${found.ticketId}** — ${found.title}\n\nStatus: **${found.status}**  ·  Priority: **${found.priority}**\nCategory: ${found.category}${assignedLine}\nLast updated: ${updated}`,
               700, () => {
                 setChipType('tickets');
-                setQuickReplies(['Raise New Ticket']);
+                const chips = isResolved
+                  ? ['Reopen This Ticket', 'Raise New Ticket']
+                  : ['Add a Comment', 'Raise New Ticket'];
+                setQuickReplies(chips);
               }
             );
           } else {
@@ -850,10 +968,28 @@ const Chatbot = () => {
     const t = text.toLowerCase();
     if (t.includes('view all') || t.includes('my tickets') || t.includes('all tickets')) {
       navigate('/my-tickets');
-    } else if (t.includes('check another') || t.includes('another ticket') || t.includes('check status')) {
-      // Re-fetch ticket list and show ID chips
+    } else if (t.includes('check again') || t.includes('check status') || t.includes('check another') || t.includes('another ticket')) {
       handleStatusLookup('check status');
+    } else if (t.includes('reopen')) {
+      if (!statusNavId) { botReply("I don't have a ticket to reopen. Look up a ticket ID first.", 600); return; }
+      api.patch(`/tickets/${statusNavId}`, { status: 'Open' })
+        .then(({ data }) => {
+          const id = data.ticket?.ticketId || lastTicketId || 'the ticket';
+          botReply(`🔵 **${id}** has been reopened and is now **Open**.\n\nThe support team will be notified.`, 700, () => {
+            setChipType('tickets');
+            setQuickReplies(['Check Status Again', 'Raise New Ticket']);
+          });
+        })
+        .catch(() => botReply('Failed to reopen the ticket. You may not have permission.', 600));
+    } else if (t.includes('add a comment') || t.includes('add comment') || t.includes('comment')) {
+      if (!statusNavId) { botReply('Look up a ticket ID first so I know which ticket to comment on.', 600); return; }
+      const label = lastTicketId || 'the ticket';
+      setCommentMode({ ticketId: label, mongoId: statusNavId });
+      botReply(`Type your comment below and I'll add it to **${label}**:`, 500, () => {
+        setChipType(null); setQuickReplies([]);
+      });
     } else if (t.includes('another') || t.includes('new') || t.includes('raise')) {
+      clearSession();
       window.location.reload();
     } else {
       botReply("You can view your tickets in 'My Tickets' or raise a new one anytime.", 800, () => {
@@ -864,15 +1000,23 @@ const Chatbot = () => {
   };
 
   const inputPlaceholder =
-    flowStep === 1
-      ? 'Describe your issue, or type a ticket ID to check status…'
-      : flowStep === 2
-      ? 'Select a sub-type above or type it…'
-      : flowStep === 3
-      ? 'Provide more details about the issue…'
-      : flowStep === 4
-      ? 'Type "yes" to confirm, "edit" to change, or "cancel"…'
-      : 'What would you like to do next?';
+    commentMode        ? `Type your comment for ${commentMode.ticketId}…`
+    : flowStep === 1   ? 'Describe your issue, or type a ticket ID to check status…'
+    : flowStep === 2   ? 'Select a sub-type above or type it…'
+    : flowStep === 3   ? 'Provide more details about the issue…'
+    : flowStep === 4   ? 'Type "yes" to confirm, "edit" to change, or "cancel"…'
+    : 'What would you like to do next?';
+
+  // Intent detection badge while typing
+  useEffect(() => {
+    if (!input || input.length < 6 || flowStep !== 1) { setIntentBadge(null); return; }
+    const detected = detectCategory(input);
+    if (detected) {
+      setIntentBadge({ label: detected, color: CATEGORIES[detected].color });
+    } else {
+      setIntentBadge(null);
+    }
+  }, [input, flowStep]);
 
   return (
     <PageWrapper>
@@ -942,7 +1086,7 @@ const Chatbot = () => {
                   )}
                 </button>
                 <button
-                  onClick={() => window.location.reload()}
+                  onClick={() => { clearSession(); window.location.reload(); }}
                   className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#27272a] transition-colors"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1022,6 +1166,27 @@ const Chatbot = () => {
 
             {/* Input bar */}
             <div className="px-3 sm:px-4 pt-2 shrink-0" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
+              {/* Intent detection badge */}
+              {intentBadge && (
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <span className="text-[10px] text-[#52525b]">Detected:</span>
+                  <span
+                    className="text-[10px] font-semibold px-2 py-0.5 rounded-full border"
+                    style={{ color: intentBadge.color, borderColor: `${intentBadge.color}40`, background: `${intentBadge.color}10` }}
+                  >
+                    {intentBadge.label}
+                  </span>
+                  <span className="text-[10px] text-[#52525b]">— confirm or add more detail</span>
+                </div>
+              )}
+              {/* Comment mode indicator */}
+              {commentMode && (
+                <div className="flex items-center gap-1.5 mb-1.5 px-2.5 py-1.5 rounded-lg bg-[#3b82f6]/8 border border-[#3b82f6]/20">
+                  <svg className="w-3 h-3 text-[#3b82f6] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                  <span className="text-[11px] text-[#3b82f6] flex-1">Commenting on <strong>{commentMode.ticketId}</strong></span>
+                  <button onClick={() => setCommentMode(null)} className="text-[10px] text-[#52525b] hover:text-[#fafafa] transition-colors">Cancel</button>
+                </div>
+              )}
               <div className="flex items-end gap-2 bg-[#09090b] border border-[#27272a] rounded-xl px-3 py-2 focus-within:border-[#3b82f6]/60 transition-colors">
                 <textarea
                   ref={inputRef}
@@ -1265,7 +1430,7 @@ const Chatbot = () => {
                   Download Chat Log
                 </button>
                 <button
-                  onClick={() => window.location.reload()}
+                  onClick={() => { clearSession(); window.location.reload(); }}
                   className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[12.5px] text-[#71717a] hover:text-[#fafafa] hover:bg-[#27272a] transition-colors text-left"
                 >
                   <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>

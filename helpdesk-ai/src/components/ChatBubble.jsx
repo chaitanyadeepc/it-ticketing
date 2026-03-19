@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 const BotAvatar = () => (
   <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-[#3b82f6] to-[#2563eb] flex items-center justify-center shadow-lg shadow-[#3b82f6]/20">
@@ -73,23 +73,67 @@ const BotContent = ({ text }) => {
   );
 };
 
-const ChatBubble = ({ message, sender = 'bot', timestamp }) => {
+const ChatBubble = ({ message, sender = 'bot', timestamp, msgTime }) => {
   const isBot = sender === 'bot';
+  const [copied, setCopied] = useState(false);
+  const [displayTime, setDisplayTime] = useState('');
+
+  // Live aging timestamp: "just now" → "2m ago" → "1h ago" etc.
+  useEffect(() => {
+    if (!msgTime) { setDisplayTime(timestamp || ''); return; }
+    const update = () => {
+      const diff = Date.now() - msgTime;
+      const sec = Math.floor(diff / 1000);
+      const min = Math.floor(sec / 60);
+      const hr  = Math.floor(min / 60);
+      if (sec < 10)  setDisplayTime('just now');
+      else if (sec < 60)  setDisplayTime(`${sec}s ago`);
+      else if (min < 60)  setDisplayTime(`${min}m ago`);
+      else if (hr  < 24)  setDisplayTime(`${hr}h ago`);
+      else setDisplayTime(new Date(msgTime).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }));
+    };
+    update();
+    const id = setInterval(update, 30000);
+    return () => clearInterval(id);
+  }, [msgTime, timestamp]);
+
+  const handleCopy = useCallback(() => {
+    const plain = message.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/`([^`]+)`/g, '$1');
+    navigator.clipboard.writeText(plain).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    });
+  }, [message]);
 
   return (
-    <div className={`flex items-end gap-2.5 ${!isBot ? 'flex-row-reverse' : ''}`}>
+    <div className={`flex items-end gap-2.5 group/msg ${!isBot ? 'flex-row-reverse' : ''}`}>
       {isBot ? <BotAvatar /> : <UserAvatar />}
 
       <div className={`flex flex-col gap-1 max-w-[85%] sm:max-w-[78%] ${!isBot ? 'items-end' : ''}`}>
-        <div className={`px-4 py-2.5 rounded-2xl break-words ${
+        <div className={`relative px-4 py-2.5 rounded-2xl break-words ${
           isBot
             ? 'bg-[#1c1c1f] border border-[#27272a] rounded-bl-md'
             : 'bg-[#3b82f6] rounded-br-md text-white text-[13.5px] leading-relaxed whitespace-pre-wrap'
         }`}>
           {isBot ? <BotContent text={message} /> : message}
+          {/* Copy button — appears on hover for bot messages */}
+          {isBot && (
+            <button
+              onClick={handleCopy}
+              title="Copy message"
+              className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-[#27272a] border border-[#3f3f46] flex items-center justify-center opacity-0 group-hover/msg:opacity-100 transition-opacity hover:bg-[#3f3f46]"
+            >
+              {copied
+                ? <svg className="w-3 h-3 text-[#22c55e]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+                : <svg className="w-3 h-3 text-[#71717a]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+              }
+            </button>
+          )}
         </div>
-        {timestamp && (
-          <span className="text-[10px] text-[#52525b] px-1">{timestamp}</span>
+        {(displayTime || timestamp) && (
+          <span className="text-[10px] text-[#52525b] px-1 transition-all">
+            {displayTime || timestamp}
+          </span>
         )}
       </div>
     </div>
