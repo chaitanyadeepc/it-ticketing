@@ -304,7 +304,7 @@ const StepProgress = ({ currentStep, compact = false }) => {
 const QuickReply = ({ label, onClick, variant = 'default' }) => (
   <button
     onClick={() => onClick(label)}
-    className={`px-3 py-2 sm:py-1.5 rounded-full border text-[12px] sm:text-[12px] font-medium transition-all duration-150 whitespace-nowrap active:scale-95 ${
+    className={`px-4 py-2.5 min-h-[44px] sm:min-h-[32px] sm:py-1.5 rounded-full border text-[13px] sm:text-[12px] font-medium transition-all duration-150 whitespace-nowrap active:scale-95 ${
       variant === 'warning'
         ? 'border-[#ef4444]/40 text-[#ef4444] bg-[#ef4444]/5 active:bg-[#ef4444]/20'
         : variant === 'success'
@@ -318,21 +318,27 @@ const QuickReply = ({ label, onClick, variant = 'default' }) => (
 
 // ── Category grid shown at step 1 ─────────────────────────────────────────────
 const CategoryGrid = ({ onSelect }) => (
-  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-2 xl:grid-cols-3 gap-1.5 px-3 pb-3 pt-3 border-t border-[#27272a]">
-    {CATEGORY_NAMES.map((name) => {
-      const cfg = CATEGORIES[name];
-      const Icon = CATEGORY_ICONS[name];
-      return (
-        <button
-          key={name}
-          onClick={() => onSelect(name)}
-          className="flex items-center gap-2 px-2.5 sm:px-3 py-2.5 sm:py-2 rounded-lg border border-[#27272a] bg-[#1c1c1f] hover:border-[#3b82f6]/40 hover:bg-[#27272a] active:scale-95 transition-all text-left"
-        >
-          {Icon && <Icon className="w-4 h-4 flex-shrink-0" style={{ color: cfg.color }} />}
-          <span className="text-[11px] sm:text-[11.5px] font-medium text-[#e4e4e7] leading-tight">{name}</span>
-        </button>
-      );
-    })}
+  <div className="border-t border-[#27272a] shrink-0 bg-[#111113]">
+    <div className="px-4 pt-2.5 pb-1 flex items-center gap-1.5">
+      <span className="text-[10px] font-semibold text-[#52525b] uppercase tracking-wider">Choose a category</span>
+    </div>
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 gap-1.5 px-3 pb-3">
+      {CATEGORY_NAMES.map((name) => {
+        const cfg = CATEGORIES[name];
+        const Icon = CATEGORY_ICONS[name];
+        return (
+          <button
+            key={name}
+            onClick={() => onSelect(name)}
+            className="flex items-center gap-2.5 px-3 py-3 min-h-[48px] rounded-xl bg-[#1c1c1f] hover:bg-[#27272a] active:scale-[0.97] transition-all text-left border"
+            style={{ borderColor: `${cfg.color}20`, borderLeftWidth: 3, borderLeftColor: cfg.color }}
+          >
+            {Icon && <Icon className="w-4 h-4 flex-shrink-0" style={{ color: cfg.color }} />}
+            <span className="text-[11.5px] font-medium text-[#d4d4d8] leading-tight flex-1 min-w-0">{name}</span>
+          </button>
+        );
+      })}
+    </div>
   </div>
 );
 
@@ -372,7 +378,7 @@ const TemplatesPanel = ({ onSelect }) => (
 );
 
 // ── Mobile info drawer (progress + preview + dupes) ─────────────────────────
-const MobileInfoDrawer = ({ open, onClose, flowStep, ticketData, similarTickets, setSimilarTickets }) => {
+const MobileInfoDrawer = ({ open, onClose, flowStep, ticketData, similarTickets, setSimilarTickets, onEscalate }) => {
   if (!open) return null;
   return (
     <>
@@ -445,6 +451,18 @@ const MobileInfoDrawer = ({ open, onClose, flowStep, ticketData, similarTickets,
               )}
             </div>
           )}
+
+          {/* Talk to agent */}
+          <div className="bg-[#3b82f6]/8 border border-[#3b82f6]/20 rounded-xl p-4">
+            <p className="text-[12px] font-semibold text-[#3b82f6] mb-1.5">Need human support?</p>
+            <p className="text-[11px] text-[#71717a] mb-3">Skip the AI and reach a support agent directly.</p>
+            <button
+              onClick={onEscalate}
+              className="w-full py-2.5 rounded-lg bg-[#3b82f6]/15 border border-[#3b82f6]/30 text-[#3b82f6] text-[13px] font-semibold hover:bg-[#3b82f6]/25 active:scale-[0.98] transition-all"
+            >
+              Talk to a Support Agent
+            </button>
+          </div>
         </div>
         {/* Safe area spacer for phones */}
         <div className="h-safe-bottom pb-4" />
@@ -457,11 +475,12 @@ const MobileInfoDrawer = ({ open, onClose, flowStep, ticketData, similarTickets,
 const Chatbot = () => {
   const navigate = useNavigate();
 
+  const _firstName = (() => { const n = localStorage.getItem('userName'); return n ? n.trim().split(/\s+/)[0] : ''; })();
   const [messages, setMessages] = useState([
     {
       sender: 'bot',
       message:
-        "👋 Hi! I'm HiTicket AI.\n\nDescribe your IT issue and I'll classify it automatically — or browse the categories below.\n\nYou can also:\n• Type a ticket ID (e.g. TKT-0012) to check its status\n• Type \"check status\" to see your recent tickets\n• Type \"talk to agent\" to reach human support",
+        `👋 Hi${_firstName ? ` ${_firstName}` : ''}! I'm HiTicket AI.\n\nDescribe your IT issue and I'll classify it automatically — or browse the categories below.\n\nYou can also:\n• Type a ticket ID (e.g. TKT-0012) to check its status\n• Type "check status" to see your recent tickets\n• Type "talk to agent" to reach a human agent`,
       timestamp: ts(),
     },
   ]);
@@ -808,6 +827,7 @@ const Chatbot = () => {
           ticketData={ticketData}
           similarTickets={similarTickets}
           setSimilarTickets={setSimilarTickets}
+          onEscalate={() => { setShowMobileDrawer(false); handleEscalation(); }}
         />
 
         <div className="grid lg:grid-cols-[1fr_360px] gap-6 mt-0 sm:mt-6">
@@ -832,13 +852,22 @@ const Chatbot = () => {
                   <p className="text-[10px] sm:text-[11px] text-[#22c55e]">● Online — typically replies instantly</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2">
                 {/* Mobile: compact progress bar */}
                 {flowStep > 1 && (
-                  <div className="flex lg:hidden items-center gap-2 flex-1 max-w-[120px] sm:max-w-[160px]">
+                  <div className="flex lg:hidden items-center gap-2 flex-1 max-w-[110px] sm:max-w-[150px]">
                     <StepProgress currentStep={flowStep} compact />
                   </div>
                 )}
+                {/* Talk to agent — always visible on mobile */}
+                <button
+                  onClick={handleEscalation}
+                  className="lg:hidden flex items-center gap-1 px-2 py-1.5 rounded-lg text-[10px] font-medium text-[#71717a] hover:text-[#fafafa] hover:bg-[#27272a] border border-[#27272a] transition-colors flex-shrink-0"
+                  title="Talk to a human agent"
+                >
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                  Agent
+                </button>
                 {/* Mobile: info/drawer button */}
                 <button
                   onClick={() => setShowMobileDrawer(true)}
@@ -927,8 +956,8 @@ const Chatbot = () => {
             )}
 
             {/* Input bar */}
-            <div className="px-3 sm:px-4 pb-3 sm:pb-4 pt-2 shrink-0">
-              <div className="flex items-end gap-2 bg-[#09090b] border border-[#27272a] rounded-xl px-3 py-2 sm:py-2 focus-within:border-[#3b82f6]/60 transition-colors">
+            <div className="px-3 sm:px-4 pt-2 shrink-0" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
+              <div className="flex items-end gap-2 bg-[#09090b] border border-[#27272a] rounded-xl px-3 py-2 focus-within:border-[#3b82f6]/60 transition-colors">
                 <textarea
                   ref={inputRef}
                   rows={1}
@@ -944,6 +973,15 @@ const Chatbot = () => {
                   style={{ minHeight: '26px', maxHeight: '100px' }}
                   disabled={submitted && chipType === null}
                 />
+                {input.length > 0 && (
+                  <button
+                    onClick={() => { setInput(''); if (inputRef.current) { inputRef.current.style.height = '26px'; inputRef.current.focus(); } }}
+                    className="flex-shrink-0 w-6 h-6 rounded-full bg-[#27272a] hover:bg-[#3f3f46] flex items-center justify-center text-[#71717a] hover:text-[#fafafa] mb-0.5 transition-colors"
+                    aria-label="Clear input"
+                  >
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                  </button>
+                )}
                 <button
                   onClick={handleSend}
                   disabled={!input.trim()}
@@ -954,12 +992,19 @@ const Chatbot = () => {
                   </svg>
                 </button>
               </div>
-              <p className="hidden sm:block text-[10px] text-[#52525b] text-center mt-1.5">
-                <kbd className="px-1 py-0.5 rounded bg-[#27272a] text-[#a1a1aa] text-[10px]">Enter</kbd>
-                {' '}to send ·{' '}
-                <kbd className="px-1 py-0.5 rounded bg-[#27272a] text-[#a1a1aa] text-[10px]">Shift+Enter</kbd>
-                {' '}for new line
-              </p>
+              <div className="flex items-center justify-between mt-1.5">
+                <p className="hidden sm:block text-[10px] text-[#52525b]">
+                  <kbd className="px-1 py-0.5 rounded bg-[#27272a] text-[#a1a1aa] text-[10px]">Enter</kbd>
+                  {' '}to send ·{' '}
+                  <kbd className="px-1 py-0.5 rounded bg-[#27272a] text-[#a1a1aa] text-[10px]">Shift+Enter</kbd>
+                  {' '}for new line
+                </p>
+                {input.length > 80 && (
+                  <span className={`text-[10px] ml-auto ${input.length > 450 ? 'text-[#ef4444]' : 'text-[#52525b]'}`}>
+                    {input.length} / 500
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 

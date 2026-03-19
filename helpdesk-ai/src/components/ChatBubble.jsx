@@ -9,11 +9,66 @@ const BotAvatar = () => (
 );
 
 const UserAvatar = () => {
-  const email = localStorage.getItem('userEmail') || '';
-  const initials = email ? email.slice(0, 2).toUpperCase() : 'U';
+  const raw = localStorage.getItem('userName') || localStorage.getItem('userEmail') || '';
+  const initials = raw ? raw.trim().slice(0, 2).toUpperCase() : 'U';
   return (
     <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[#21262d] border border-[#30363d] flex items-center justify-center text-[11px] font-semibold text-[#e6edf3]">
       {initials}
+    </div>
+  );
+};
+
+// ── Inline renderer: **bold** and `code` ─────────────────────────────────────
+const renderInline = (text) => {
+  if (!text) return null;
+  const parts = text.split(/(\*\*[^*\n]+\*\*|`[^`\n]+`)/g);
+  if (parts.length === 1) return text;
+  return parts.map((part, i) => {
+    if (/^\*\*[^*]+\*\*$/.test(part))
+      return <strong key={i} className="font-semibold text-[#fafafa]">{part.slice(2, -2)}</strong>;
+    if (/^`[^`]+`$/.test(part))
+      return <code key={i} className="px-1 py-0.5 rounded bg-[#27272a] text-[#22c55e] font-mono text-[11.5px] align-middle">{part.slice(1, -1)}</code>;
+    return part;
+  });
+};
+
+// ── Block renderer: paragraphs + bullet lists ─────────────────────────────────
+const BotContent = ({ text }) => {
+  if (!text) return null;
+  const blocks = text.split(/\n\n+/);
+  return (
+    <div className="space-y-1.5 text-[13.5px] leading-relaxed text-[#d4d4d8]">
+      {blocks.map((block, bi) => {
+        const lines = block.split('\n');
+        const bulletLines = lines.filter(l => /^[•\-]\s/.test(l.trim()));
+        // Render as bullet list if all non-empty lines are bullets
+        if (bulletLines.length > 0 && bulletLines.length === lines.filter(l => l.trim()).length) {
+          return (
+            <ul key={bi} className="space-y-1">
+              {lines.map((line, li) => {
+                if (!line.trim()) return null;
+                return (
+                  <li key={li} className="flex items-start gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#3b82f6] flex-shrink-0 mt-[5px]" />
+                    <span>{renderInline(line.replace(/^[•\-]\s+/, ''))}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          );
+        }
+        // Regular paragraph with line breaks within
+        return (
+          <p key={bi}>
+            {lines.map((line, li) => (
+              <React.Fragment key={li}>
+                {li > 0 && <br />}
+                {renderInline(line)}
+              </React.Fragment>
+            ))}
+          </p>
+        );
+      })}
     </div>
   );
 };
@@ -25,13 +80,13 @@ const ChatBubble = ({ message, sender = 'bot', timestamp }) => {
     <div className={`flex items-end gap-2.5 ${!isBot ? 'flex-row-reverse' : ''}`}>
       {isBot ? <BotAvatar /> : <UserAvatar />}
 
-      <div className={`flex flex-col gap-1 max-w-[75%] ${!isBot ? 'items-end' : ''}`}>
-        <div className={`px-4 py-2.5 rounded-2xl text-[13.5px] leading-relaxed whitespace-pre-wrap break-words ${
+      <div className={`flex flex-col gap-1 max-w-[85%] sm:max-w-[78%] ${!isBot ? 'items-end' : ''}`}>
+        <div className={`px-4 py-2.5 rounded-2xl break-words ${
           isBot
-            ? 'bg-[#1c1c1f] border border-[#27272a] rounded-bl-md text-[#e4e4e7]'
-            : 'bg-[#3b82f6] rounded-br-md text-white'
+            ? 'bg-[#1c1c1f] border border-[#27272a] rounded-bl-md'
+            : 'bg-[#3b82f6] rounded-br-md text-white text-[13.5px] leading-relaxed whitespace-pre-wrap'
         }`}>
-          {message}
+          {isBot ? <BotContent text={message} /> : message}
         </div>
         {timestamp && (
           <span className="text-[10px] text-[#52525b] px-1">{timestamp}</span>
@@ -44,10 +99,10 @@ const ChatBubble = ({ message, sender = 'bot', timestamp }) => {
 export const TypingIndicator = () => (
   <div className="flex items-end gap-2.5">
     <BotAvatar />
-    <div className="px-4 py-3 rounded-2xl rounded-bl-md bg-[#1c1c1f] border border-[#27272a] flex items-center gap-1">
-      <span className="w-1.5 h-1.5 bg-[#52525b] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-      <span className="w-1.5 h-1.5 bg-[#52525b] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-      <span className="w-1.5 h-1.5 bg-[#52525b] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+    <div className="px-4 py-3 rounded-2xl rounded-bl-md bg-[#1c1c1f] border border-[#27272a] flex items-center gap-1.5">
+      <span className="w-2 h-2 bg-[#3b82f6]/60 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+      <span className="w-2 h-2 bg-[#3b82f6]/60 rounded-full animate-bounce" style={{ animationDelay: '160ms' }} />
+      <span className="w-2 h-2 bg-[#3b82f6]/60 rounded-full animate-bounce" style={{ animationDelay: '320ms' }} />
     </div>
   </div>
 );
