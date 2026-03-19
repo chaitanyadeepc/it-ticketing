@@ -2,7 +2,7 @@
 
 A full-stack IT helpdesk and ticketing platform with AI-assisted triage, knowledge base, real-time analytics, PWA support, and enterprise-grade security. Built for internal IT teams to manage, resolve, and track support requests efficiently.
 
-**Live App:** [hiticket-five.vercel.app](https://hiticket-five.vercel.app)  
+**Live App:** [hiticket.vercel.app](https://hiticket.vercel.app)  
 **Backend API:** Hosted on Render (auto-deploy on push)
 
 ---

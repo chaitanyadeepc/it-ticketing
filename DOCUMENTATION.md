@@ -45,7 +45,7 @@ HiTicket is a decoupled full-stack web application with three infrastructure tie
 │  Tailwind CSS v3 · Recharts · React Router v7 · Axios              │
 │                                                                     │
 │  Hosted: Vercel (CDN-distributed static assets)                    │
-│  URL: https://hiticket-five.vercel.app                              │
+│  URL: https://hiticket.vercel.app                              │
 └───────────────────────┬─────────────────────────────────────────────┘
                         │  HTTPS (port 443) REST JSON
                         │  Authorization: Bearer <JWT>
@@ -1447,7 +1447,7 @@ Both Vercel and Render support subdirectory roots — configured in their respec
 | `MONGO_URI` | MongoDB Atlas connection string | `mongodb+srv://user:pass@cluster.mongodb.net/hiticket` |
 | `JWT_SECRET` | HS256 signing secret (min 32 chars, ideally 64) | `openssl rand -hex 64` |
 | `PORT` | Server port (auto-set by Render) | `5000` |
-| `CLIENT_URL` | Frontend origin for CORS whitelist | `https://hiticket-five.vercel.app` |
+| `CLIENT_URL` | Frontend origin for CORS whitelist | `https://hiticket.vercel.app` |
 | `EMAIL_USER` | Gmail sender address | `yourapp@gmail.com` |
 | `EMAIL_FROM` | Display name + address | `HiTicket <yourapp@gmail.com>` |
 | `GMAIL_CLIENT_ID` | Google Cloud OAuth2 client ID | `123456789-xxx.apps.googleusercontent.com` |

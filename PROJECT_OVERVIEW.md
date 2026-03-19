@@ -15,7 +15,7 @@ The platform is deployed as two independent services:
 
 | Layer | Service | Hosting | URL |
 |---|---|---|---|
-| Frontend | `helpdesk-ai` | Vercel | `https://hiticket-five.vercel.app` |
+| Frontend | `helpdesk-ai` | Vercel | `https://hiticket.vercel.app` |
 | Backend | `helpdesk-api` | Render | `https://<render-slug>.onrender.com` |
 
 Both services share a single MongoDB Atlas cluster. All browser-to-API communication is over HTTPS via a REST API with JWT authentication.
@@ -703,7 +703,7 @@ GitHub (monorepo: /IT Ticketing/)
 ```
 MONGO_URI=mongodb+srv://<user>:<pass>@cluster.mongodb.net/hiticket
 JWT_SECRET=<random 64-char secret>
-CLIENT_URL=https://hiticket-five.vercel.app
+CLIENT_URL=https://hiticket.vercel.app
 
 EMAIL_USER=your@gmail.com
 EMAIL_FROM=HiTicket <your@gmail.com>
