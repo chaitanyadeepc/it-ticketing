@@ -582,53 +582,64 @@ const MobileInfoDrawer = ({ open, onClose, flowStep, ticketData, similarTickets,
 
 // ── Welcome screen (shown when chat is empty — ChatGPT–style) ────────────────
 const WelcomeScreen = ({ firstName, onSelect, onCheckStatus, onEscalate }) => (
-  <div className="flex flex-col items-center justify-center py-10 px-4">
-    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#3b82f6] to-[#1d4ed8] flex items-center justify-center mb-5 shadow-2xl shadow-[#3b82f6]/25">
-      <svg className="w-9 h-9 text-white" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7H3a7 7 0 0 1 7-7h1V5.73A2 2 0 0 1 10 4a2 2 0 0 1 2-2m-4 9.5a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1m8 0a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1M3 15h18v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1Z" />
-      </svg>
+  <div className="flex flex-col items-center justify-center py-10 sm:py-14 px-4">
+
+    {/* Avatar */}
+    <div className="relative mb-5">
+      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#3b82f6] to-[#1d4ed8] flex items-center justify-center shadow-lg shadow-[#3b82f6]/20">
+        <svg className="w-7 h-7 text-white" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7H3a7 7 0 0 1 7-7h1V5.73A2 2 0 0 1 10 4a2 2 0 0 1 2-2m-4 9.5a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1m8 0a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1M3 15h18v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1Z" />
+        </svg>
+      </div>
+      <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-[#22c55e] rounded-full border-2 border-[#0a0a0b]" />
     </div>
-    <h2 className="text-[26px] sm:text-[30px] font-semibold text-[#fafafa] mb-2 text-center leading-tight">
-      {firstName ? `How can I help, ${firstName}?` : 'How can I help you today?'}
-    </h2>
-    <p className="text-[#71717a] text-[13px] mb-8 text-center max-w-xs">
-      Describe your IT issue or pick a suggestion below to get started
+
+    {/* Greeting */}
+    <h1 className="text-[22px] sm:text-[26px] font-semibold text-[#fafafa] text-center leading-tight mb-1.5">
+      {firstName ? `Hi ${firstName}` : 'Hi there'} 👋
+    </h1>
+    <p className="text-[#52525b] text-[13px] text-center mb-7 max-w-[260px] leading-relaxed">
+      What IT issue can I help you with today?
     </p>
-    <div className="grid grid-cols-2 gap-2.5 w-full max-w-lg mb-5">
+
+    {/* Quick-start suggestion cards */}
+    <div className="grid grid-cols-2 gap-2 w-full max-w-sm mb-5">
       {[
-        { icon: '💻', title: 'Hardware issue',     sub: 'Laptop, monitor, keyboard…',   query: 'I have a hardware problem with my laptop or computer' },
-        { icon: '🔑', title: 'Password / Access',  sub: 'Reset, lockout, MFA…',          query: 'I need to reset my password or fix an account access issue' },
-        { icon: '🌐', title: 'Network / VPN',       sub: 'WiFi, internet, VPN…',          query: 'I have a network or VPN connectivity issue' },
-        { icon: '📧', title: 'Email & Teams',       sub: 'Outlook, calendar, collab…',    query: 'I have an issue with Outlook, Teams or email' },
+        { icon: '💻', title: 'Hardware',       sub: 'Laptop, monitor, peripherals',  query: 'I have a hardware problem with my laptop or computer' },
+        { icon: '🔑', title: 'Password / MFA', sub: 'Reset account or fix lockout',   query: 'I need to reset my password or fix an account access issue' },
+        { icon: '🌐', title: 'Network / VPN',  sub: 'WiFi, internet or VPN issue',   query: 'I have a network or VPN connectivity issue' },
+        { icon: '📧', title: 'Email & Teams',  sub: 'Outlook, calendar or collab',   query: 'I have an issue with Outlook, Teams or email' },
       ].map(s => (
         <button
           key={s.title}
           onClick={() => onSelect(s.query)}
-          className="flex items-start gap-3 p-4 rounded-xl bg-[#1c1c1f] hover:bg-[#27272a] border border-[#27272a] hover:border-[#3f3f46] text-left transition-all active:scale-[0.98]"
+          className="flex flex-col items-start gap-1.5 p-3.5 rounded-xl bg-[#111113] hover:bg-[#1c1c1f] border border-[#1f1f22] hover:border-[#2e2e32] text-left transition-all active:scale-[0.97]"
         >
-          <span className="text-xl leading-none mt-0.5 flex-shrink-0">{s.icon}</span>
+          <span className="text-lg leading-none">{s.icon}</span>
           <div>
-            <p className="text-[13px] font-medium text-[#e4e4e7] leading-tight">{s.title}</p>
-            <p className="text-[11px] text-[#52525b] mt-0.5">{s.sub}</p>
+            <p className="text-[12.5px] font-medium text-[#e4e4e7] leading-snug">{s.title}</p>
+            <p className="text-[10.5px] text-[#3f3f46] mt-0.5 leading-snug">{s.sub}</p>
           </div>
         </button>
       ))}
     </div>
-    <div className="flex flex-wrap items-center justify-center gap-2">
+
+    {/* Utility action row */}
+    <div className="flex items-center gap-2 flex-wrap justify-center">
       <button
         onClick={onCheckStatus}
-        className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-[12px] text-[#3b82f6] border border-[#3b82f6]/30 bg-[#3b82f6]/5 hover:bg-[#3b82f6]/15 transition-colors"
+        className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-[12px] text-[#71717a] border border-[#27272a] hover:border-[#3f3f46] hover:text-[#a1a1aa] hover:bg-[#111113] transition-all"
       >
-        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg style={{ width: '13px', height: '13px', flexShrink: 0 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
         </svg>
         Check ticket status
       </button>
       <button
         onClick={onEscalate}
-        className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-[12px] text-[#71717a] border border-[#27272a] hover:bg-[#1c1c1f] transition-colors"
+        className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-[12px] text-[#71717a] border border-[#27272a] hover:border-[#3f3f46] hover:text-[#a1a1aa] hover:bg-[#111113] transition-all"
       >
-        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg style={{ width: '13px', height: '13px', flexShrink: 0 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
         </svg>
         Talk to an agent
@@ -1452,7 +1463,7 @@ const Chatbot = () => {
   }, [input, flowStep]);
 
   return (
-    <div className="flex overflow-hidden" style={{ height: 'calc(100dvh - 64px)' }}
+    <div className="flex overflow-hidden h-[calc(100dvh-128px)] md:h-[calc(100dvh-64px)]"
       onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
 
       {/* ── Left sidebar overlay (mobile) ── */}
@@ -1817,7 +1828,7 @@ const Chatbot = () => {
         </div>
 
         {/* ── Bottom input area ── */}
-        <div className="px-3 sm:px-4 pt-2 shrink-0" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
+        <div className="px-3 sm:px-4 pt-2 shrink-0" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
           <div className="max-w-3xl mx-auto">
 
             {/* Category grid — horizontal scroll on mobile, grid on desktop */}

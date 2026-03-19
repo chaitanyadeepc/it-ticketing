@@ -470,7 +470,7 @@ const Navbar = () => {
                       }`}
                       style={!isActive ? { color: 'var(--color-fg-muted)' } : {}}
                     >
-                      <NavIcon id={group.icon} className="w-4.5 h-4.5 flex-shrink-0" />
+                      <NavIcon id={group.icon} className="w-[18px] h-[18px] flex-shrink-0" />
                       {group.label}
                     </Link>
                   );
