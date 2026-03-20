@@ -10,11 +10,11 @@ const STATUS_COLOR   = { Open: '#22c55e', 'In Progress': '#f59e0b', Resolved: '#
 
 /* ── Exact LogoMark replica (inline, no Tailwind dependency) ── */
 function PrintLogo({ dark }) {
-  const BOX = 48, SVG = 24;
+  const BOX = 38, SVG = 19;
   return (
-    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+    <div style={{ display:'flex', alignItems:'center', gap:9 }}>
       {/* Coral icon box */}
-      <div style={{ width:BOX, height:BOX, borderRadius:9, backgroundColor:'#FF634A', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+      <div style={{ width:BOX, height:BOX, borderRadius:7, backgroundColor:'#FF634A', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
         <svg width={SVG} height={SVG} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
           <rect x="1" y="4" width="18" height="12" rx="2" stroke="white" strokeWidth="1.6" fill="none"/>
           <circle cx="1"  cy="10" r="2"  fill="#FF634A"/>
@@ -26,7 +26,7 @@ function PrintLogo({ dark }) {
         </svg>
       </div>
       {/* Wordmark */}
-      <span style={{ fontSize:24, fontWeight:800, letterSpacing:'-0.5px', fontFamily:'-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif', lineHeight:1 }}>
+      <span style={{ fontSize:20, fontWeight:800, letterSpacing:'-0.5px', fontFamily:'-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif', lineHeight:1 }}>
         <span style={{ color: dark ? '#ffffff' : '#0f172a' }}>Hi</span>
         <span style={{ color:'#FF634A' }}>Ticket</span>
       </span>
@@ -37,7 +37,7 @@ function PrintLogo({ dark }) {
 /* ── Section heading ─────────────────────────────────────────── */
 function SectionHeading({ label, t }) {
   return (
-    <div style={{ display:'flex', alignItems:'center', gap:10, margin:'28px 0 12px' }}>
+    <div style={{ display:'flex', alignItems:'center', gap:10, margin:'14px 0 7px' }}>
       <div style={{ width:4, height:18, borderRadius:2, backgroundColor:'#FF634A', flexShrink:0 }} />
       <span style={{ fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color: t.accent, fontFamily:'system-ui,sans-serif' }}>
         {label}
@@ -131,11 +131,11 @@ export default function TicketPrint() {
   ];
 
   const tdStyle = (even) => ({
-    padding:'7px 12px', border:`1px solid ${t.border}`,
+    padding:'5px 10px', border:`1px solid ${t.border}`,
     background: even ? t.rowEven : t.rowOdd,
     color: t.text, fontSize:12, fontFamily:'system-ui,sans-serif', verticalAlign:'top',
   });
-  const thStyle = { padding:'8px 12px', background:t.theadBg, color:t.theadText, fontWeight:600, fontSize:11, textAlign:'left', border:`1px solid ${t.border}`, letterSpacing:'0.04em', textTransform:'uppercase' };
+  const thStyle = { padding:'5px 10px', background:t.theadBg, color:t.theadText, fontWeight:600, fontSize:10, textAlign:'left', border:`1px solid ${t.border}`, letterSpacing:'0.04em', textTransform:'uppercase' };
 
   return (
     <>
@@ -170,11 +170,11 @@ export default function TicketPrint() {
       </div>
 
       {/* ── Printable document ──────────────────────────────── */}
-      <div id="print-root" style={{ background: t.page, minHeight:'100vh', padding:'0 0 60px' }}>
-        <div style={{ maxWidth:820, margin:'0 auto', padding:'40px 48px', fontFamily:'system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif', color:t.text, lineHeight:1.6 }}>
+      <div id="print-root" style={{ background: t.page, minHeight:'100vh', padding:0 }}>
+        <div style={{ maxWidth:820, margin:'0 auto', padding:'24px 40px 20px', fontFamily:'system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif', color:t.text, lineHeight:1.5 }}>
 
           {/* ── Page header ── */}
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', paddingBottom:20, marginBottom:24, borderBottom:`2px solid ${t.border}` }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', paddingBottom:12, marginBottom:14, borderBottom:`2px solid ${t.border}` }}>
             <PrintLogo dark={dark} />
             <div style={{ textAlign:'right', fontFamily:'system-ui,sans-serif' }}>
               <div style={{ fontSize:10, color:t.textMuted, letterSpacing:'0.05em', textTransform:'uppercase', marginBottom:4 }}>Support Ticket Record</div>
@@ -187,18 +187,18 @@ export default function TicketPrint() {
           </div>
 
           {/* ── Title block ── */}
-          <div style={{ marginBottom:28, padding:'20px 24px', background:t.surface, borderRadius:10, border:`1px solid ${t.border}`, borderLeft:`4px solid #FF634A` }}>
-            <div style={{ fontSize:11, color:t.textMuted, letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:6 }}>
+          <div style={{ marginBottom:14, padding:'12px 16px', background:t.surface, borderRadius:8, border:`1px solid ${t.border}`, borderLeft:`4px solid #FF634A` }}>
+            <div style={{ fontSize:10, color:t.textMuted, letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:4 }}>
               {ticket.ticketId}
             </div>
-            <h1 style={{ margin:0, fontSize:20, fontWeight:800, color:t.text, lineHeight:1.3, letterSpacing:'-0.3px' }}>
+            <h1 style={{ margin:0, fontSize:16, fontWeight:800, color:t.text, lineHeight:1.3, letterSpacing:'-0.3px' }}>
               {ticket.title}
             </h1>
           </div>
 
           {/* ── Metadata two-column ── */}
           <SectionHeading label="Ticket Details" t={t} />
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:4 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:0 }}>
             {[META_LEFT, META_RIGHT].map((col, ci) => (
               <table key={ci} style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
                 <tbody>
@@ -215,7 +215,7 @@ export default function TicketPrint() {
 
           {/* ── Description ── */}
           <SectionHeading label="Description" t={t} />
-          <div style={{ padding:'16px 20px', background:t.surface, borderRadius:8, border:`1px solid ${t.border}`, fontSize:13, lineHeight:1.75, whiteSpace:'pre-wrap', color:t.text, marginBottom:4 }}>
+          <div style={{ padding:'10px 14px', background:t.surface, borderRadius:7, border:`1px solid ${t.border}`, fontSize:12, lineHeight:1.6, whiteSpace:'pre-wrap', color:t.text, marginBottom:0 }}>
             {ticket.description}
           </div>
 
@@ -223,19 +223,19 @@ export default function TicketPrint() {
           {ticket.comments?.length > 0 && (
             <>
               <SectionHeading label={`Comments (${ticket.comments.length})`} t={t} />
-              <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+              <div style={{ display:'flex', flexDirection:'column', gap:7 }}>
                 {ticket.comments.map((c, i) => (
-                  <div key={c._id || i} style={{ padding:'14px 16px 14px 20px', background:t.surface, borderRadius:8, border:`1px solid ${t.border}`, borderLeft:`3px solid ${t.commentBrd}` }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
-                      <div style={{ width:28, height:28, borderRadius:'50%', background:'#FF634A22', border:'1px solid #FF634A55', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color:'#FF634A', flexShrink:0 }}>
+                  <div key={c._id || i} style={{ padding:'8px 12px 8px 14px', background:t.surface, borderRadius:7, border:`1px solid ${t.border}`, borderLeft:`3px solid ${t.commentBrd}` }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:7, marginBottom:5 }}>
+                      <div style={{ width:22, height:22, borderRadius:'50%', background:'#FF634A22', border:'1px solid #FF634A55', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'#FF634A', flexShrink:0 }}>
                         {(c.authorName || '?')[0].toUpperCase()}
                       </div>
                       <div>
-                        <span style={{ fontSize:13, fontWeight:600, color:t.text }}>{c.authorName || 'Unknown'}</span>
-                        <span style={{ fontSize:11, color:t.textMuted, marginLeft:8 }}>{fmt(c.createdAt)}</span>
+                        <span style={{ fontSize:12, fontWeight:600, color:t.text }}>{c.authorName || 'Unknown'}</span>
+                        <span style={{ fontSize:10, color:t.textMuted, marginLeft:7 }}>{fmt(c.createdAt)}</span>
                       </div>
                     </div>
-                    <p style={{ margin:0, fontSize:13, whiteSpace:'pre-wrap', color:t.text, lineHeight:1.65 }}>{c.text}</p>
+                    <p style={{ margin:0, fontSize:12, whiteSpace:'pre-wrap', color:t.text, lineHeight:1.5 }}>{c.text}</p>
                   </div>
                 ))}
               </div>
@@ -246,9 +246,9 @@ export default function TicketPrint() {
           {ticket.attachments?.length > 0 && (
             <>
               <SectionHeading label={`Attachments (${ticket.attachments.length})`} t={t} />
-              <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+              <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
                 {ticket.attachments.map((a, i) => (
-                  <div key={a._id || i} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 14px', background:t.surface, borderRadius:7, border:`1px solid ${t.border}`, fontSize:12 }}>
+                  <div key={a._id || i} style={{ display:'flex', alignItems:'center', gap:8, padding:'5px 12px', background:t.surface, borderRadius:6, border:`1px solid ${t.border}`, fontSize:11 }}>
                     <span style={{ fontSize:16 }}>📎</span>
                     <span style={{ color:t.text, fontWeight:500 }}>{a.filename}</span>
                     <span style={{ color:t.textMuted, fontSize:11, marginLeft:'auto' }}>{a.mimetype} · {a.size ? `${(a.size/1024).toFixed(1)} KB` : ''} · {a.uploaderName}</span>
@@ -262,7 +262,7 @@ export default function TicketPrint() {
           {ticket.satisfaction?.rating && (
             <>
               <SectionHeading label="Satisfaction Survey" t={t} />
-              <div style={{ padding:'14px 18px', background:t.surface, borderRadius:8, border:`1px solid ${t.border}`, fontSize:13 }}>
+              <div style={{ padding:'8px 14px', background:t.surface, borderRadius:7, border:`1px solid ${t.border}`, fontSize:12 }}>
                 <div style={{ marginBottom:6 }}>
                   {'⭐'.repeat(ticket.satisfaction.rating)}<span style={{ color:t.textMuted }}> ({ticket.satisfaction.rating}/5)</span>
                 </div>
@@ -301,7 +301,7 @@ export default function TicketPrint() {
           )}
 
           {/* ── Footer ── */}
-          <div style={{ marginTop:44, paddingTop:18, borderTop:`1px solid ${t.border}`, display:'flex', justifyContent:'space-between', alignItems:'center', fontSize:10, color:t.textMuted, fontFamily:'system-ui,sans-serif' }}>
+          <div style={{ marginTop:16, paddingTop:10, borderTop:`1px solid ${t.border}`, display:'flex', justifyContent:'space-between', alignItems:'center', fontSize:10, color:t.textMuted, fontFamily:'system-ui,sans-serif' }}>
             <div style={{ display:'flex', alignItems:'center', gap:8 }}>
               <div style={{ width:20, height:20, borderRadius:4, backgroundColor:'#FF634A', display:'flex', alignItems:'center', justifyContent:'center' }}>
                 <svg width="10" height="10" viewBox="0 0 20 20" fill="none">
@@ -343,7 +343,7 @@ export default function TicketPrint() {
 
         @page {
           size: A4 portrait;
-          margin: 16mm 16mm 18mm 16mm;
+          margin: 12mm 14mm 12mm 14mm;
         }
       `}</style>
     </>
