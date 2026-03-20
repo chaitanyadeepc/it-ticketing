@@ -473,8 +473,8 @@ export default function TicketDetail() {
         <div className="flex items-center gap-2">
           <CopyLinkButton ticketId={ticket?.ticketId} />
           <button
-            onClick={() => window.print()}
-            title="Print ticket"
+            onClick={() => navigate(`/tickets/${id}/print`)}
+            title="Open print-friendly view"
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] text-[#a1a1aa] hover:text-[#fafafa] transition-colors border border-[#27272a] hover:border-[#3f3f46]"
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

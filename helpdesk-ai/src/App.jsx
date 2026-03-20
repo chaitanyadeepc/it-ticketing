@@ -25,6 +25,10 @@ import FeedbackResults from './pages/FeedbackResults';
 import Announcements from './pages/Announcements';
 import NotificationCenter from './pages/NotificationCenter';
 import CannedResponses from './pages/CannedResponses';
+import Reports from './pages/Reports';
+import TicketPrint from './pages/TicketPrint';
+import SLAConfig from './pages/SLAConfig';
+import CalendarView from './pages/CalendarView';
 import { logActivity } from './utils/activityLog';
 import OnboardingTour from './components/OnboardingTour';
 import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
@@ -55,6 +59,7 @@ function App() {
   const location = useLocation();
   const navigate = useNavigate();
   const isLogin = location.pathname === '/login';
+  const isPrint = /^\/tickets\/[^/]+\/print$/.test(location.pathname);
   const [cmdOpen, setCmdOpen] = React.useState(false);
   const [shortcutsOpen, setShortcutsOpen] = React.useState(false);
   const lastKeyRef = React.useRef(null);
@@ -105,9 +110,9 @@ function App() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--bg)', color: 'var(--text-primary)' }}>
-      <Navbar />
-      <AnnouncementBanner />
-      <main className={`relative ${isLogin ? '' : 'pt-16 pb-16 md:pb-0'}`}>
+      {!isPrint && <Navbar />}
+      {!isPrint && <AnnouncementBanner />}
+      <main className={`relative ${isLogin || isPrint ? '' : 'pt-16 pb-16 md:pb-0'}`}>
         <div key={location.pathname} className="page-enter">
           <Routes>
             <Route path="/" element={<Home />} />
@@ -125,6 +130,10 @@ function App() {
             <Route path="/admin/feedback" element={<AdminRoute><FeedbackResults /></AdminRoute>} />
             <Route path="/admin/announcements" element={<AdminRoute><Announcements /></AdminRoute>} />
             <Route path="/admin/canned-responses" element={<StaffRoute><CannedResponses /></StaffRoute>} />
+            <Route path="/admin/sla-config" element={<AdminRoute><SLAConfig /></AdminRoute>} />
+            <Route path="/reports" element={<StaffRoute><Reports /></StaffRoute>} />
+            <Route path="/my-tickets/calendar" element={<ProtectedRoute><CalendarView /></ProtectedRoute>} />
+            <Route path="/tickets/:id/print" element={<ProtectedRoute><TicketPrint /></ProtectedRoute>} />
             <Route path="/notifications" element={<ProtectedRoute><NotificationCenter /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
@@ -132,8 +141,8 @@ function App() {
           </Routes>
         </div>
       </main>
-      <BottomNav />
-      <ScrollToTop />
+      {!isPrint && <BottomNav />}
+      {!isPrint && <ScrollToTop />}
       {cmdOpen && <CommandPalette onClose={() => setCmdOpen(false)} />}
       {shortcutsOpen && <KeyboardShortcutsModal onClose={() => setShortcutsOpen(false)} />}
       <OnboardingTour />
