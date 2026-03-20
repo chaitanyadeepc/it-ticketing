@@ -678,8 +678,17 @@ const Chatbot = () => {
   const contextMenuRef                       = useRef(null);
 
   // Persist chat state across page refreshes within same browser tab
+  // Also live-update the history sidebar so new messages appear immediately
+  // without having to click "New Chat" first.
   useEffect(() => {
     saveSession({ sessionId, messages, flowStep, chipType, quickReplies, ticketData, submitted, lastTicketId });
+    const hasUserMsg = messages.some(m => m.sender === 'user');
+    if (hasUserMsg) {
+      const title = generateSmartTitle(messages);
+      const entry = { id: sessionId, title, date: new Date().toISOString(), messages, flowStep, ticketData, submitted, lastTicketId };
+      saveToHistory(entry);
+      setChatHistory(getHistory());
+    }
   }, [sessionId, messages, flowStep, chipType, quickReplies, ticketData, submitted, lastTicketId]);
 
   // Proactive ticket update notification (polls every 90 s after ticket submitted)

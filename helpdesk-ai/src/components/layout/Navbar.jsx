@@ -47,14 +47,25 @@ const NavIcon = ({ id, className = 'w-4 h-4' }) => {
 };
 
 // ── Desktop dropdown panel ───────────────────────────────────────────────────
-const NavDropdown = ({ items, onNavigate, currentPath }) => (
+const NavDropdown = ({ items, onNavigate, currentPath }) => {
+  // Most-specific match wins: the item with the longest path that is a prefix
+  // of (or exactly equals) the current path is the only one shown as active.
+  // This prevents /admin from staying active when navigating to /admin/users.
+  const activeItem = items.reduce((best, item) => {
+    if (currentPath === item.path || currentPath.startsWith(item.path + '/')) {
+      if (!best || item.path.length > best.path.length) return item;
+    }
+    return best;
+  }, null);
+
+  return (
   <div
     className="absolute top-[calc(100%+8px)] left-1/2 -translate-x-1/2 w-64 rounded-xl shadow-2xl shadow-black/40 border overflow-hidden z-50 animate-fade-in"
     style={{ backgroundColor: 'var(--color-canvas-overlay)', borderColor: 'var(--color-border-default)' }}
   >
     <div className="p-1.5 space-y-0.5">
       {items.map((item) => {
-        const isActive = currentPath === item.path || currentPath.startsWith(item.path + '/');
+        const isActive = activeItem?.path === item.path;
         return (
           <button
             key={item.path}
@@ -83,7 +94,8 @@ const NavDropdown = ({ items, onNavigate, currentPath }) => (
       })}
     </div>
   </div>
-);
+  );
+};
 
 // ── Chevron icon ─────────────────────────────────────────────────────────────
 const Chevron = ({ open }) => (
