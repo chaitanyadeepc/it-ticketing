@@ -99,6 +99,13 @@ const MyTickets = () => {
   const paginatedTickets = filteredTickets.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
   const hasActiveFilters = priority !== 'All' || category !== 'All' || search !== '';
 
+  const handleReopen = async (ticketId) => {
+    try {
+      await api.patch(`/tickets/${ticketId}`, { status: 'Open' });
+      fetchTickets(true);
+    } catch { /* silent */ }
+  };
+
   // Normalise ticket shape for TicketCard (which expects id, not _id / ticketId)
   const normalise = (t) => ({
     ...t,

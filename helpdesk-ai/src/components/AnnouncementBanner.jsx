@@ -27,7 +27,8 @@ export default function AnnouncementBanner() {
     }
     const token = localStorage.getItem('token');
     if (!token) return;
-    const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    // VITE_API_URL already ends with /api (e.g. https://host/api), so use it directly
+    const API = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/api$/, '');
     fetch(`${API}/api/announcements/active`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
