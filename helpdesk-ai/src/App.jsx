@@ -1,10 +1,11 @@
 import React from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import Navbar from './components/layout/Navbar';
 import BottomNav from './components/layout/BottomNav';
 import ScrollToTop from './components/layout/ScrollToTop';
 import useInactivityLogout from './hooks/useInactivityLogout';
 import CommandPalette from './components/CommandPalette';
+import AnnouncementBanner from './components/AnnouncementBanner';
 
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -21,6 +22,9 @@ import KnowledgeBase from './pages/KnowledgeBase';
 import ActivityLog from './pages/ActivityLog';
 import Survey from './pages/Survey';
 import FeedbackResults from './pages/FeedbackResults';
+import Announcements from './pages/Announcements';
+import NotificationCenter from './pages/NotificationCenter';
+import CannedResponses from './pages/CannedResponses';
 import { logActivity } from './utils/activityLog';
 import OnboardingTour from './components/OnboardingTour';
 import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
@@ -49,9 +53,12 @@ const StaffRoute = ({ children }) => {
 
 function App() {
   const location = useLocation();
+  const navigate = useNavigate();
   const isLogin = location.pathname === '/login';
   const [cmdOpen, setCmdOpen] = React.useState(false);
   const [shortcutsOpen, setShortcutsOpen] = React.useState(false);
+  const lastKeyRef = React.useRef(null);
+  const lastKeyTimeRef = React.useRef(0);
   useInactivityLogout();
 
   // Log every page navigation for authenticated users
@@ -77,6 +84,20 @@ function App() {
         e.preventDefault();
         setShortcutsOpen(v => !v);
       }
+      // G+A sequence shortcut → Admin Dashboard
+      if (!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)) {
+        const now = Date.now();
+        if (e.key.toLowerCase() === 'g') {
+          lastKeyRef.current = 'g';
+          lastKeyTimeRef.current = now;
+        } else if (e.key.toLowerCase() === 'a' && lastKeyRef.current === 'g' && now - lastKeyTimeRef.current < 1000) {
+          lastKeyRef.current = null;
+          const role = localStorage.getItem('userRole');
+          if (role === 'admin' || role === 'agent') navigate('/admin');
+        } else {
+          lastKeyRef.current = null;
+        }
+      }
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
@@ -85,6 +106,7 @@ function App() {
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--bg)', color: 'var(--text-primary)' }}>
       <Navbar />
+      <AnnouncementBanner />
       <main className={`relative ${isLogin ? '' : 'pt-16 pb-16 md:pb-0'}`}>
         <div key={location.pathname} className="page-enter">
           <Routes>
@@ -101,6 +123,9 @@ function App() {
             <Route path="/admin/logs" element={<AdminRoute><ActivityLog /></AdminRoute>} />
             <Route path="/survey" element={<Survey />} />
             <Route path="/admin/feedback" element={<AdminRoute><FeedbackResults /></AdminRoute>} />
+            <Route path="/admin/announcements" element={<AdminRoute><Announcements /></AdminRoute>} />
+            <Route path="/admin/canned-responses" element={<StaffRoute><CannedResponses /></StaffRoute>} />
+            <Route path="/notifications" element={<ProtectedRoute><NotificationCenter /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />

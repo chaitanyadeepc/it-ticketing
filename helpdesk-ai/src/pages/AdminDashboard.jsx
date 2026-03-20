@@ -52,6 +52,8 @@ const AdminDashboard = () => {
   const [tablePage, setTablePage] = useState(1);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkReassignAgent, setBulkReassignAgent] = useState('');
+  const [agents, setAgents] = useState([]);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [chartRange, setChartRange] = useState(30); // days — 7 | 30 | 90 | 0=all
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'sla' | 'aging'
@@ -100,6 +102,12 @@ const AdminDashboard = () => {
   useEffect(() => { fetchData(); }, []);
   useEffect(() => { const timer = setInterval(() => fetchData(true), 30000); return () => clearInterval(timer); }, []);
   useEffect(() => { setTablePage(1); }, [search, filterStatus, filterPriority, filterCategory]);
+
+  useEffect(() => {
+    api.get('/users').then(r => {
+      setAgents((r.data.users || []).filter(u => u.role === 'agent' && u.isActive !== false));
+    }).catch(() => {});
+  }, []);
 
   const filteredTableTickets = tickets
     .filter((t) => filterStatus === 'All' || t.status === filterStatus)
@@ -165,6 +173,17 @@ const AdminDashboard = () => {
     try {
       await api.delete('/tickets/bulk', { data: { ids: [...selectedIds] } });
       setSelectedIds(new Set());
+      await fetchData(true);
+    } catch { /* ignore */ } finally { setBulkLoading(false); }
+  };
+
+  const handleBulkReassign = async () => {
+    if (!bulkReassignAgent) return;
+    setBulkLoading(true);
+    try {
+      await Promise.all([...selectedIds].map(id => api.patch(`/tickets/${id}`, { assignedTo: bulkReassignAgent })));
+      setSelectedIds(new Set());
+      setBulkReassignAgent('');
       await fetchData(true);
     } catch { /* ignore */ } finally { setBulkLoading(false); }
   };
@@ -1015,6 +1034,22 @@ const AdminDashboard = () => {
             className="px-3 py-1.5 rounded-lg bg-[#ef4444]/15 border border-[#ef4444]/30 text-[#ef4444] text-[12px] font-medium hover:bg-[#ef4444]/25 disabled:opacity-50 transition-colors"
           >
             Delete
+          </button>
+          <div className="w-px h-4 bg-[#3f3f46] flex-shrink-0" />
+          <select
+            value={bulkReassignAgent}
+            onChange={e => setBulkReassignAgent(e.target.value)}
+            className="bg-[#27272a] border border-[#3f3f46] text-[#fafafa] text-[12px] rounded-lg px-2 py-1.5 focus:outline-none focus:border-[#FF634A] max-w-[140px]"
+          >
+            <option value="">Reassign to…</option>
+            {agents.map(a => <option key={a._id} value={a.name}>{a.name}</option>)}
+          </select>
+          <button
+            onClick={handleBulkReassign}
+            disabled={bulkLoading || !bulkReassignAgent}
+            className="px-3 py-1.5 rounded-lg bg-[#6366f1]/15 border border-[#6366f1]/30 text-[#818cf8] text-[12px] font-medium hover:bg-[#6366f1]/25 disabled:opacity-50 transition-colors whitespace-nowrap"
+          >
+            Reassign
           </button>
           <button
             onClick={() => setSelectedIds(new Set())}

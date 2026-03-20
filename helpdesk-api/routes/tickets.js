@@ -1,8 +1,9 @@
 const express = require('express');
 const Ticket = require('../models/Ticket');
 const User = require('../models/User');
+const Notification = require('../models/Notification');
 const { protect, adminOnly, agentOrAdmin } = require('../middleware/auth');
-const { sendTicketCreated, sendStatusChanged, sendCommentAdded } = require('../utils/email');
+const { sendTicketCreated, sendStatusChanged, sendCommentAdded, sendTicketAssigned } = require('../utils/email');
 const { upload, uploadToCloud, deleteFromCloud } = require('../utils/storage');
 
 const router = express.Router();
@@ -42,7 +43,7 @@ const getNextAgent = async () => {
 //   admin → ALL tickets (pass ?mine=true to restrict to own raised, used by My Tickets page)
 router.get('/', async (req, res) => {
   try {
-    const { status, priority, category, q, limit, mine } = req.query;
+    const { status, priority, category, q, limit, mine, overdue } = req.query;
 
     // Build role-based access condition
     const conditions = [];
@@ -64,6 +65,9 @@ router.get('/', async (req, res) => {
     if (q) {
       const re = new RegExp(q.split(' ').filter(Boolean).join('|'), 'i');
       conditions.push({ $or: [{ title: re }, { description: re }, { ticketId: re }] });
+    }
+    if (overdue === 'true') {
+      conditions.push({ dueDate: { $lt: new Date() }, status: { $nin: ['Resolved', 'Closed'] } });
     }
 
     const filter = conditions.length > 0 ? { $and: conditions } : {};
@@ -220,11 +224,20 @@ router.patch('/:id', async (req, res) => {
     }
 
     if (status && status !== oldStatus) {
+      Notification.create({ user: createdById, type: 'ticket_update', title: `Ticket ${ticket.ticketId} status updated`, message: `Status changed from ${oldStatus} to ${status}.`, link: `/tickets/${ticket._id}`, ticketId: ticket._id }).catch(() => {});
       User.findById(createdById).then((user) => sendStatusChanged(ticket, user, oldStatus, status)).catch(() => {});
     }
     if (comment) {
       const postedComment = ticket.comments[ticket.comments.length - 1];
+      Notification.create({ user: createdById, type: 'comment', title: `New comment on ${ticket.ticketId}`, message: `${req.user.name} left a comment.`, link: `/tickets/${ticket._id}`, ticketId: ticket._id }).catch(() => {});
       User.findById(createdById).then((user) => sendCommentAdded(ticket, user, postedComment)).catch(() => {});
+    }
+    if (assignedTo !== undefined && req.body.assignedTo !== undefined) {
+      const assignedUser = await User.findOne({ name: assignedTo }).catch(() => null);
+      if (assignedUser) {
+        Notification.create({ user: assignedUser._id, type: 'assignment', title: `Ticket assigned to you`, message: `You have been assigned ticket ${ticket.ticketId}.`, link: `/tickets/${ticket._id}`, ticketId: ticket._id }).catch(() => {});
+        User.findById(createdById).then((user) => sendTicketAssigned(ticket, user, assignedTo)).catch(() => {});
+      }
     }
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -21,7 +21,7 @@ const getSLA = (ticket) => {
  * TicketCard Component
  * Card displaying ticket summary
  */
-const TicketCard = ({ ticket, onClick }) => {
+const TicketCard = ({ ticket, onClick, onReopen }) => {
   const priorityVariant = ticket.priority.toLowerCase();
   const statusVariant = ticket.status.toLowerCase().replace(' ', '-');
 
@@ -57,12 +57,21 @@ const TicketCard = ({ ticket, onClick }) => {
   const priorityStrip = PRIORITY_COLOR[ticket.priority] || '#3b82f6';
 
   const [copied, setCopied] = useState(false);
+  const [reopening, setReopening] = useState(false);
   const copyId = (e) => {
     e.stopPropagation();
     navigator.clipboard.writeText(ticket.id || '').then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     }).catch(() => {});
+  };
+
+  const handleReopen = async (e) => {
+    e.stopPropagation();
+    if (!onReopen || reopening) return;
+    setReopening(true);
+    try { await onReopen(ticket._id || ticket.id); }
+    finally { setReopening(false); }
   };
 
   // Avatar initials helper
@@ -151,6 +160,16 @@ const TicketCard = ({ ticket, onClick }) => {
       <div className="flex justify-between items-center text-[12px] text-[#52525b] font-['JetBrains_Mono'] pt-4 border-t border-[#27272a]">
         <span>Created {getTimeAgo(ticket.createdAt)}</span>
         <div className="flex items-center gap-2">
+          {ticket.status === 'Closed' && onReopen && (
+            <button
+              onClick={handleReopen}
+              disabled={reopening}
+              className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold text-amber-400 border border-amber-700/50 hover:bg-amber-900/30 transition-colors disabled:opacity-50"
+              title="Reopen this ticket"
+            >
+              {reopening ? '…' : '↺ Reopen'}
+            </button>
+          )}
           {ticket.assignedTo && ticket.assignedTo !== 'Unassigned' && (
             <div
               title={`Assigned to ${ticket.assignedTo}`}

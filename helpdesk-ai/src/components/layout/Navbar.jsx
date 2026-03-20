@@ -31,6 +31,8 @@ const NavIcon = ({ id, className = 'w-4 h-4' }) => {
     users:     'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z',
     log:       'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2M9 12h6M9 16h4',
     survey:    'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
+    megaphone: 'M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.952 9.168-4.752v14.752l-9.168-4.752z',
+    template:  'M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z',
   };
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7}>
@@ -97,6 +99,7 @@ const Navbar = () => {
   const [isAvatarOpen, setIsAvatarOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [overdueCount, setOverdueCount] = useState(0);
   const navRef = useRef(null);
   const bellRef = useRef(null);
   const avatarRef = useRef(null);
@@ -119,8 +122,11 @@ const Navbar = () => {
     if (!isAuth) return;
     const fetchNotifications = async () => {
       try {
-        const res = await api.get('/tickets?limit=5');
-        const tickets = res.data.tickets || [];
+        const [ticketRes, overdueRes] = await Promise.all([
+          api.get('/tickets?limit=5'),
+          api.get('/tickets?overdue=true'),
+        ]);
+        const tickets = ticketRes.data.tickets || [];
         const recent = tickets
           .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
           .slice(0, 5)
@@ -134,6 +140,7 @@ const Navbar = () => {
         const stored = JSON.parse(sessionStorage.getItem('hd_read_notifs') || '[]');
         setNotifications(recent);
         setUnreadCount(recent.filter(n => !stored.includes(n.id)).length);
+        setOverdueCount((overdueRes.data.tickets || []).length);
       } catch { /* silent */ }
     };
     fetchNotifications();
@@ -198,10 +205,12 @@ const Navbar = () => {
       label: 'Admin',
       key: 'admin',
       items: [
-        { name: 'Dashboard',       path: '/admin',          desc: 'Tickets, analytics & team overview',    icon: 'dashboard' },
-        { name: 'User Management', path: '/admin/users',    desc: 'Manage staff and user accounts',        icon: 'users' },
-        { name: 'Activity Log',    path: '/admin/logs',     desc: 'System events and audit trail',         icon: 'log' },
-        { name: 'Survey Results',  path: '/admin/feedback', desc: 'User satisfaction and feedback scores', icon: 'survey' },
+        { name: 'Dashboard',       path: '/admin',                    desc: 'Tickets, analytics & team overview',    icon: 'dashboard' },
+        { name: 'User Management', path: '/admin/users',              desc: 'Manage staff and user accounts',        icon: 'users' },
+        { name: 'Activity Log',    path: '/admin/logs',               desc: 'System events and audit trail',         icon: 'log' },
+        { name: 'Survey Results',  path: '/admin/feedback',           desc: 'User satisfaction and feedback scores', icon: 'survey' },
+        { name: 'Announcements',   path: '/admin/announcements',      desc: 'Manage site-wide banners',              icon: 'megaphone' },
+        { name: 'Canned Responses',path: '/admin/canned-responses',   desc: 'Shared reply templates for agents',     icon: 'template' },
       ],
     }] : isAgent ? [
       { label: 'Dashboard', path: '/admin', icon: 'dashboard' },
@@ -326,6 +335,17 @@ const Navbar = () => {
               <kbd className="font-mono">⌘K</kbd>
             </button>
 
+            {/* Overdue ticket badge */}
+            {overdueCount > 0 && (
+              <button
+                onClick={() => navigate('/my-tickets')}
+                title={`${overdueCount} overdue ticket${overdueCount > 1 ? 's' : ''}`}
+                className="hidden md:flex items-center gap-1 px-2 py-1 rounded-md bg-red-900/30 border border-red-700/50 text-red-400 text-[11px] font-semibold hover:bg-red-900/50 transition-colors"
+              >
+                ⏰ {overdueCount} overdue
+              </button>
+            )}
+
             {/* Bell */}
             <div className="relative" ref={bellRef}>
               <button
@@ -378,9 +398,9 @@ const Navbar = () => {
                     </div>
                   )}
                   <div className="px-4 py-2.5 border-t" style={{ borderColor: 'var(--color-border-muted)' }}>
-                    <button onClick={() => { navigate('/my-tickets'); setIsBellOpen(false); }}
+                    <button onClick={() => { navigate('/notifications'); setIsBellOpen(false); }}
                       className="text-[12px] w-full text-center" style={{ color: 'var(--color-accent-fg)' }}>
-                      View all tickets →
+                      View notification center →
                     </button>
                   </div>
                 </div>

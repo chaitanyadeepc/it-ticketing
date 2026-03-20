@@ -56,6 +56,13 @@ const MyTickets = () => {
   useEffect(() => { const timer = setInterval(() => fetchTickets(true), 30000); return () => clearInterval(timer); }, []);
   useEffect(() => { setPage(1); }, [activeTab, priority, category, search, sortBy]);
 
+  // Update browser tab title with open ticket count
+  useEffect(() => {
+    const openCount = tickets.filter(t => t.status === 'Open').length;
+    document.title = openCount > 0 ? `(${openCount}) ${PAGE_TITLE} — HiTicket` : `${PAGE_TITLE} — HiTicket`;
+    return () => { document.title = 'HiTicket'; };
+  }, [tickets, PAGE_TITLE]);
+
   const counts = {
     open: tickets.filter((t) => t.status === 'Open').length,
     inProgress: tickets.filter((t) => t.status === 'In Progress').length,
@@ -228,7 +235,7 @@ const MyTickets = () => {
           <>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {paginatedTickets.map((ticket) => (
-                <TicketCard key={ticket._id} ticket={normalise(ticket)} onClick={() => navigate(`/tickets/${ticket._id}`)} />
+                <TicketCard key={ticket._id} ticket={normalise(ticket)} onClick={() => navigate(`/tickets/${ticket._id}`)} onReopen={handleReopen} />
               ))}
             </div>
             {totalPages > 1 && (

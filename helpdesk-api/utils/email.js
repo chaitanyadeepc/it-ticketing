@@ -190,4 +190,121 @@ const sendCommentAdded = async (ticket, user, comment) => {
   );
 };
 
-module.exports = { sendTicketCreated, sendStatusChanged, sendCommentAdded, sendOTPEmail };
+/**
+ * Sent when a ticket is auto-closed by the cron job after 7 days resolved.
+ */
+const sendAutoClosedNotification = async (ticket, user) => {
+  if (!wantsEmail(user) || !wantsUpdates(user)) return;
+  await send(
+    user.email,
+    `[HiTicket] Ticket ${ticket.ticketId} has been automatically closed`,
+    wrap(
+      'Ticket automatically closed',
+      `<p>Hi ${user.name},</p>
+       <p>Your ticket <strong style="color:#fafafa">${ticket.ticketId} — ${ticket.title}</strong> has been automatically closed after 7 days in Resolved status with no further activity.</p>
+       <div class="badge-row">${statusChip('Closed')}</div>
+       <p style="color:#a1a1aa;font-size:13px">If your issue has returned, you can always raise a new ticket.</p>
+       <a class="btn" href="${process.env.CLIENT_URL}/tickets/${ticket._id}">View Ticket</a>`
+    )
+  );
+};
+
+/**
+ * Sent when a ticket is auto-escalated due to SLA breach.
+ */
+const sendSLAEscalated = async (ticket, user) => {
+  if (!wantsEmail(user) || !wantsUpdates(user)) return;
+  await send(
+    user.email,
+    `[HiTicket] Ticket ${ticket.ticketId} has been escalated (SLA breach)`,
+    wrap(
+      'Ticket escalated — SLA breach',
+      `<p>Hi ${user.name},</p>
+       <p>Your ticket <strong style="color:#fafafa">${ticket.ticketId} — ${ticket.title}</strong> has been escalated because it exceeded its response SLA.</p>
+       <div class="badge-row">${priorityChip(ticket.priority)} ${statusChip(ticket.status)}</div>
+       <p style="color:#22c55e;font-size:13px">Our team has been notified and will prioritize this issue.</p>
+       <a class="btn" href="${process.env.CLIENT_URL}/tickets/${ticket._id}">View Ticket</a>`
+    )
+  );
+};
+
+/**
+ * Sent 24 hours before a ticket's due date.
+ */
+const sendDueDateReminder = async (ticket, user) => {
+  if (!wantsEmail(user) || !wantsUpdates(user)) return;
+  const dueDateStr = new Date(ticket.dueDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  await send(
+    user.email,
+    `[HiTicket] Ticket ${ticket.ticketId} is due tomorrow`,
+    wrap(
+      'Ticket due tomorrow',
+      `<p>Hi ${user.name},</p>
+       <p>Your ticket <strong style="color:#fafafa">${ticket.ticketId} — ${ticket.title}</strong> is due <strong style="color:#f59e0b">${dueDateStr}</strong>.</p>
+       <div class="badge-row">${priorityChip(ticket.priority)} ${statusChip(ticket.status)}</div>
+       <p style="color:#a1a1aa;font-size:13px">Please ensure this is resolved or update the due date if needed.</p>
+       <a class="btn" href="${process.env.CLIENT_URL}/tickets/${ticket._id}">View Ticket</a>`
+    )
+  );
+};
+
+/**
+ * Sent to ticket owner when an agent is assigned.
+ */
+const sendTicketAssigned = async (ticket, user, agentName) => {
+  if (!wantsEmail(user) || !wantsUpdates(user)) return;
+  await send(
+    user.email,
+    `[HiTicket] Ticket ${ticket.ticketId} has been assigned`,
+    wrap(
+      'Ticket assigned to an agent',
+      `<p>Hi ${user.name},</p>
+       <p>Your ticket has been assigned to <strong style="color:#fafafa">${agentName}</strong> who will be in touch shortly.</p>
+       <div class="badge-row">${priorityChip(ticket.priority)} ${statusChip(ticket.status)}</div>
+       <a class="btn" href="${process.env.CLIENT_URL}/tickets/${ticket._id}">View Ticket</a>`
+    )
+  );
+};
+
+/**
+ * Weekly summary digest.
+ */
+const sendWeeklyDigest = async (user, stats) => {
+  if (!wantsEmail(user) || user?.notificationPrefs?.weeklyDigest !== true) return;
+  const rows = stats.recentActivity.map(t =>
+    `<tr style="border-bottom:1px solid #27272a">
+       <td style="padding:8px 12px;font-family:'Courier New',monospace;font-size:12px;color:#3b82f6">${t.ticketId}</td>
+       <td style="padding:8px 12px;font-size:13px;color:#fafafa">${t.title}</td>
+       <td style="padding:8px 12px">${statusChip(t.status)}</td>
+     </tr>`
+  ).join('');
+
+  await send(
+    user.email,
+    '[HiTicket] Your weekly support summary',
+    wrap(
+      'Weekly support summary',
+      `<p>Hi ${user.name}, here's your activity from the past 7 days.</p>
+       <div class="badge-row">
+         <span class="chip" style="background:#22c55e22;color:#22c55e;border:1px solid #22c55e44">${stats.total} tickets</span>
+         <span class="chip" style="background:#06b6d422;color:#06b6d4;border:1px solid #06b6d444">${stats.resolved} resolved</span>
+         <span class="chip" style="background:#f59e0b22;color:#f59e0b;border:1px solid #f59e0b44">${stats.open} open</span>
+       </div>
+       ${rows.length ? `<table style="width:100%;border-collapse:collapse;margin-top:16px;border:1px solid #27272a;border-radius:8px;overflow:hidden">
+         <thead><tr style="background:#27272a">
+           <th style="padding:8px 12px;text-align:left;font-size:12px;color:#a1a1aa">ID</th>
+           <th style="padding:8px 12px;text-align:left;font-size:12px;color:#a1a1aa">Title</th>
+           <th style="padding:8px 12px;text-align:left;font-size:12px;color:#a1a1aa">Status</th>
+         </tr></thead>
+         <tbody>${rows}</tbody>
+       </table>` : ''}
+       <a class="btn" href="${process.env.CLIENT_URL}/my-tickets">View My Tickets</a>`
+    )
+  );
+};
+
+module.exports = {
+  sendTicketCreated, sendStatusChanged, sendCommentAdded, sendOTPEmail,
+  sendWeeklyDigest, sendTicketAssigned, sendAutoClosedNotification,
+  sendSLAEscalated, sendDueDateReminder,
+};
