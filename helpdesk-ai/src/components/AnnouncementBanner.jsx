@@ -18,10 +18,13 @@ export default function AnnouncementBanner() {
   const [announcements, setAnnouncements] = useState([]);
   const location = useLocation();
 
-  const hiddenPaths = ['/', '/login', '/register'];
-  if (hiddenPaths.includes(location.pathname)) return null;
-
+  // All hooks must be called unconditionally — early return is AFTER this
   useEffect(() => {
+    const hiddenPaths = ['/', '/login', '/register'];
+    if (hiddenPaths.includes(location.pathname)) {
+      setAnnouncements([]);
+      return;
+    }
     const token = localStorage.getItem('token');
     if (!token) return;
     const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -34,6 +37,9 @@ export default function AnnouncementBanner() {
       })
       .catch(() => {});
   }, [location.pathname]);
+
+  const hiddenPaths = ['/', '/login', '/register'];
+  if (hiddenPaths.includes(location.pathname)) return null;
 
   const dismiss = (id) => {
     const dismissed = getDismissed();
