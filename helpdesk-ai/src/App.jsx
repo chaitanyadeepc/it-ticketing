@@ -1,5 +1,24 @@
 import React from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { hasError: false }; }
+  static getDerivedStateFromError() { return { hasError: true }; }
+  componentDidCatch(err, info) { console.error('[ErrorBoundary]', err, info); }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ minHeight: '100vh', backgroundColor: '#09090b', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '16px', padding: '24px' }}>
+          <svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="#ef4444" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
+          <p style={{ color: '#fafafa', fontSize: '16px', fontWeight: 600, margin: 0 }}>Something went wrong</p>
+          <p style={{ color: '#71717a', fontSize: '13px', margin: 0 }}>A rendering error occurred on this page.</p>
+          <button onClick={() => window.location.reload()} style={{ marginTop: '8px', padding: '8px 20px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>Reload page</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 import Navbar from './components/layout/Navbar';
 import BottomNav from './components/layout/BottomNav';
 import ScrollToTop from './components/layout/ScrollToTop';
@@ -109,6 +128,7 @@ function App() {
   }, []);
 
   return (
+    <ErrorBoundary>
     <div className="min-h-screen" style={{ backgroundColor: 'var(--bg)', color: 'var(--text-primary)' }}>
       {!isPrint && <Navbar />}
       {!isPrint && <AnnouncementBanner />}
@@ -147,6 +167,7 @@ function App() {
       {shortcutsOpen && <KeyboardShortcutsModal onClose={() => setShortcutsOpen(false)} />}
       <OnboardingTour />
     </div>
+    </ErrorBoundary>
   );
 }
 
