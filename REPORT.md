@@ -475,7 +475,7 @@ helpdesk-api/
 **Middleware chain (every request):**
 1. `helmet()` — applies 12 HTTP security headers
 2. `trust proxy: 1` — accurate client IP behind Render's load balancer
-3. `globalLimiter` — 200 requests per 15 minutes per IP
+3. `globalLimiter` — IP-based rate limiting applied to all routes
 4. `cors(whitelist)` — restricts origins to the explicit production URL (`CLIENT_URL`) and local development ports only
 5. `express.json({ limit: '50kb' })` — parses JSON body, caps size
 6. `mongoSanitize()` — strips `$` and `.` to prevent NoSQL injection
@@ -532,7 +532,7 @@ Vite uses native ES Modules during development, giving sub-100ms hot module repl
 | Express | 4.x | Minimal web framework — routing, middleware, error handling |
 | Mongoose | 8.x | MongoDB ODM — schema validation, query building, hooks |
 | jsonwebtoken | 9.x | JWT signing and verification (HS256) |
-| bcryptjs | 2.x | Password hashing (cost factor 12 = 4096 rounds) |
+| bcryptjs | 2.x | Password hashing (high cost factor, intentionally slow) |
 | speakeasy | 2.x | TOTP generation and verification (RFC 6238) |
 | qrcode | 1.x | QR code generation for TOTP enrollment |
 | node-cron | 3.x | Cron-style scheduled task execution (weekly digest) |
@@ -728,29 +728,27 @@ Authentication is the foundation of HiTicket's security model.
 1. User submits `{ name, email, password }` via `POST /api/auth/register`
 2. Email uniqueness validated against the `users` collection
 3. `User.create()` triggers the pre-save hook — `bcrypt.hash(password, 12)` replaces plaintext
-4. A 30-day JWT is signed with `HS256` using the server's `JWT_SECRET`
+4. A long-lived JWT is signed with `HS256` using the server's `JWT_SECRET`
 5. Response: `{ token, user: { id, name, email, role } }`
 
 **Login flow:**
 1. `bcrypt.compare(entered, stored)` — timing-safe comparison
 2. If `user.isActive === false` → HTTP 403 Forbidden
-3. If 2FA is enabled: a short-lived 10-minute `tempToken` (type: `2fa-pending`) is issued; the full JWT is NOT given yet
-4. If 2FA is not enabled: `tokenVersion++`, full 30-day JWT issued
+3. If 2FA is enabled: a short-lived `tempToken` (typed to reject against protected routes) is issued; the full JWT is NOT given yet
+4. If 2FA is not enabled: `tokenVersion++`, full JWT issued
 
 **JWT Token Architecture:**
-```
-Payload: { id: <userId>, tokenVersion: <n>, iat: <unix>, exp: <unix+30d> }
-```
-`tokenVersion` is a critical security field — every login increments it. The `protect` middleware checks that `decoded.tokenVersion === user.tokenVersion`. This means logging out (which increments `tokenVersion`) invalidates all previously issued tokens from all devices.
+
+The payload contains the user ID, a `tokenVersion` counter for server-side invalidation, and standard expiry claims. `tokenVersion` is a critical security field — every login increments it. The `protect` middleware checks that `decoded.tokenVersion === user.tokenVersion`. This means logging out (which increments `tokenVersion`) invalidates all previously issued tokens from all devices.
 
 **Two-Factor Authentication (2FA):**
 
 | Method | Library | Flow |
 |---|---|---|
-| **Email OTP** | Custom (crypto.randomInt) | 6-digit code, 10-min expiry, sent via Gmail API; verified by string comparison |
-| **TOTP** | speakeasy (RFC 6238) | Secret generated server-side; QR code via `qrcode`; user scans with Authenticator app; verified with ±60s clock drift tolerance (`window: 2`) |
+| **Email OTP** | Custom (crypto.randomInt) | Time-limited numeric OTP, sent via Gmail API; verified by constant-time string comparison |
+| **TOTP** | speakeasy (RFC 6238) | Secret generated server-side; QR code via `qrcode`; user scans with Authenticator app; verified with RFC 6238 clock drift tolerance |
 
-After successful 2FA verification: `tokenVersion++` and the full 30-day JWT is issued.
+After successful 2FA verification: `tokenVersion++` and the full JWT is issued.
 
 ---
 
@@ -994,12 +992,12 @@ bg-gradient-to-r from-[#3b82f6]/8 via-[#6366f1]/4 to-transparent
 
 | Mechanism | Implementation | Protects Against |
 |---|---|---|
-| Password hashing | bcrypt, cost factor 12 (4096 rounds, ~250ms) | Brute-force dictionary attacks, rainbow tables |
-| JWT HS256 | 64-char secret, 30-day expiry | Forgery without the secret key |
+| Password hashing | bcrypt with high cost factor (intentionally slow, resistant to GPU attacks) | Brute-force dictionary attacks, rainbow tables |
+| JWT HS256 | Strong secret, long-lived with server-enforced expiry | Forgery without the secret key |
 | Token versioning | `tokenVersion` incremented on login/logout/password-change | Session hijacking — old tokens instantly invalidated |
-| 2FA TOTP | speakeasy RFC 6238, `window: 2` (±60s clock drift) | Account takeover even if password is compromised |
-| 2FA Email OTP | 6-digit, 10-minute expiry, `select: false` in schema | Account takeover; OTP never exposed via API |
-| Temp 2FA token | `type: '2fa-pending'` rejected by `protect` middleware | Unauthorized API access during 2FA verification step |
+| 2FA TOTP | speakeasy RFC 6238, clock drift tolerance applied | Account takeover even if password is compromised |
+| 2FA Email OTP | Time-limited numeric OTP, `select: false` in schema | Account takeover; OTP never exposed via API |
+| Temp 2FA token | Typed token rejected by `protect` middleware | Unauthorized API access during 2FA verification step |
 
 ---
 
@@ -1038,7 +1036,7 @@ if (!isStaff) {
 | **A03 — Injection (NoSQL)** | `express-mongo-sanitize` strips `$` and `.` from all `req.body`, `req.query`, `req.params` on every request. |
 | **A03 — Injection (XSS)** | Helmet sets `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `X-XSS-Protection`. ChatBubble uses escape-first Markdown rendering. |
 | **A05 — Security Misconfiguration** | Helmet (12 headers). CORS strict allowlist — exact origins only, no wildcard subdomains. JSON body limit 50kb. `trust proxy: 1` for accurate rate-limit IPs. |
-| **A07 — Identification & Auth Failures** | Auth rate limiter 10/15min (failed attempts only). Token versioning. Inactivity auto-logout on frontend. 2FA-pending tokens rejected for API access. |
+| **A07 — Identification & Auth Failures** | Strict rate limiting on auth endpoints (failed attempts only). Token versioning. Inactivity auto-logout on frontend. Pre-auth temp tokens rejected for API access. |
 | **A08 — Software & Data Integrity** | `package-lock.json` locks dependency versions. `.npmrc` `legacy-peer-deps` only for known compat issue. |
 | **A10 — SSRF** | No user-supplied URLs fetched server-side. Cloudinary upload uses in-memory buffer, never a URL from user input. |
 
@@ -1046,11 +1044,11 @@ if (!isStaff) {
 
 ### 8.4 Rate Limiting
 
-| Limiter | Applied To | Max Requests | Window |
-|---|---|---|---|
-| `globalLimiter` | All routes | 200 | 15 minutes |
-| `authLimiter` | `/register`, `/login`, `/2fa/verify` | 10 (failed only) | 15 minutes |
-| `otpLimiter` | `/2fa/resend`, `/2fa/setup/*` | 5 | 10 minutes |
+| Limiter | Applied To | Policy |
+|---|---|---|
+| `globalLimiter` | All routes | IP-based threshold per rolling window |
+| `authLimiter` | `/register`, `/login`, `/2fa/verify` | Strict IP-based limit (failed attempts only) per rolling window |
+| `otpLimiter` | `/2fa/resend`, `/2fa/setup/*` | Strict IP-based limit per rolling window |
 
 ---
 
@@ -1116,7 +1114,7 @@ Testing was conducted as a combination of **manual functional testing** (feature
 | Scenario | Method | Result |
 |---|---|---|
 | JWT from logged-out session used | Old token re-used after logout (tokenVersion changed) | HTTP 401 — token invalidated ✅ |
-| 2FA temp token used as session token | `tempToken` submitted to `/api/tickets` | HTTP 401 — type `2fa-pending` rejected ✅ |
+| 2FA temp token used as session token | `tempToken` submitted to `/api/tickets` | HTTP 401 — pre-auth token rejected by `protect` middleware ✅ |
 | IDOR — access other user's ticket | GET `/api/tickets/<other-user-ticket-id>` as regular user | HTTP 403 — ownership check blocks ✅ |
 | Internal notes in API response | GET full ticket as regular user | `internalNotes` array absent from response ✅ |
 | Direct NoSQL injection in login body | `{ "email": { "$gt": "" } }` | mongo-sanitize strips `$gt`, login fails safely ✅ |
@@ -1204,7 +1202,7 @@ Both Vercel and Render support **subdirectory deployments** — each service is 
 | Variable | Description |
 |---|---|
 | `MONGO_URI` | MongoDB Atlas TLS connection string |
-| `JWT_SECRET` | 64-character HS256 signing secret (`openssl rand -hex 64`) |
+| `JWT_SECRET` | HS256 signing secret (cryptographically random, minimum 256-bit entropy) |
 | `PORT` | Auto-set by Render |
 | `CLIENT_URL` | Frontend origin for CORS (`https://hiticket.vercel.app`) |
 | `EMAIL_USER` | Gmail sender address |
