@@ -4,10 +4,10 @@ import {
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend,
 } from 'recharts';
 import api from '../api/api';
+import PageWrapper from '../components/layout/PageWrapper';
+import Breadcrumb from '../components/layout/Breadcrumb';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
-const CHART_COLORS = ['#FF634A', '#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16'];
+const CHART_COLORS = ['#3b82f6', '#f59e0b', '#22c55e', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16', '#f97316'];
 const P_COLORS = { Critical: '#ef4444', High: '#f97316', Medium: '#3b82f6', Low: '#22c55e' };
 const PRESETS = [{ label: '7d', days: 7 }, { label: '30d', days: 30 }, { label: '90d', days: 90 }, { label: 'All', days: 0 }];
 
@@ -17,15 +17,18 @@ const TOOLTIP_STYLE = {
 };
 
 const Section = ({ title, children, className = '' }) => (
-  <div className={`bg-zinc-900 border border-zinc-800 rounded-2xl p-5 ${className}`}>
-    <h2 className="text-sm font-semibold text-zinc-300 mb-4">{title}</h2>
+  <div className={`bg-[#18181b] border border-[#27272a] rounded-xl p-5 ${className}`}>
+    <h2 className="text-[13px] font-semibold text-[#a1a1aa] uppercase tracking-wider mb-4">{title}</h2>
     {children}
   </div>
 );
 
 const Empty = ({ msg = 'No data in selected range' }) => (
-  <div className="h-52 flex flex-col items-center justify-center gap-2 text-zinc-500 text-sm">
-    <span className="text-3xl">📭</span>{msg}
+  <div className="h-52 flex flex-col items-center justify-center gap-2 text-[#52525b] text-[13px]">
+    <svg className="w-10 h-10 text-[#3f3f46]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.25}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+    </svg>
+    {msg}
   </div>
 );
 
@@ -164,27 +167,48 @@ export default function Reports() {
   };
 
   if (loading) return (
-    <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-      <div className="flex flex-col items-center gap-3 text-zinc-400">
-        <div className="w-8 h-8 border-2 border-[#FF634A] border-t-transparent rounded-full animate-spin" />
-        Loading report data…
+    <PageWrapper>
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-5">
+        <div className="skeleton h-4 w-32 rounded mb-5" />
+        <div className="rounded-2xl border border-[#27272a] bg-[#18181b] p-5 mb-5 space-y-2">
+          <div className="skeleton h-6 w-40 rounded" />
+          <div className="skeleton h-3 w-64 rounded" />
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="rounded-xl border border-[#27272a] bg-[#18181b] p-5 space-y-3">
+              <div className="skeleton w-9 h-9 rounded-xl" />
+              <div className="skeleton h-6 w-20 rounded" />
+              <div className="skeleton h-3 w-24 rounded" />
+            </div>
+          ))}
+        </div>
+        <div className="grid md:grid-cols-2 gap-5">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="rounded-xl border border-[#27272a] bg-[#18181b] p-5">
+              <div className="skeleton h-3 w-40 rounded mb-4" />
+              <div className="skeleton h-52 w-full rounded-lg" />
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
+    </PageWrapper>
   );
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <PageWrapper>
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-5 space-y-5">
+        <Breadcrumb />
 
-        {/* Header */}
-        <div className="flex flex-wrap items-start justify-between gap-4">
+        {/* Header banner */}
+        <div className="flex flex-wrap items-center justify-between gap-4 p-5 rounded-2xl bg-gradient-to-r from-[#3b82f6]/8 via-[#8b5cf6]/4 to-transparent border border-[#3b82f6]/15">
           <div>
-            <h1 className="text-2xl font-bold">📊 Advanced Reports</h1>
-            <p className="text-zinc-400 text-sm mt-1">Deep analytics across all tickets</p>
+            <h1 className="text-[24px] font-bold text-[#fafafa] mb-0.5">Advanced Reports</h1>
+            <p className="text-[13px] text-[#a1a1aa]">Deep analytics across all tickets</p>
           </div>
           <button
             onClick={exportCSV}
-            className="flex items-center gap-2 px-4 py-2.5 bg-[#FF634A] hover:bg-[#e0552e] text-white text-sm font-medium rounded-xl transition-colors"
+            className="flex items-center gap-2 px-4 py-2.5 bg-[#3b82f6] hover:bg-[#2563eb] text-white text-[13px] font-semibold rounded-xl transition-colors"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -194,49 +218,56 @@ export default function Reports() {
         </div>
 
         {/* Date range controls */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex flex-wrap items-center gap-3">
-          {PRESETS.map(p => (
-            <button
-              key={p.days}
-              onClick={() => { setPreset(p.days); setCustomFrom(''); setCustomTo(''); }}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
-                preset === p.days && !customFrom && !customTo
-                  ? 'bg-[#FF634A] border-[#FF634A] text-white'
-                  : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500'
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-zinc-500">Custom:</span>
-            <input type="date" value={customFrom} onChange={e => { setCustomFrom(e.target.value); setPreset(-1); }}
-              className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-zinc-100 focus:outline-none focus:border-[#FF634A]" />
-            <span className="text-zinc-500 text-xs">—</span>
-            <input type="date" value={customTo} onChange={e => { setCustomTo(e.target.value); setPreset(-1); }}
-              className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-zinc-100 focus:outline-none focus:border-[#FF634A]" />
+        <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 flex flex-wrap items-center gap-3">
+          <div className="flex gap-1.5">
+            {PRESETS.map(p => (
+              <button
+                key={p.days}
+                onClick={() => { setPreset(p.days); setCustomFrom(''); setCustomTo(''); }}
+                className={`px-3 py-1.5 rounded-lg text-[12px] font-medium border transition-colors ${
+                  preset === p.days && !customFrom && !customTo
+                    ? 'bg-[#3b82f6]/15 border-[#3b82f6]/40 text-[#3b82f6]'
+                    : 'bg-[#27272a] border-[#3f3f46] text-[#71717a] hover:text-[#a1a1aa] hover:border-[#52525b]'
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
           </div>
-          <span className="ml-auto text-xs text-zinc-500">{inRange.length} tickets in range</span>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] text-[#52525b]">Custom:</span>
+            <input type="date" value={customFrom} onChange={e => { setCustomFrom(e.target.value); setPreset(-1); }}
+              className="bg-[#111113] border border-[#27272a] rounded-lg px-3 py-1.5 text-[12px] text-[#fafafa] focus:outline-none focus:border-[#3b82f6]" />
+            <span className="text-[#52525b] text-[11px]">—</span>
+            <input type="date" value={customTo} onChange={e => { setCustomTo(e.target.value); setPreset(-1); }}
+              className="bg-[#111113] border border-[#27272a] rounded-lg px-3 py-1.5 text-[12px] text-[#fafafa] focus:outline-none focus:border-[#3b82f6]" />
+          </div>
+          <span className="ml-auto text-[12px] text-[#52525b]">{inRange.length} tickets in range</span>
         </div>
 
         {/* KPI cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: 'Total Tickets',    value: total,                                             color: '#3b82f6', icon: '🎫' },
-            { label: 'Resolved',         value: `${resolved} (${total ? Math.round(resolved/total*100) : 0}%)`, color: '#22c55e', icon: '✅' },
-            { label: 'Avg Resolution',   value: avgResHr ? `${avgResHr}h` : '—',                  color: '#f59e0b', icon: '⏱' },
-            { label: 'Avg CSAT',         value: avgCSAT ? `${avgCSAT} / 5` : '—',                 color: '#8b5cf6', icon: '⭐' },
+            { label: 'Total Tickets',  value: total,                                                          color: '#3b82f6', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
+            { label: 'Resolved',       value: `${resolved} (${total ? Math.round(resolved/total*100) : 0}%)`, color: '#22c55e', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
+            { label: 'Avg Resolution', value: avgResHr ? `${avgResHr}h` : '—',                               color: '#f59e0b', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
+            { label: 'Avg CSAT',       value: avgCSAT ? `${avgCSAT} / 5` : '—',                              color: '#8b5cf6', icon: 'M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z' },
           ].map(k => (
-            <div key={k.label} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-              <p className="text-2xl mb-2">{k.icon}</p>
-              <p className="text-2xl font-bold" style={{ color: k.color }}>{k.value}</p>
-              <p className="text-xs text-zinc-400 mt-1">{k.label}</p>
+            <div key={k.label} className="rounded-xl border p-4 sm:p-5 relative overflow-hidden" style={{ borderColor: `${k.color}30`, background: `linear-gradient(135deg, ${k.color}0d 0%, transparent 70%)` }}>
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-3" style={{ backgroundColor: k.color + '18' }}>
+                <svg className="w-4.5 h-4.5" style={{ width: 18, height: 18, color: k.color }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                  {k.icon.split(' M').map((d, i) => <path key={i} strokeLinecap="round" strokeLinejoin="round" d={(i===0?'':'M')+d} />)}
+                </svg>
+              </div>
+              <p className="text-[22px] sm:text-[26px] font-bold leading-none mb-1" style={{ color: k.color }}>{k.value}</p>
+              <p className="text-[11px] sm:text-[12px] text-[#a1a1aa]">{k.label}</p>
+              <div className="absolute -right-4 -bottom-4 w-14 h-14 rounded-full blur-2xl opacity-20" style={{ backgroundColor: k.color }} />
             </div>
           ))}
         </div>
 
         {/* Row 1: Resolution trend + CSAT trend */}
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid md:grid-cols-2 gap-5">
           <Section title="Resolution Time Trend (avg hours, weekly)">
             {resTimeTrend.length > 1 ? (
               <ResponsiveContainer width="100%" height={210}>
@@ -245,7 +276,7 @@ export default function Reports() {
                   <XAxis dataKey="week" tick={{ fill: '#71717a', fontSize: 11 }} />
                   <YAxis tick={{ fill: '#71717a', fontSize: 11 }} />
                   <Tooltip {...TOOLTIP_STYLE} />
-                  <Line type="monotone" dataKey="avgHours" stroke="#FF634A" strokeWidth={2} dot={false} name="Avg Hours" />
+                  <Line type="monotone" dataKey="avgHours" stroke="#f59e0b" strokeWidth={2} dot={false} name="Avg Hours" />
                 </LineChart>
               </ResponsiveContainer>
             ) : <Empty msg="Not enough resolved tickets" />}
@@ -267,7 +298,7 @@ export default function Reports() {
         </div>
 
         {/* Row 2: Agent performance + Category breakdown */}
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid md:grid-cols-2 gap-5">
           <Section title="Agent Performance (resolved vs total)">
             {agentPerf.length > 0 ? (
               <ResponsiveContainer width="100%" height={230}>
@@ -299,7 +330,7 @@ export default function Reports() {
         </div>
 
         {/* Row 3: Volume by month + by day of week */}
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid md:grid-cols-2 gap-5">
           <Section title="Monthly Ticket Volume">
             {monthlyVolume.length > 0 ? (
               <ResponsiveContainer width="100%" height={210}>
@@ -323,26 +354,26 @@ export default function Reports() {
                 <XAxis dataKey="day" tick={{ fill: '#71717a', fontSize: 11 }} />
                 <YAxis tick={{ fill: '#71717a', fontSize: 11 }} />
                 <Tooltip {...TOOLTIP_STYLE} />
-                <Bar dataKey="count" fill="#FF634A" name="Tickets" radius={[4,4,0,0]} />
+                <Bar dataKey="count" fill="#3b82f6" name="Tickets" radius={[4,4,0,0]} />
               </BarChart>
             </ResponsiveContainer>
           </Section>
         </div>
 
         {/* Priority distribution */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-          <h2 className="text-sm font-semibold text-zinc-300 mb-4">Priority Distribution</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5">
+          <h2 className="text-[13px] font-semibold text-[#a1a1aa] uppercase tracking-wider mb-4">Priority Distribution</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-5">
             {['Critical', 'High', 'Medium', 'Low'].map(p => {
               const count = inRange.filter(t => t.priority === p).length;
               const pct = total ? Math.round(count / total * 100) : 0;
               return (
-                <div key={p} className="flex flex-col gap-2">
-                  <div className="flex justify-between text-xs">
-                    <span style={{ color: P_COLORS[p] }}>{p}</span>
-                    <span className="text-zinc-400">{count} ({pct}%)</span>
+                <div key={p} className="space-y-2">
+                  <div className="flex justify-between text-[12px]">
+                    <span className="font-medium" style={{ color: P_COLORS[p] }}>{p}</span>
+                    <span className="text-[#71717a]">{count} ({pct}%)</span>
                   </div>
-                  <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                  <div className="h-2 bg-[#27272a] rounded-full overflow-hidden">
                     <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: P_COLORS[p] }} />
                   </div>
                 </div>
@@ -353,28 +384,28 @@ export default function Reports() {
 
         {/* Agent performance table */}
         {agentPerf.length > 0 && (
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-zinc-800">
-              <h2 className="text-sm font-semibold text-zinc-300">Agent Performance Table</h2>
+          <div className="bg-[#18181b] border border-[#27272a] rounded-xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-[#27272a]">
+              <h2 className="text-[13px] font-semibold text-[#a1a1aa] uppercase tracking-wider">Agent Performance Table</h2>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-[13px]">
                 <thead>
-                  <tr className="bg-zinc-800/50">
+                  <tr className="bg-[#111113]">
                     {['Agent', 'Total', 'Resolved', 'Rate', 'Avg CSAT', 'CSAT Responses'].map(h => (
-                      <th key={h} className="px-5 py-3 text-left text-xs font-medium text-zinc-400">{h}</th>
+                      <th key={h} className="px-5 py-3 text-left text-[11px] font-semibold text-[#52525b] uppercase tracking-wider">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {agentPerf.map(a => (
-                    <tr key={a.agent} className="border-t border-zinc-800 hover:bg-zinc-800/30 transition-colors">
-                      <td className="px-5 py-3 font-medium text-zinc-200">{a.agent}</td>
-                      <td className="px-5 py-3 text-zinc-400">{a.total}</td>
-                      <td className="px-5 py-3 text-green-400">{a.resolved}</td>
-                      <td className="px-5 py-3 text-zinc-400">{a.total ? Math.round(a.resolved / a.total * 100) : 0}%</td>
-                      <td className="px-5 py-3">{a.avgCSAT ? <span className="text-purple-400">{a.avgCSAT}/5</span> : <span className="text-zinc-600">—</span>}</td>
-                      <td className="px-5 py-3 text-zinc-500">{a.csatCount}</td>
+                  {agentPerf.map((a, idx) => (
+                    <tr key={a.agent} className={`border-t border-[#27272a] hover:bg-[#27272a]/50 transition-colors ${idx % 2 === 0 ? '' : 'bg-[#111113]/40'}`}>
+                      <td className="px-5 py-3 font-medium text-[#e4e4e7]">{a.agent}</td>
+                      <td className="px-5 py-3 text-[#a1a1aa]">{a.total}</td>
+                      <td className="px-5 py-3 text-[#22c55e]">{a.resolved}</td>
+                      <td className="px-5 py-3 text-[#a1a1aa]">{a.total ? Math.round(a.resolved / a.total * 100) : 0}%</td>
+                      <td className="px-5 py-3">{a.avgCSAT ? <span className="text-[#8b5cf6] font-medium">{a.avgCSAT}/5</span> : <span className="text-[#3f3f46]">—</span>}</td>
+                      <td className="px-5 py-3 text-[#52525b]">{a.csatCount}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -384,6 +415,6 @@ export default function Reports() {
         )}
 
       </div>
-    </div>
+    </PageWrapper>
   );
 }
