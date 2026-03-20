@@ -36,19 +36,37 @@ const getNextAgent = async () => {
   return lastCount[0];
 };
 
-// GET /api/tickets  — user gets own, agent/admin gets all
+// GET /api/tickets
+//   user  → own raised tickets only
+//   agent → tickets assigned to them OR raised by them
+//   admin → ALL tickets (pass ?mine=true to restrict to own raised, used by My Tickets page)
 router.get('/', async (req, res) => {
   try {
-    const isStaff = ['agent', 'admin'].includes(req.user.role);
-    const filter = isStaff ? {} : { createdBy: req.user._id };
-    const { status, priority, category, q, limit } = req.query;
-    if (status)   filter.status = status;
-    if (priority) filter.priority = priority;
-    if (category) filter.category = category;
+    const { status, priority, category, q, limit, mine } = req.query;
+
+    // Build role-based access condition
+    const conditions = [];
+    if (req.user.role === 'user') {
+      conditions.push({ createdBy: req.user._id });
+    } else if (req.user.role === 'agent') {
+      // Agent sees tickets assigned to them OR tickets they submitted
+      conditions.push({ $or: [{ assignedTo: req.user.name }, { createdBy: req.user._id }] });
+    } else if (req.user.role === 'admin' && mine === 'true') {
+      // Admin on My Tickets page: only own raised tickets
+      conditions.push({ createdBy: req.user._id });
+    }
+    // admin without mine=true: no condition (all tickets)
+
+    // Additional search/filter conditions
+    if (status)   conditions.push({ status });
+    if (priority) conditions.push({ priority });
+    if (category) conditions.push({ category });
     if (q) {
       const re = new RegExp(q.split(' ').filter(Boolean).join('|'), 'i');
-      filter.$or = [{ title: re }, { description: re }, { ticketId: re }];
+      conditions.push({ $or: [{ title: re }, { description: re }, { ticketId: re }] });
     }
+
+    const filter = conditions.length > 0 ? { $and: conditions } : {};
 
     let query = Ticket.find(filter).populate('createdBy', 'name email').sort({ createdAt: -1 });
     if (limit) query = query.limit(Number(limit));
@@ -78,15 +96,23 @@ router.get('/stats', agentOrAdmin, async (req, res) => {
 // GET /api/tickets/:id
 router.get('/:id', async (req, res) => {
   try {
-    const isStaff = ['agent', 'admin'].includes(req.user.role);
+    const { role, _id: userId, name: userName } = req.user;
     const ticket = await Ticket.findById(req.params.id).populate('createdBy', 'name email');
     if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
 
-    if (!isStaff && ticket.createdBy._id.toString() !== req.user._id.toString())
-      return res.status(403).json({ error: 'Access denied' });
+    // Access control:
+    //   admin  → always allowed
+    //   agent  → must be assignedTo or createdBy
+    //   user   → must be createdBy
+    if (role !== 'admin') {
+      const isOwner    = ticket.createdBy._id.toString() === userId.toString();
+      const isAssigned = role === 'agent' && ticket.assignedTo === userName;
+      if (!isOwner && !isAssigned)
+        return res.status(403).json({ error: 'Access denied' });
+    }
 
     // Strip internal notes for regular users
-    if (!isStaff) {
+    if (role === 'user') {
       const t = ticket.toObject();
       delete t.internalNotes;
       return res.json({ ticket: t });
@@ -143,13 +169,21 @@ router.post('/', async (req, res) => {
 // PATCH /api/tickets/:id — update status / assign / add comment
 router.patch('/:id', async (req, res) => {
   try {
-    const isStaff = ['agent', 'admin'].includes(req.user.role);
     const ticket = await Ticket.findById(req.params.id);
     if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
 
-    // Users can only interact with their own tickets; staff can access all
-    if (!isStaff && ticket.createdBy.toString() !== req.user._id.toString())
-      return res.status(403).json({ error: 'Access denied' });
+    const { role, _id: userId, name: userName } = req.user;
+    const isAdmin = role === 'admin';
+    const isAgent = role === 'agent';
+    const isStaff = isAdmin || isAgent;
+
+    // Access control: agent can only modify tickets assigned to them or raised by them
+    if (!isAdmin) {
+      const isOwner    = ticket.createdBy.toString() === userId.toString();
+      const isAssigned = isAgent && ticket.assignedTo === userName;
+      if (!isOwner && !isAssigned)
+        return res.status(403).json({ error: 'Access denied' });
+    }
 
     const { status, assignedTo, comment, satisfaction } = req.body;
     const createdById = ticket.createdBy;
@@ -205,6 +239,14 @@ router.post('/:id/notes', agentOrAdmin, async (req, res) => {
     const ticket = await Ticket.findById(req.params.id);
     if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
 
+    // Agents may only add notes to tickets they own or are assigned
+    if (req.user.role === 'agent') {
+      const isOwner    = ticket.createdBy.toString() === req.user._id.toString();
+      const isAssigned = ticket.assignedTo === req.user.name;
+      if (!isOwner && !isAssigned)
+        return res.status(403).json({ error: 'Access denied' });
+    }
+
     ticket.internalNotes.push({
       text: text.trim(),
       author: req.user._id,
@@ -257,11 +299,16 @@ router.delete('/bulk', adminOnly, async (req, res) => {
 // POST /api/tickets/:id/attachments
 router.post('/:id/attachments', upload.array('files', 5), async (req, res) => {
   try {
-    const isStaff = ['agent', 'admin'].includes(req.user.role);
+    const { role, _id: userId, name: userName } = req.user;
     const ticket = await Ticket.findById(req.params.id);
     if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
-    if (!isStaff && ticket.createdBy.toString() !== req.user._id.toString())
-      return res.status(403).json({ error: 'Access denied' });
+    // Access: admin=all, agent=assigned/own, user=own
+    if (role !== 'admin') {
+      const isOwner    = ticket.createdBy.toString() === userId.toString();
+      const isAssigned = role === 'agent' && ticket.assignedTo === userName;
+      if (!isOwner && !isAssigned)
+        return res.status(403).json({ error: 'Access denied' });
+    }
     if (!req.files || req.files.length === 0)
       return res.status(400).json({ error: 'No files received' });
 
@@ -285,11 +332,16 @@ router.post('/:id/attachments', upload.array('files', 5), async (req, res) => {
 // DELETE /api/tickets/:id/attachments/:attachmentId
 router.delete('/:id/attachments/:attachmentId', async (req, res) => {
   try {
-    const isStaff = ['agent', 'admin'].includes(req.user.role);
+    const { role, _id: userId, name: userName } = req.user;
     const ticket = await Ticket.findById(req.params.id);
     if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
-    if (!isStaff && ticket.createdBy.toString() !== req.user._id.toString())
-      return res.status(403).json({ error: 'Access denied' });
+    // Access: admin=all, agent=assigned/own, user=own
+    if (role !== 'admin') {
+      const isOwner    = ticket.createdBy.toString() === userId.toString();
+      const isAssigned = role === 'agent' && ticket.assignedTo === userName;
+      if (!isOwner && !isAssigned)
+        return res.status(403).json({ error: 'Access denied' });
+    }
 
     const att = ticket.attachments.id(req.params.attachmentId);
     if (!att) return res.status(404).json({ error: 'Attachment not found' });
@@ -338,6 +390,15 @@ router.patch('/:id/watch', protect, async (req, res) => {
 router.patch('/:id/due-date', agentOrAdmin, async (req, res) => {
   try {
     const { dueDate } = req.body; // ISO string or null
+    // Agents may only set due date on tickets assigned to them or raised by them
+    if (req.user.role === 'agent') {
+      const ticket = await Ticket.findById(req.params.id).select('createdBy assignedTo');
+      if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
+      const isOwner    = ticket.createdBy.toString() === req.user._id.toString();
+      const isAssigned = ticket.assignedTo === req.user.name;
+      if (!isOwner && !isAssigned)
+        return res.status(403).json({ error: 'Access denied' });
+    }
     const ticket = await Ticket.findByIdAndUpdate(
       req.params.id,
       { dueDate: dueDate ? new Date(dueDate) : null },

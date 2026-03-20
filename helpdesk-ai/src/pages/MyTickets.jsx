@@ -17,6 +17,15 @@ const PRIORITY_RANK = { Critical: 4, High: 3, Medium: 2, Low: 1 };
 
 const MyTickets = () => {
   const navigate = useNavigate();
+  const userRole = localStorage.getItem('userRole') || 'user';
+
+  // Page labels per role
+  const PAGE_TITLE = userRole === 'agent' ? 'My Work Queue' : 'My Tickets';
+  const PAGE_SUB   =
+    userRole === 'agent'
+      ? 'Tickets assigned to you or raised by you'
+      : 'Track and manage your support requests';
+
   const [activeTab, setActiveTab] = useState('all');
   const [priority, setPriority] = useState('All');
   const [category, setCategory] = useState('All');
@@ -31,7 +40,9 @@ const MyTickets = () => {
   const fetchTickets = async (silent = false) => {
     try {
       if (!silent) setLoading(true);
-      const { data } = await api.get('/tickets');
+      // Admins: only show tickets THEY raised (all tickets live in Admin Dashboard)
+      const params = userRole === 'admin' ? { mine: 'true' } : {};
+      const { data } = await api.get('/tickets', { params });
       setTickets(data.tickets);
       setLastUpdated(new Date());
     } catch (err) {
@@ -94,8 +105,8 @@ const MyTickets = () => {
         <Breadcrumb />
         <div className="flex flex-wrap items-center justify-between gap-3 p-5 mb-5 rounded-2xl bg-gradient-to-r from-[#6366f1]/8 via-[#3b82f6]/4 to-transparent border border-[#6366f1]/15">
           <div>
-            <h1 className="text-[24px] font-bold text-[#fafafa] mb-0.5">My Tickets</h1>
-            <p className="text-[13px] text-[#a1a1aa]">Track and manage your support requests</p>
+            <h1 className="text-[24px] font-bold text-[#fafafa] mb-0.5">{PAGE_TITLE}</h1>
+            <p className="text-[13px] text-[#a1a1aa]">{PAGE_SUB}</p>
           {lastUpdated && (
             <span className="flex items-center gap-1.5 text-[11px] text-[#52525b] mt-1">
               <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-blink" />
