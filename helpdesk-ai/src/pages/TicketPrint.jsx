@@ -35,9 +35,9 @@ function PrintLogo({ dark }) {
 }
 
 /* ── Section heading ─────────────────────────────────────────── */
-function SectionHeading({ label, t }) {
+function SectionHeading({ label, t, ls }) {
   return (
-    <div style={{ display:'flex', alignItems:'center', gap:10, margin:'14px 0 7px' }}>
+    <div style={{ display:'flex', alignItems:'center', gap:10, margin: ls ? '8px 0 4px' : '14px 0 7px' }}>
       <div style={{ width:4, height:18, borderRadius:2, backgroundColor:'#FF634A', flexShrink:0 }} />
       <span style={{ fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color: t.accent, fontFamily:'system-ui,sans-serif' }}>
         {label}
@@ -52,7 +52,9 @@ export default function TicketPrint() {
   const [ticket,  setTicket]  = useState(null);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState('');
-  const [dark,    setDark]    = useState(false);
+  const [dark,      setDark]      = useState(false);
+  const [landscape,  setLandscape]  = useState(false);
+  const ls = landscape;
 
   useEffect(() => {
     api.get(`/tickets/${id}`)
@@ -154,6 +156,12 @@ export default function TicketPrint() {
           {dark ? '☀️  Light mode' : '🌙  Dark mode'}
         </button>
         <button
+          onClick={() => setLandscape(l => !l)}
+          style={{ display:'flex', alignItems:'center', gap:7, padding:'8px 16px', background:'transparent', color: landscape ? '#FF634A' : '#94a3b8', border:`1px solid ${landscape ? '#FF634A55' : '#334155'}`, borderRadius:8, cursor:'pointer', fontFamily:'system-ui,sans-serif', fontSize:13, fontWeight:600 }}
+        >
+          {landscape ? '📄 Landscape' : '📄 Portrait'}
+        </button>
+        <button
           onClick={() => window.history.back()}
           style={{ padding:'8px 16px', background:'transparent', color:'#94a3b8', border:'1px solid #334155', borderRadius:8, cursor:'pointer', fontFamily:'system-ui,sans-serif', fontSize:13 }}
         >
@@ -171,7 +179,7 @@ export default function TicketPrint() {
 
       {/* ── Printable document ──────────────────────────────── */}
       <div id="print-root" style={{ background: t.page, minHeight:'100vh', padding:0 }}>
-        <div style={{ maxWidth:820, margin:'0 auto', padding:'24px 40px 20px', fontFamily:'system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif', color:t.text, lineHeight:1.5 }}>
+        <div style={{ maxWidth: ls ? '100%' : 820, margin:'0 auto', padding: ls ? '14px 32px 10px' : '24px 40px 20px', fontFamily:'system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif', color:t.text, lineHeight:1.5 }}>
 
           {/* ── Page header ── */}
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', paddingBottom:12, marginBottom:14, borderBottom:`2px solid ${t.border}` }}>
@@ -187,7 +195,7 @@ export default function TicketPrint() {
           </div>
 
           {/* ── Title block ── */}
-          <div style={{ marginBottom:14, padding:'12px 16px', background:t.surface, borderRadius:8, border:`1px solid ${t.border}`, borderLeft:`4px solid #FF634A` }}>
+          <div style={{ marginBottom: ls ? 8 : 14, padding: ls ? '8px 14px' : '12px 16px', background:t.surface, borderRadius:8, border:`1px solid ${t.border}`, borderLeft:`4px solid #FF634A` }}>
             <div style={{ fontSize:10, color:t.textMuted, letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:4 }}>
               {ticket.ticketId}
             </div>
@@ -197,8 +205,8 @@ export default function TicketPrint() {
           </div>
 
           {/* ── Metadata two-column ── */}
-          <SectionHeading label="Ticket Details" t={t} />
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:0 }}>
+          <SectionHeading label="Ticket Details" t={t} ls={ls} />
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap: ls ? 6 : 10, marginBottom:0 }}>
             {[META_LEFT, META_RIGHT].map((col, ci) => (
               <table key={ci} style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
                 <tbody>
@@ -214,16 +222,16 @@ export default function TicketPrint() {
           </div>
 
           {/* ── Description ── */}
-          <SectionHeading label="Description" t={t} />
-          <div style={{ padding:'10px 14px', background:t.surface, borderRadius:7, border:`1px solid ${t.border}`, fontSize:12, lineHeight:1.6, whiteSpace:'pre-wrap', color:t.text, marginBottom:0 }}>
+          <SectionHeading label="Description" t={t} ls={ls} />
+          <div style={{ padding: ls ? '6px 12px' : '10px 14px', background:t.surface, borderRadius:7, border:`1px solid ${t.border}`, fontSize:12, lineHeight:1.6, whiteSpace:'pre-wrap', color:t.text, marginBottom:0 }}>
             {ticket.description}
           </div>
 
           {/* ── Comments ── */}
           {ticket.comments?.length > 0 && (
             <>
-              <SectionHeading label={`Comments (${ticket.comments.length})`} t={t} />
-              <div style={{ display:'flex', flexDirection:'column', gap:7 }}>
+              <SectionHeading label={`Comments (${ticket.comments.length})`} t={t} ls={ls} />
+              <div style={{ display:'flex', flexDirection:'column', gap: ls ? 4 : 7 }}>
                 {ticket.comments.map((c, i) => (
                   <div key={c._id || i} style={{ padding:'8px 12px 8px 14px', background:t.surface, borderRadius:7, border:`1px solid ${t.border}`, borderLeft:`3px solid ${t.commentBrd}` }}>
                     <div style={{ display:'flex', alignItems:'center', gap:7, marginBottom:5 }}>
@@ -245,7 +253,7 @@ export default function TicketPrint() {
           {/* ── Attachments ── */}
           {ticket.attachments?.length > 0 && (
             <>
-              <SectionHeading label={`Attachments (${ticket.attachments.length})`} t={t} />
+              <SectionHeading label={`Attachments (${ticket.attachments.length})`} t={t} ls={ls} />
               <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
                 {ticket.attachments.map((a, i) => (
                   <div key={a._id || i} style={{ display:'flex', alignItems:'center', gap:8, padding:'5px 12px', background:t.surface, borderRadius:6, border:`1px solid ${t.border}`, fontSize:11 }}>
@@ -261,8 +269,8 @@ export default function TicketPrint() {
           {/* ── Satisfaction ── */}
           {ticket.satisfaction?.rating && (
             <>
-              <SectionHeading label="Satisfaction Survey" t={t} />
-              <div style={{ padding:'8px 14px', background:t.surface, borderRadius:7, border:`1px solid ${t.border}`, fontSize:12 }}>
+              <SectionHeading label="Satisfaction Survey" t={t} ls={ls} />
+              <div style={{ padding: ls ? '5px 12px' : '8px 14px', background:t.surface, borderRadius:7, border:`1px solid ${t.border}`, fontSize:12 }}>
                 <div style={{ marginBottom:6 }}>
                   {'⭐'.repeat(ticket.satisfaction.rating)}<span style={{ color:t.textMuted }}> ({ticket.satisfaction.rating}/5)</span>
                 </div>
@@ -276,7 +284,7 @@ export default function TicketPrint() {
           {/* ── History ── */}
           {ticket.history?.length > 0 && (
             <>
-              <SectionHeading label={`Audit History (${ticket.history.length} events)`} t={t} />
+              <SectionHeading label={`Audit History (${ticket.history.length} events)`} t={t} ls={ls} />
               <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
                 <thead>
                   <tr>
@@ -301,7 +309,7 @@ export default function TicketPrint() {
           )}
 
           {/* ── Footer ── */}
-          <div style={{ marginTop:16, paddingTop:10, borderTop:`1px solid ${t.border}`, display:'flex', justifyContent:'space-between', alignItems:'center', fontSize:10, color:t.textMuted, fontFamily:'system-ui,sans-serif' }}>
+          <div style={{ marginTop: ls ? 8 : 16, paddingTop: ls ? 6 : 10, borderTop:`1px solid ${t.border}`, display:'flex', justifyContent:'space-between', alignItems:'center', fontSize:10, color:t.textMuted, fontFamily:'system-ui,sans-serif' }}>
             <div style={{ display:'flex', alignItems:'center', gap:8 }}>
               <div style={{ width:20, height:20, borderRadius:4, backgroundColor:'#FF634A', display:'flex', alignItems:'center', justifyContent:'center' }}>
                 <svg width="10" height="10" viewBox="0 0 20 20" fill="none">
@@ -342,8 +350,8 @@ export default function TicketPrint() {
         }
 
         @page {
-          size: A4 portrait;
-          margin: 12mm 14mm 12mm 14mm;
+          size: ${ls ? 'A4 landscape' : 'A4 portrait'};
+          margin: ${ls ? '10mm 12mm 10mm 12mm' : '12mm 14mm 12mm 14mm'};
         }
       `}</style>
     </>
