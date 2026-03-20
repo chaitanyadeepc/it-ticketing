@@ -555,7 +555,7 @@ Hooks:
 helmet()                   → 12 HTTP security headers
 trust proxy: 1             → accurate IP behind Render load balancer
 globalLimiter              → 200 req / 15 min per IP
-cors(whitelist)            → explicit + *.vercel.app
+cors(whitelist)            → explicit origins only (CLIENT_URL + localhost ports)
 express.json({ limit:'50kb' })
 express.urlencoded({ limit:'50kb' })
 mongoSanitize()            → strip $ and . from all input
@@ -1150,7 +1150,6 @@ app.use(cors({
   origin: (origin, cb) => {
     if (!origin) return cb(null, true)  // same-origin / curl
     if (allowedOrigins.includes(origin)) return cb(null, true)
-    if (origin.endsWith('.vercel.app')) return cb(null, true)
     cb(new Error('Not allowed by CORS'))
   },
   credentials: true,

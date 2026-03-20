@@ -476,7 +476,7 @@ helpdesk-api/
 1. `helmet()` — applies 12 HTTP security headers
 2. `trust proxy: 1` — accurate client IP behind Render's load balancer
 3. `globalLimiter` — 200 requests per 15 minutes per IP
-4. `cors(whitelist)` — restricts origins to known domains and `*.vercel.app`
+4. `cors(whitelist)` — restricts origins to the explicit production URL (`CLIENT_URL`) and local development ports only
 5. `express.json({ limit: '50kb' })` — parses JSON body, caps size
 6. `mongoSanitize()` — strips `$` and `.` to prevent NoSQL injection
 7. Route handler
@@ -1037,7 +1037,7 @@ if (!isStaff) {
 | **A02 — Cryptographic Failures** | bcrypt cost 12. JWT HS256. TOTP secrets and OTPs: `select: false` — never returned in API. MongoDB Atlas TLS connection. HTTPS enforced by Vercel/Render. |
 | **A03 — Injection (NoSQL)** | `express-mongo-sanitize` strips `$` and `.` from all `req.body`, `req.query`, `req.params` on every request. |
 | **A03 — Injection (XSS)** | Helmet sets `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `X-XSS-Protection`. ChatBubble uses escape-first Markdown rendering. |
-| **A05 — Security Misconfiguration** | Helmet (12 headers). CORS whitelist. JSON body limit 50kb. `trust proxy: 1` for accurate rate-limit IPs. |
+| **A05 — Security Misconfiguration** | Helmet (12 headers). CORS strict allowlist — exact origins only, no wildcard subdomains. JSON body limit 50kb. `trust proxy: 1` for accurate rate-limit IPs. |
 | **A07 — Identification & Auth Failures** | Auth rate limiter 10/15min (failed attempts only). Token versioning. Inactivity auto-logout on frontend. 2FA-pending tokens rejected for API access. |
 | **A08 — Software & Data Integrity** | `package-lock.json` locks dependency versions. `.npmrc` `legacy-peer-deps` only for known compat issue. |
 | **A10 — SSRF** | No user-supplied URLs fetched server-side. Cloudinary upload uses in-memory buffer, never a URL from user input. |
@@ -1192,7 +1192,7 @@ Both Vercel and Render support **subdirectory deployments** — each service is 
 
 - **Tier:** Shared M0 (free tier)
 - **Cluster:** Multi-region replication
-- **Network access:** IP allow-list includes `0.0.0.0/0` (required because Render does not assign static IPs on the free tier)
+- **Network access:** IP allow-list includes `0.0.0.0/0` (Render free tier does not provide static IPs — a known limitation; upgrading to a paid Render tier with static IP egress would allow this to be locked down)
 - **Connection:** `MONGO_URI` with TLS — Mongoose connects with `mongoose.connect(MONGO_URI)`
 
 ---
