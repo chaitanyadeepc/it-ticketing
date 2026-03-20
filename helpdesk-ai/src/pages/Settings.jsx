@@ -354,6 +354,7 @@ const Settings = () => {
         </div>
 
         {/* Activity Logging */}
+        <div className="mb-5">
         <SectionCard
           accentColor="#f59e0b"
           title="Activity Logging"
@@ -406,6 +407,7 @@ const Settings = () => {
             </div>
           )}
         </SectionCard>
+        </div>
 
         {/* Account — full width bottom row */}
         <div className="bg-[#18181b] border border-[#27272a] border-l-[3px] rounded-xl p-5" style={{ borderLeftColor: '#ef4444' }}>
