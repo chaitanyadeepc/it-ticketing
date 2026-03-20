@@ -1,6 +1,15 @@
 import { useEffect, useState, useRef } from 'react';
+import PageWrapper from '../components/layout/PageWrapper';
+import Breadcrumb from '../components/layout/Breadcrumb';
+import api from '../api/api';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const Toggle = ({ enabled, onChange }) => (
+  <button onClick={() => onChange(!enabled)}
+    className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors ${enabled ? 'bg-[#3b82f6]' : 'bg-[#27272a]'}`}>
+    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${enabled ? 'translate-x-5' : 'translate-x-1'}`} />
+  </button>
+);
+
 const EMPTY = { title: '', body: '', category: '', tags: '', isGlobal: true };
 
 export default function CannedResponses() {
@@ -12,16 +21,12 @@ export default function CannedResponses() {
   const [saving, setSaving]   = useState(false);
   const [copied, setCopied]   = useState(null);
   const formRef               = useRef(null);
-  const userRole = localStorage.getItem('role') || 'agent';
-
-  const authHdr = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` });
+  const userRole = localStorage.getItem('userRole') || localStorage.getItem('role') || 'agent';
 
   const load = async () => {
     setLoading(true);
-    const r = await fetch(`${API}/api/canned-responses`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
-    const d = await r.json();
-    setItems(d.cannedResponses || []);
-    setLoading(false);
+    try { const { data } = await api.get('/canned-responses'); setItems(data.cannedResponses || []); }
+    catch { /* ignore */ } finally { setLoading(false); }
   };
 
   useEffect(() => { load(); }, []);
@@ -39,23 +44,21 @@ export default function CannedResponses() {
     setSaving(true);
     try {
       const payload = { ...form, tags: form.tags.split(',').map(t => t.trim()).filter(Boolean) };
-      const url = editId ? `${API}/api/canned-responses/${editId}` : `${API}/api/canned-responses`;
-      const method = editId ? 'PATCH' : 'POST';
-      const r = await fetch(url, { method, headers: authHdr(), body: JSON.stringify(payload) });
-      if (!r.ok) { const d = await r.json(); alert(d.error); return; }
-      resetForm();
-      load();
-    } finally { setSaving(false); }
+      if (editId) await api.patch(`/canned-responses/${editId}`, payload);
+      else        await api.post('/canned-responses', payload);
+      resetForm(); load();
+    } catch (err) { alert(err.response?.data?.error || 'Failed to save'); }
+    finally { setSaving(false); }
   };
 
   const remove = async (id) => {
     if (!window.confirm('Delete this canned response?')) return;
-    await fetch(`${API}/api/canned-responses/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+    await api.delete(`/canned-responses/${id}`);
     load();
   };
 
   const copyText = async (item) => {
-    await fetch(`${API}/api/canned-responses/${item._id}/use`, { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+    try { await api.post(`/canned-responses/${item._id}/use`); } catch { /* ignore */ }
     navigator.clipboard.writeText(item.body).catch(() => {});
     setCopied(item._id);
     setTimeout(() => setCopied(null), 2000);
@@ -72,153 +75,154 @@ export default function CannedResponses() {
   const categories = [...new Set(items.map(i => i.category).filter(Boolean))];
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 p-6">
-      <div className="max-w-5xl mx-auto space-y-8">
+    <PageWrapper>
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-5">
+        <Breadcrumb />
+
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-wrap items-start justify-between gap-4 p-5 mb-6 rounded-2xl bg-gradient-to-r from-[#6366f1]/8 via-[#3b82f6]/4 to-transparent border border-[#6366f1]/15">
           <div>
-            <h1 className="text-2xl font-bold">💬 Canned Responses</h1>
-            <p className="text-zinc-400 text-sm mt-1">Shared reply templates for quick responses</p>
+            <h1 className="text-[24px] font-bold text-[#fafafa] mb-0.5">Canned Responses</h1>
+            <p className="text-[13px] text-[#a1a1aa]">Shared reply templates for quick agent responses</p>
           </div>
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search by title or category…"
-            className="w-full sm:w-72 bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-[#FF634A]"
-          />
+          <div className="flex items-center gap-3">
+            <span className="text-[12px] text-[#52525b] font-mono">{items.length} templates</span>
+            <div className="relative">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#52525b]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z"/>
+              </svg>
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search..."
+                className="pl-9 pr-4 py-2 bg-[#18181b] border border-[#27272a] rounded-xl text-[13px] text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:border-[#3b82f6] w-52" />
+            </div>
+          </div>
         </div>
 
-        {/* Form */}
-        <div ref={formRef} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-          <h2 className="text-lg font-semibold mb-4">{editId ? 'Edit Response' : 'New Canned Response'}</h2>
-          <form onSubmit={submit} className="space-y-4">
-            <div className="flex flex-wrap gap-4">
-              <div className="flex-1 min-w-[200px]">
-                <label className="block text-sm text-zinc-400 mb-1">Title <span className="text-[#FF634A]">*</span></label>
-                <input
-                  value={form.title}
-                  onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+        <div className="grid lg:grid-cols-[400px_1fr] gap-6 items-start">
+
+          {/* Left: Form */}
+          <div ref={formRef} className="bg-[#18181b] border border-[#27272a] border-t-[3px] rounded-2xl p-5" style={{ borderTopColor: editId ? '#f59e0b' : '#6366f1' }}>
+            <h2 className="text-[14px] font-semibold text-[#fafafa] mb-4">
+              {editId ? 'Edit Response' : 'New Canned Response'}
+            </h2>
+            <form onSubmit={submit} className="space-y-4">
+              <div>
+                <label className="block text-[11px] font-semibold text-[#a1a1aa] mb-1.5 uppercase tracking-wider">Title *</label>
+                <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
                   required placeholder="e.g. Password Reset Instructions"
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-[#FF634A]"
-                />
+                  className="w-full h-10 px-3.5 bg-[#111113] border border-[#27272a] rounded-lg text-[13px] text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:border-[#3b82f6] focus:ring-2 focus:ring-[#3b82f6]/20 transition-all" />
               </div>
-              <div className="flex-1 min-w-[160px]">
-                <label className="block text-sm text-zinc-400 mb-1">Category</label>
-                <input
-                  value={form.category}
-                  onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
-                  placeholder="e.g. Account, Access"
-                  list="categories-list"
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-[#FF634A]"
-                />
-                <datalist id="categories-list">{categories.map(c => <option key={c} value={c} />)}</datalist>
+              <div>
+                <label className="block text-[11px] font-semibold text-[#a1a1aa] mb-1.5 uppercase tracking-wider">Body *</label>
+                <textarea rows={5} value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))}
+                  required placeholder="Enter the response text..."
+                  className="w-full px-3.5 py-3 bg-[#111113] border border-[#27272a] rounded-lg text-[13px] text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:border-[#3b82f6] focus:ring-2 focus:ring-[#3b82f6]/20 resize-y font-mono transition-all" />
               </div>
-            </div>
-            <div>
-              <label className="block text-sm text-zinc-400 mb-1">Body <span className="text-[#FF634A]">*</span></label>
-              <textarea
-                rows={5}
-                value={form.body}
-                onChange={e => setForm(f => ({ ...f, body: e.target.value }))}
-                required
-                placeholder="Enter the response text…"
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-[#FF634A] resize-y font-mono"
-              />
-            </div>
-            <div className="flex flex-wrap gap-4">
-              <div className="flex-1 min-w-[200px]">
-                <label className="block text-sm text-zinc-400 mb-1">Tags (comma-separated)</label>
-                <input
-                  value={form.tags}
-                  onChange={e => setForm(f => ({ ...f, tags: e.target.value }))}
-                  placeholder="e.g. reset, password, login"
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-[#FF634A]"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#a1a1aa] mb-1.5 uppercase tracking-wider">Category</label>
+                  <input value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
+                    placeholder="e.g. Access, Network" list="cat-list"
+                    className="w-full h-10 px-3.5 bg-[#111113] border border-[#27272a] rounded-lg text-[13px] text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:border-[#3b82f6] transition-all" />
+                  <datalist id="cat-list">{categories.map(c => <option key={c} value={c} />)}</datalist>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#a1a1aa] mb-1.5 uppercase tracking-wider">Tags</label>
+                  <input value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))}
+                    placeholder="reset, password, ..."
+                    className="w-full h-10 px-3.5 bg-[#111113] border border-[#27272a] rounded-lg text-[13px] text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:border-[#3b82f6] transition-all" />
+                </div>
               </div>
               {userRole === 'admin' && (
-                <div className="flex items-end pb-0.5">
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <div
-                      onClick={() => setForm(f => ({ ...f, isGlobal: !f.isGlobal }))}
-                      className={`w-10 h-6 rounded-full transition-colors ${form.isGlobal ? 'bg-[#FF634A]' : 'bg-zinc-700'}`}
-                    >
-                      <div className={`w-4 h-4 bg-white rounded-full mt-1 transition-transform ${form.isGlobal ? 'translate-x-5' : 'translate-x-1'}`} />
-                    </div>
-                    <span className="text-sm text-zinc-400">{form.isGlobal ? 'Global (all agents)' : 'Personal'}</span>
-                  </label>
+                <div className="flex items-center justify-between py-3 border-t border-[#27272a]">
+                  <div>
+                    <p className="text-[13px] font-medium text-[#fafafa]">{form.isGlobal ? 'Global (all agents)' : 'Personal only'}</p>
+                    <p className="text-[11px] text-[#52525b]">Shared with all agents</p>
+                  </div>
+                  <Toggle enabled={form.isGlobal} onChange={v => setForm(f => ({ ...f, isGlobal: v }))} />
                 </div>
               )}
-            </div>
-            <div className="flex gap-3 pt-2">
-              <button type="submit" disabled={saving} className="px-5 py-2 bg-[#FF634A] hover:bg-[#e0552e] text-white text-sm font-medium rounded-xl transition-colors disabled:opacity-50">
-                {saving ? 'Saving…' : editId ? 'Update' : 'Create'}
-              </button>
-              {editId && (
-                <button type="button" onClick={resetForm} className="px-5 py-2 bg-zinc-800 border border-zinc-700 text-zinc-300 text-sm rounded-xl hover:bg-zinc-700 transition-colors">
-                  Cancel
+              <div className="flex gap-2 pt-1">
+                <button type="submit" disabled={saving}
+                  className="px-5 py-2 bg-[#3b82f6] hover:bg-[#2563eb] disabled:opacity-50 text-white text-[13px] font-semibold rounded-xl transition-colors">
+                  {saving ? 'Saving...' : editId ? 'Update' : 'Create'}
                 </button>
-              )}
-            </div>
-          </form>
-        </div>
-
-        {/* List */}
-        {loading ? (
-          <div className="space-y-3">{[1, 2, 3].map(i => <div key={i} className="h-20 bg-zinc-800/50 rounded-xl animate-pulse" />)}</div>
-        ) : filtered.length === 0 ? (
-          <div className="text-center py-16 text-zinc-500">
-            <p className="text-4xl mb-3">📋</p>
-            <p className="text-lg">{search ? 'No matches found' : 'No canned responses yet'}</p>
+                {editId && (
+                  <button type="button" onClick={resetForm}
+                    className="px-5 py-2 bg-[#27272a] hover:bg-[#3f3f46] text-[#a1a1aa] text-[13px] rounded-xl transition-colors">
+                    Cancel
+                  </button>
+                )}
+              </div>
+            </form>
           </div>
-        ) : (
-          <div className="grid gap-3">
-            {filtered.map(item => (
-              <div key={item._id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 hover:border-zinc-700 transition-colors">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2 mb-1">
-                      <span className="text-sm font-semibold text-zinc-100">{item.title}</span>
-                      {item.category && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-400">{item.category}</span>
+
+          {/* Right: List */}
+          <div className="space-y-3 min-w-0">
+            {loading ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="h-24 bg-[#18181b] border border-[#27272a] rounded-2xl animate-pulse" />
+              ))
+            ) : filtered.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-[#52525b] bg-[#18181b] border border-[#27272a] rounded-2xl">
+                <svg className="w-12 h-12 text-[#3f3f46] mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                </svg>
+                <p className="text-[14px] font-medium text-[#71717a]">{search ? 'No matches found' : 'No canned responses yet'}</p>
+                <p className="text-[12px] mt-1">Create templates to speed up ticket responses</p>
+              </div>
+            ) : (
+              filtered.map(item => (
+                <div key={item._id} className="bg-[#18181b] border border-[#27272a] rounded-2xl p-4 hover:border-[#3f3f46] transition-colors">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                        <span className="text-[13px] font-semibold text-[#fafafa]">{item.title}</span>
+                        {item.category && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#27272a] border border-[#3f3f46] text-[#a1a1aa]">{item.category}</span>
+                        )}
+                        {item.isGlobal && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#3b82f6]/10 border border-[#3b82f6]/20 text-[#3b82f6]">Global</span>
+                        )}
+                      </div>
+                      <p className="text-[12px] text-[#71717a] line-clamp-2 font-mono leading-relaxed">{item.body}</p>
+                      {(item.tags || []).length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {item.tags.map(t => (
+                            <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-[#27272a] text-[#52525b]">#{t}</span>
+                          ))}
+                        </div>
                       )}
-                      {item.isGlobal && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-blue-900/40 border border-blue-700/50 text-blue-400">Global</span>
+                      <p className="text-[11px] text-[#52525b] mt-2">
+                        Used {item.usageCount || 0}x by {item.createdByName || '—'}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <button onClick={() => copyText(item)}
+                        className={`px-3 py-1.5 text-[11px] font-medium rounded-lg border transition-all ${
+                          copied === item._id
+                            ? 'bg-[#22c55e]/10 border-[#22c55e]/30 text-[#22c55e]'
+                            : 'bg-[#27272a] border-[#3f3f46] text-[#a1a1aa] hover:border-[#52525b]'
+                        }`}>
+                        {copied === item._id ? 'Copied' : 'Copy'}
+                      </button>
+                      <button onClick={() => startEdit(item)}
+                        className="px-3 py-1.5 text-[11px] font-medium rounded-lg bg-[#27272a] border border-[#3f3f46] text-[#a1a1aa] hover:border-[#52525b] transition-colors">
+                        Edit
+                      </button>
+                      {userRole === 'admin' && (
+                        <button onClick={() => remove(item._id)}
+                          className="px-3 py-1.5 text-[11px] font-medium rounded-lg bg-[#27272a] border border-[#3f3f46] text-[#a1a1aa] hover:border-[#ef4444]/40 hover:text-[#ef4444] transition-colors">
+                          Delete
+                        </button>
                       )}
                     </div>
-                    <p className="text-sm text-zinc-400 line-clamp-2 font-mono">{item.body}</p>
-                    {(item.tags || []).length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {item.tags.map(t => (
-                          <span key={t} className="text-xs px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-500">#{t}</span>
-                        ))}
-                      </div>
-                    )}
-                    <p className="text-xs text-zinc-600 mt-2">
-                      Used {item.usageCount || 0} times · by {item.createdByName || '—'}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      onClick={() => copyText(item)}
-                      className="px-3 py-1.5 text-xs rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300 hover:border-zinc-500 transition-colors"
-                    >
-                      {copied === item._id ? '✓ Copied' : 'Copy'}
-                    </button>
-                    <button onClick={() => startEdit(item)} className="px-3 py-1.5 text-xs rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300 hover:border-zinc-500 transition-colors">
-                      Edit
-                    </button>
-                    {userRole === 'admin' && (
-                      <button onClick={() => remove(item._id)} className="px-3 py-1.5 text-xs rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-400 hover:border-red-700 hover:text-red-400 transition-colors">
-                        Delete
-                      </button>
-                    )}
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
-        )}
+        </div>
       </div>
-    </div>
+    </PageWrapper>
   );
 }

@@ -1,274 +1,238 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import PageWrapper from '../components/layout/PageWrapper';
+import Breadcrumb from '../components/layout/Breadcrumb';
 import api from '../api/api';
 
-const STATUS_COLOR = { Open: '#22c55e', 'In Progress': '#f59e0b', Resolved: '#06b6d4', Closed: '#71717a' };
-const P_COLOR      = { Critical: '#ef4444', High: '#f97316', Medium: '#3b82f6', Low: '#22c55e' };
-const DOW_LABELS   = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const MONTH_NAMES  = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const P_COLOR = { critical: '#ef4444', high: '#f59e0b', medium: '#3b82f6', low: '#22c55e', Critical: '#ef4444', High: '#f59e0b', Medium: '#3b82f6', Low: '#22c55e' };
 
-const pad = n => String(n).padStart(2, '0');
+function buildGrid(year, month) {
+  const first = new Date(year, month, 1).getDay();
+  const days  = new Date(year, month + 1, 0).getDate();
+  const cells = Array(first).fill(null);
+  for (let d = 1; d <= days; d++) cells.push(d);
+  while (cells.length % 7 !== 0) cells.push(null);
+  return cells;
+}
 
 export default function CalendarView() {
-  const navigate = useNavigate();
-  const today = new Date();
-  const [year, setYear]   = useState(today.getFullYear());
-  const [month, setMonth] = useState(today.getMonth());         // 0-indexed
-  const [selDay, setSelDay] = useState(null);
+  const navigate    = useNavigate();
+  const today       = new Date();
   const [tickets, setTickets]   = useState([]);
   const [loading, setLoading]   = useState(true);
-  const userRole = localStorage.getItem('userRole');
+  const [month, setMonth]       = useState(today.getMonth());
+  const [year, setYear]         = useState(today.getFullYear());
+  const [selected, setSelected] = useState(today.getDate());
 
   useEffect(() => {
-    const params = userRole === 'admin' ? {} : { mine: 'true' };
-    api.get('/tickets', { params })
-      .then(r => setTickets(r.data.tickets || []))
-      .finally(() => setLoading(false));
+    (async () => {
+      try { const { data } = await api.get('/tickets'); setTickets(data.tickets || []); }
+      catch { /* ignore */ } finally { setLoading(false); }
+    })();
   }, []);
 
-  // Map dateStr (YYYY-MM-DD) → tickets due on that day
-  const byDate = useMemo(() => {
-    const map = {};
-    tickets.forEach(t => {
-      if (!t.dueDate) return;
-      const k = t.dueDate.slice(0, 10);
-      (map[k] = map[k] || []).push(t);
-    });
-    return map;
-  }, [tickets]);
+  const toDate = t => t.dueDate ? new Date(t.dueDate) : null;
 
-  // Build the 6-week grid for the current month
-  const cells = useMemo(() => {
-    const firstDow   = new Date(year, month, 1).getDay();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const grid = Array(firstDow).fill(null);
-    for (let d = 1; d <= daysInMonth; d++) grid.push(d);
-    while (grid.length % 7 !== 0) grid.push(null); // trailing empty
-    return grid;
-  }, [year, month]);
+  const byDate = tickets.reduce((acc, t) => {
+    const d = toDate(t);
+    if (!d) return acc;
+    if (d.getMonth() !== month || d.getFullYear() !== year) return acc;
+    const k = d.getDate();
+    if (!acc[k]) acc[k] = [];
+    acc[k].push(t);
+    return acc;
+  }, {});
 
-  const prevMonth = () => { if (month === 0) { setYear(y => y-1); setMonth(11); } else setMonth(m => m-1); setSelDay(null); };
-  const nextMonth = () => { if (month === 11) { setYear(y => y+1); setMonth(0); }  else setMonth(m => m+1); setSelDay(null); };
-  const goToday   = () => { setYear(today.getFullYear()); setMonth(today.getMonth()); setSelDay(null); };
+  const isToday = (d) => d === today.getDate() && month === today.getMonth() && year === today.getFullYear();
+  const isOverdue = (t) => { const d = toDate(t); return d && d < today && t.status !== 'closed' && t.status !== 'resolved'; };
 
-  const todayKey = today.toISOString().slice(0, 10);
-  const selKey   = selDay ? `${year}-${pad(month+1)}-${pad(selDay)}` : null;
-  const selTickets = selKey ? (byDate[selKey] || []) : [];
+  const selectedTickets = byDate[selected] || [];
+  const monthTickets    = Object.values(byDate).flat();
+  const overdueCount    = monthTickets.filter(isOverdue).length;
+  const upcoming = tickets
+    .filter(t => { const d = toDate(t); return d && d >= today && d.getMonth() === month && d.getFullYear() === year; })
+    .sort((a, b) => toDate(a) - toDate(b))
+    .slice(0, 8);
 
-  const monthTickets = tickets.filter(t => t.dueDate?.startsWith(`${year}-${pad(month+1)}`));
-  const overdueCount = monthTickets.filter(t => t.dueDate < todayKey && !['Resolved','Closed'].includes(t.status)).length;
+  const cells = buildGrid(year, month);
 
-  // Weeks array for rendering rows
-  const weeks = [];
-  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i+7));
+  const prev = () => {
+    if (month === 0) { setMonth(11); setYear(y => y - 1); }
+    else setMonth(m => m - 1);
+    setSelected(null);
+  };
+  const next = () => {
+    if (month === 11) { setMonth(0); setYear(y => y + 1); }
+    else setMonth(m => m + 1);
+    setSelected(null);
+  };
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 p-6">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <PageWrapper>
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-5">
+        <Breadcrumb />
 
         {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-4 p-5 mb-6 rounded-2xl bg-gradient-to-r from-[#8b5cf6]/8 via-[#3b82f6]/4 to-transparent border border-[#8b5cf6]/15">
           <div>
-            <h1 className="text-2xl font-bold">📅 Ticket Calendar</h1>
-            <p className="text-zinc-400 text-sm mt-1">
-              {monthTickets.length} ticket{monthTickets.length !== 1 ? 's' : ''} due this month
-              {overdueCount > 0 && <span className="text-red-400 ml-2">· {overdueCount} overdue</span>}
-            </p>
+            <h1 className="text-[24px] font-bold text-[#fafafa] mb-0.5">Ticket Calendar</h1>
+            <p className="text-[13px] text-[#a1a1aa]">Due-date overview for {MONTHS[month]} {year}</p>
           </div>
-          <button onClick={() => navigate('/my-tickets')} className="text-sm text-zinc-400 hover:text-zinc-200 flex items-center gap-1 transition-colors">
-            ← My Tickets
-          </button>
+          <div className="flex items-center gap-2">
+            {overdueCount > 0 && (
+              <span className="text-[12px] px-3 py-1.5 rounded-xl bg-[#ef4444]/10 border border-[#ef4444]/20 text-[#ef4444] font-medium">
+                {overdueCount} overdue
+              </span>
+            )}
+            <span className="text-[12px] px-3 py-1.5 rounded-xl bg-[#27272a] border border-[#3f3f46] text-[#a1a1aa]">
+              {monthTickets.length} with due dates
+            </span>
+          </div>
         </div>
 
-        {/* Calendar card */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-          {/* Navigation bar */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
-            <button onClick={prevMonth} className="p-2 rounded-lg hover:bg-zinc-800 transition-colors">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <div className="flex items-center gap-3">
-              <h2 className="text-base font-semibold">{MONTH_NAMES[month]} {year}</h2>
-              {(year !== today.getFullYear() || month !== today.getMonth()) && (
-                <button onClick={goToday} className="text-xs text-[#FF634A] hover:underline">Today</button>
-              )}
+        <div className="grid lg:grid-cols-[1fr_300px] gap-6 items-start">
+
+          {/* Left: Calendar grid */}
+          <div className="bg-[#18181b] border border-[#27272a] rounded-2xl overflow-hidden">
+            {/* Month navigator */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[#27272a]">
+              <button onClick={prev} className="w-8 h-8 rounded-lg bg-[#27272a] hover:bg-[#3f3f46] flex items-center justify-center transition-colors">
+                <svg className="w-4 h-4 text-[#a1a1aa]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <span className="text-[15px] font-semibold text-[#fafafa]">{MONTHS[month]} {year}</span>
+              <button onClick={next} className="w-8 h-8 rounded-lg bg-[#27272a] hover:bg-[#3f3f46] flex items-center justify-center transition-colors">
+                <svg className="w-4 h-4 text-[#a1a1aa]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
             </div>
-            <button onClick={nextMonth} className="p-2 rounded-lg hover:bg-zinc-800 transition-colors">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-          </div>
 
-          {/* Day-of-week headers */}
-          <div className="grid grid-cols-7 border-b border-zinc-800">
-            {DOW_LABELS.map(d => (
-              <div key={d} className="py-2.5 text-center text-xs font-semibold text-zinc-500 tracking-wide">{d}</div>
-            ))}
-          </div>
+            {/* Day headers */}
+            <div className="grid grid-cols-7 border-b border-[#27272a]">
+              {DAYS.map(d => (
+                <div key={d} className="py-2.5 text-center text-[11px] font-semibold text-[#52525b] uppercase tracking-wider">{d}</div>
+              ))}
+            </div>
 
-          {/* Grid */}
-          {loading ? (
-            <div className="h-64 flex items-center justify-center text-zinc-500 text-sm">Loading…</div>
-          ) : (
-            <div>
-              {weeks.map((week, wi) => (
-                <div key={wi} className="grid grid-cols-7 border-b border-zinc-800/50 last:border-b-0">
-                  {week.map((day, di) => {
-                    if (!day) return <div key={di} className="min-h-[80px] border-r border-zinc-800/50 last:border-r-0 bg-zinc-900/30" />;
-                    const key = `${year}-${pad(month+1)}-${pad(day)}`;
-                    const dayT = byDate[key] || [];
-                    const isToday = key === todayKey;
-                    const isSel   = selDay === day;
-                    const isPast  = key < todayKey;
-                    const hasOverdue = dayT.some(t => !['Resolved','Closed'].includes(t.status)) && isPast;
-                    return (
-                      <div
-                        key={di}
-                        onClick={() => setSelDay(isSel ? null : day)}
-                        className={`min-h-[80px] p-1.5 border-r border-zinc-800/50 last:border-r-0 cursor-pointer transition-colors relative select-none ${
-                          isSel    ? 'bg-[#FF634A]/10' :
-                          isToday  ? 'bg-zinc-800/40'  :
-                          'hover:bg-zinc-800/30'
-                        }`}
-                      >
-                        {/* Day number */}
-                        <div className={`w-6 h-6 flex items-center justify-center text-xs font-semibold rounded-full mb-1 ${
-                          isToday ? 'bg-[#FF634A] text-white' :
-                          isSel   ? 'text-[#FF634A] bg-[#FF634A]/15' :
-                          isPast  ? 'text-zinc-600' : 'text-zinc-300'
-                        }`}>{day}</div>
-
-                        {/* Ticket dots */}
-                        {dayT.length > 0 && (
-                          <div className="flex flex-wrap gap-0.5 mt-0.5">
-                            {dayT.slice(0, 4).map(t => (
-                              <span key={t._id} className="w-1.5 h-1.5 rounded-full block" style={{ backgroundColor: STATUS_COLOR[t.status] || '#a1a1aa' }} title={t.title} />
+            {/* Cells */}
+            {loading ? (
+              <div className="h-64 flex items-center justify-center text-[#52525b] text-[13px]">Loading...</div>
+            ) : (
+              <div className="grid grid-cols-7">
+                {cells.map((day, i) => {
+                  const dayTickets = day ? (byDate[day] || []) : [];
+                  return (
+                    <button key={i} disabled={!day}
+                      onClick={() => day && setSelected(day)}
+                      className={`min-h-[72px] p-1.5 border-r border-b border-[#27272a] transition-colors text-left last:border-r-0 ${
+                        !day ? 'bg-[#111113] cursor-default' :
+                        selected === day ? 'bg-[#3b82f6]/10 border-[#3b82f6]/20' :
+                        isToday(day) ? 'bg-[#3b82f6]/5' :
+                        'hover:bg-[#27272a]/60 cursor-pointer'
+                      }`}>
+                      {day && (
+                        <>
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[12px] mb-1 ${
+                            isToday(day) ? 'bg-[#3b82f6] text-white font-bold' : 'text-[#71717a]'
+                          }`}>{day}</div>
+                          <div className="flex flex-wrap gap-0.5">
+                            {dayTickets.slice(0, 3).map(t => (
+                              <span key={t._id} className="w-2 h-2 rounded-full flex-shrink-0"
+                                style={{ background: isOverdue(t) ? '#ef4444' : (P_COLOR[t.priority] || '#3b82f6') }} />
                             ))}
-                            {dayT.length > 4 && <span className="text-[9px] text-zinc-500 leading-none">+{dayT.length-4}</span>}
+                            {dayTickets.length > 3 && (
+                              <span className="text-[9px] text-[#52525b]">+{dayTickets.length - 3}</span>
+                            )}
                           </div>
-                        )}
+                        </>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
-                        {/* Overdue indicator */}
-                        {hasOverdue && (
-                          <span className="absolute top-1 right-1 text-[9px] font-bold text-red-400">!</span>
-                        )}
-                      </div>
-                    );
-                  })}
+            {/* Legend */}
+            <div className="flex flex-wrap items-center gap-4 px-5 py-3 border-t border-[#27272a]">
+              {[['critical','#ef4444'],['high','#f59e0b'],['medium','#3b82f6'],['low','#22c55e']].map(([p, c]) => (
+                <div key={p} className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full" style={{ background: c }} />
+                  <span className="text-[11px] text-[#52525b] capitalize">{p}</span>
                 </div>
               ))}
             </div>
-          )}
-        </div>
+          </div>
 
-        {/* Status legend */}
-        <div className="flex flex-wrap gap-4 text-xs text-zinc-500">
-          {Object.entries(STATUS_COLOR).map(([s, c]) => (
-            <span key={s} className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: c }} />{s}
-            </span>
-          ))}
-          <span className="flex items-center gap-1.5">
-            <span className="text-red-400 font-bold text-xs">!</span>Has overdue open tickets
-          </span>
-        </div>
-
-        {/* Selected day detail panel */}
-        {selDay && (
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-zinc-200">
-                {MONTH_NAMES[month]} {selDay}, {year}
-              </h3>
-              <div className="flex items-center gap-3">
-                <span className="text-xs text-zinc-500">{selTickets.length} ticket{selTickets.length !== 1 ? 's' : ''} due</span>
-                <button onClick={() => setSelDay(null)} className="p-1 text-zinc-500 hover:text-zinc-300 transition-colors">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            {selTickets.length === 0 ? (
-              <div className="px-5 py-10 text-center text-zinc-500 text-sm">No tickets due on this day</div>
-            ) : (
-              <div className="divide-y divide-zinc-800">
-                {selTickets.map(t => (
-                  <div
-                    key={t._id}
-                    onClick={() => navigate(`/tickets/${t._id}`)}
-                    className="flex items-center gap-4 px-5 py-4 hover:bg-zinc-800/40 cursor-pointer transition-colors"
-                  >
-                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: STATUS_COLOR[t.status] || '#888' }} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-zinc-100 truncate">{t.title}</p>
-                      <p className="text-xs text-zinc-400 mt-0.5">
-                        {t.ticketId} · {t.category}
-                        {t.assignedTo && <> · Assigned to {t.assignedTo}</>}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-[11px] px-2 py-0.5 rounded-full font-medium" style={{ color: P_COLOR[t.priority], backgroundColor: `${P_COLOR[t.priority]}15`, border: `1px solid ${P_COLOR[t.priority]}30` }}>
-                        {t.priority}
-                      </span>
-                      <span className="text-xs text-zinc-500">{t.status}</span>
-                      <svg className="w-4 h-4 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                      </svg>
-                    </div>
+          {/* Right: Side panel */}
+          <div className="space-y-4">
+            {/* Selected day */}
+            {selected && (
+              <div className="bg-[#18181b] border border-[#27272a] rounded-2xl overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-[#27272a]">
+                  <h3 className="text-[13px] font-semibold text-[#fafafa]">
+                    {MONTHS[month].slice(0, 3)} {selected}
+                  </h3>
+                  <span className="text-[11px] text-[#52525b]">{selectedTickets.length} ticket{selectedTickets.length !== 1 ? 's' : ''}</span>
+                </div>
+                {selectedTickets.length === 0 ? (
+                  <p className="text-[12px] text-[#52525b] px-4 py-6 text-center">No tickets due this day</p>
+                ) : (
+                  <div className="divide-y divide-[#27272a]">
+                    {selectedTickets.map(t => (
+                      <button key={t._id} onClick={() => navigate(`/tickets/${t._id}`)}
+                        className="w-full text-left px-4 py-3 hover:bg-[#27272a]/50 transition-colors">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: P_COLOR[t.priority] || '#3b82f6' }} />
+                          <span className="text-[12px] font-medium text-[#fafafa] line-clamp-1 flex-1">{t.title}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-[#52525b] capitalize">{t.priority} · {t.status}</span>
+                          {isOverdue(t) && <span className="text-[10px] text-[#ef4444] font-medium">OVERDUE</span>}
+                        </div>
+                      </button>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
             )}
-          </div>
-        )}
 
-        {/* Upcoming due — next 7 days summary */}
-        {(() => {
-          const upcoming = [];
-          for (let i = 0; i < 7; i++) {
-            const d = new Date(today);
-            d.setDate(today.getDate() + i);
-            const k = d.toISOString().slice(0, 10);
-            const ts = (byDate[k] || []).filter(t => !['Resolved','Closed'].includes(t.status));
-            if (ts.length) upcoming.push({ key: k, label: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }), tickets: ts });
-          }
-          if (!upcoming.length) return null;
-          return (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-              <div className="px-5 py-4 border-b border-zinc-800">
-                <h3 className="text-sm font-semibold text-zinc-200">⚡ Upcoming — Next 7 Days</h3>
+            {/* Upcoming */}
+            <div className="bg-[#18181b] border border-[#27272a] rounded-2xl overflow-hidden">
+              <div className="px-4 py-3 border-b border-[#27272a]">
+                <h3 className="text-[13px] font-semibold text-[#fafafa]">Upcoming Due Dates</h3>
               </div>
-              <div className="divide-y divide-zinc-800">
-                {upcoming.map(({ key, label, tickets: ts }) => (
-                  <div key={key} className="px-5 py-3 flex items-start gap-4">
-                    <div className="w-24 shrink-0">
-                      <p className={`text-xs font-semibold ${key === todayKey ? 'text-[#FF634A]' : 'text-zinc-400'}`}>{label}</p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {ts.map(t => (
-                        <button
-                          key={t._id}
-                          onClick={() => navigate(`/tickets/${t._id}`)}
-                          className="flex items-center gap-1.5 px-2.5 py-1 bg-zinc-800 border border-zinc-700 rounded-lg text-xs text-zinc-200 hover:border-zinc-500 transition-colors"
-                        >
-                          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: STATUS_COLOR[t.status] }} />
-                          <span className="truncate max-w-[160px]">{t.title}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
+              {upcoming.length === 0 ? (
+                <p className="text-[12px] text-[#52525b] px-4 py-6 text-center">No upcoming due dates</p>
+              ) : (
+                <div className="divide-y divide-[#27272a]">
+                  {upcoming.map(t => {
+                    const d = toDate(t);
+                    const daysLeft = Math.ceil((d - today) / 86400000);
+                    return (
+                      <button key={t._id} onClick={() => navigate(`/tickets/${t._id}`)}
+                        className="w-full text-left px-4 py-2.5 hover:bg-[#27272a]/50 transition-colors">
+                        <div className="flex items-start gap-2">
+                          <span className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" style={{ background: P_COLOR[t.priority] || '#3b82f6' }} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[12px] text-[#fafafa] line-clamp-1">{t.title}</p>
+                            <p className="text-[10px] mt-0.5" style={{ color: daysLeft <= 1 ? '#ef4444' : daysLeft <= 3 ? '#f59e0b' : '#52525b' }}>
+                              {daysLeft === 0 ? 'Due today' : daysLeft === 1 ? 'Due tomorrow' : `Due in ${daysLeft} days`}
+                            </p>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          );
-        })()}
-
+          </div>
+        </div>
       </div>
-    </div>
+    </PageWrapper>
   );
 }
