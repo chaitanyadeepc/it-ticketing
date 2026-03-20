@@ -26,9 +26,6 @@ const getPasswordStrength = (pw) => {
   return { score, ...levels[Math.min(score, levels.length - 1)] };
 };
 
-const STATUS_COLOR = { Open: '#22c55e', 'In Progress': '#f59e0b', Resolved: '#3b82f6', Closed: '#52525b' };
-const STATUS_BG = { Open: 'bg-[#22c55e]/10 text-[#22c55e]', 'In Progress': 'bg-[#f59e0b]/10 text-[#f59e0b]', Resolved: 'bg-[#3b82f6]/10 text-[#3b82f6]', Closed: 'bg-[#27272a] text-[#a1a1aa]' };
-
 const Profile = () => {
   const navigate = useNavigate();
   const userEmail = localStorage.getItem('userEmail') || '';
@@ -42,7 +39,6 @@ const Profile = () => {
 
   // Ticket stats from API
   const [stats, setStats] = useState({ total: 0, active: 0, resolved: 0 });
-  const [recentTickets, setRecentTickets] = useState([]);
   const [userSince, setUserSince] = useState('');
 
   // Password change state
@@ -70,7 +66,6 @@ const Profile = () => {
           active: tickets.filter((t) => t.status === 'Open' || t.status === 'In Progress').length,
           resolved: tickets.filter((t) => t.status === 'Resolved' || t.status === 'Closed').length,
         });
-        setRecentTickets(tickets.slice(0, 5));
       })
       .catch(() => setError('Failed to load profile'))
       .finally(() => setLoading(false));
@@ -330,30 +325,57 @@ const Profile = () => {
           </form>
         </div>
 
-        {/* Recent Tickets */}
-        {recentTickets.length > 0 && (
-          <div className="mt-5 bg-[#18181b] border border-[#27272a] rounded-xl p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-[14px] font-semibold text-[#fafafa]">Recent Tickets</h2>
-              <button onClick={() => navigate(userRole === 'user' ? '/my-tickets' : '/admin')}
-                className="text-[12px] text-[#3b82f6] hover:underline">View all →</button>
-            </div>
-            <div className="space-y-1">
-              {recentTickets.map(t => (
-                <button
-                  key={t._id}
-                  onClick={() => navigate(`/tickets/${t._id}`)}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-[#27272a] transition-colors text-left group"
-                >
-                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: STATUS_COLOR[t.status] || '#52525b' }} />
-                  <span className="flex-1 text-[12.5px] text-[#fafafa] truncate min-w-0">{t.title}</span>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${STATUS_BG[t.status] || 'bg-[#27272a] text-[#a1a1aa]'}`}>{t.status}</span>
-                  <span className="hidden sm:block text-[11px] font-['JetBrains_Mono'] text-[#3f3f46] group-hover:text-[#52525b] flex-shrink-0">{t.ticketId || ''}</span>
-                </button>
-              ))}
-            </div>
+        {/* Quick Actions */}
+        <div className="mt-5 bg-[#18181b] border border-[#27272a] border-l-[3px] rounded-xl p-5" style={{ borderLeftColor: '#3b82f6' }}>
+          <div className="flex items-center gap-2 mb-4">
+            <svg className="w-4 h-4 text-[#3b82f6]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+            </svg>
+            <h2 className="text-[14px] font-semibold text-[#fafafa]">Quick Actions</h2>
           </div>
-        )}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
+            {[
+              { label: 'New Ticket',      desc: 'Raise a new IT support request',       color: '#3b82f6', icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z', onClick: () => navigate('/raise-ticket') },
+              { label: 'My Tickets',      desc: 'View and manage your open tickets',    color: '#f59e0b', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2', onClick: () => navigate(userRole === 'user' ? '/my-tickets' : '/admin') },
+              { label: 'Knowledge Base',  desc: 'Browse IT guides and how-to articles', color: '#22c55e', icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253', onClick: () => navigate('/knowledge-base') },
+              { label: 'Notifications',   desc: 'View your recent notification history', color: '#06b6d4', icon: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9', onClick: () => navigate('/notifications') },
+              { label: 'Export Data',     desc: 'Download your ticket history as CSV',  color: '#8b5cf6', icon: 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4', onClick: () => {
+                  api.get('/tickets').then(r => {
+                    const tix = r.data.tickets || [];
+                    const csv = [['Ticket ID','Title','Category','Priority','Status','Created At'],
+                      ...tix.map(t => [t.ticketId||t._id, `"${(t.title||'').replace(/"/g,'""')}"`, t.category||'', t.priority||'', t.status||'', new Date(t.createdAt).toLocaleDateString()])
+                    ].map(row => row.join(',')).join('\n');
+                    const a = Object.assign(document.createElement('a'), {
+                      href: URL.createObjectURL(new Blob([csv], { type: 'text/csv' })),
+                      download: `tickets-${new Date().toISOString().slice(0,10)}.csv`,
+                    });
+                    a.click(); URL.revokeObjectURL(a.href);
+                  });
+                }
+              },
+              { label: 'Settings',        desc: 'Notifications, security & preferences', color: '#a1a1aa', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z', onClick: () => navigate('/settings') },
+            ].map(({ label, desc, color, icon, onClick }) => (
+              <button
+                key={label}
+                onClick={onClick}
+                className="flex flex-col gap-2.5 p-3.5 sm:p-4 rounded-xl border text-left hover:scale-[1.02] active:scale-[0.98] transition-all group"
+                style={{ borderColor: `${color}28`, background: `linear-gradient(135deg, ${color}0a 0%, transparent 70%)` }}
+              >
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${color}18` }}>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} style={{ color }}>
+                    {icon.split(' M').map((d, i) => (
+                      <path key={i} strokeLinecap="round" strokeLinejoin="round" d={(i === 0 ? '' : 'M') + d} />
+                    ))}
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-[12.5px] font-semibold text-[#e4e4e7] mb-0.5 group-hover:text-[#fafafa]">{label}</p>
+                  <p className="text-[11px] text-[#52525b] leading-tight">{desc}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     </PageWrapper>
   );

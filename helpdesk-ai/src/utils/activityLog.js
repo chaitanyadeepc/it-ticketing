@@ -40,6 +40,8 @@ export const logActivity = (action, {
     const logLevel = localStorage.getItem('hd_log_level') || 'detailed';
     // 'info_error' level: skip warning severity events
     if (logLevel === 'info_error' && severity === 'warning') return;
+    // 'errors_only' level: only log error and critical severity
+    if (logLevel === 'errors_only' && severity !== 'error' && severity !== 'critical') return;
 
     const token     = localStorage.getItem('token');
     const sessionId = getSessionId();
