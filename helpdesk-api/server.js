@@ -46,7 +46,8 @@ app.use(globalLimiter);
 
 // ── CORS ────────────────────────────────────────────────────────────────────
 const allowedOrigins = [
-  process.env.CLIENT_URL,
+  'https://hiticket.vercel.app',   // production
+  process.env.CLIENT_URL,          // override via env if needed
   'http://localhost:5173',
   'http://localhost:5174',
   'http://localhost:5175',
@@ -54,7 +55,7 @@ const allowedOrigins = [
   'http://localhost:5177',
   'http://localhost:5178',
   'http://localhost:5179',
-];
+].filter(Boolean);
 
 app.use(cors({
   origin: (origin, callback) => {
