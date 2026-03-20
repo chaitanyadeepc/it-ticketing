@@ -643,155 +643,31 @@ const AdminDashboard = () => {
               </Card>
             </div>
 
-            {/* Status / Category / Priority charts */}
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-5">
-              {/* Status pie */}
-              <Card className="p-5 border-t-[3px]" style={{ borderTopColor: '#3b82f6' }}>
-                <h2 className="text-[14px] font-semibold text-[#fafafa] mb-4">Status Breakdown</h2>
-                <ResponsiveContainer width="100%" height={200}>
-                  <PieChart>
-                    <Pie data={statusData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value">
-                      {statusData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                    </Pie>
-                    <Tooltip contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: 8, fontSize: 12 }} />
-                    <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, color: '#a1a1aa' }} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </Card>
-
-              {/* Category bar */}
-              <Card className="p-5 border-t-[3px]" style={{ borderTopColor: '#6366f1' }}>
-                <h2 className="text-[14px] font-semibold text-[#fafafa] mb-4">Tickets by Category</h2>
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={categoryData} layout="vertical" margin={{ left: 0, right: 16 }}>
-                    <XAxis type="number" tick={{ fontSize: 11, fill: '#71717a' }} axisLine={false} tickLine={false} />
-                    <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#a1a1aa' }} axisLine={false} tickLine={false} width={72} />
-                    <Tooltip contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: 8, fontSize: 12 }} />
-                    <Bar dataKey="count" fill="#3b82f6" radius={[0, 4, 4, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </Card>
-
-              {/* Priority bar */}
-              <Card className="p-5 border-t-[3px]" style={{ borderTopColor: '#f59e0b' }}>
-                <h2 className="text-[14px] font-semibold text-[#fafafa] mb-4">Tickets by Priority</h2>
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={priorityData} margin={{ left: 0, right: 16 }}>
-                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#a1a1aa' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 11, fill: '#71717a' }} axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: 8, fontSize: 12 }} />
-                    <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                      {priorityData.map((_, i) => (
-                        <Cell key={i} fill={['#3b82f6','#f59e0b','#f97316','#ef4444'][i]} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </Card>
-            </div>
           </>
         )}
 
-        {/* Heatmap + Agent performance */}
+        {/* Analytics shortcut — no chart duplication, Reports is the single source for deep analytics */}
         {activeTab === 'overview' && tickets.length > 0 && (
-          <div className="grid md:grid-cols-2 gap-4 mb-5">
-            {/* Day-of-week heatmap */}
-            <Card className="p-5 border-t-[3px]" style={{ borderTopColor: '#6366f1' }}>
-              <h2 className="text-[14px] font-semibold text-[#fafafa] mb-4 flex items-center gap-2">
-                <svg className="w-4 h-4 text-[#6366f1]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                Ticket Volume by Day
-              </h2>
-              {(() => {
-                const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-                const counts = Array(7).fill(0);
-                tickets.forEach(t => { counts[new Date(t.createdAt).getDay()]++; });
-                const max = Math.max(...counts, 1);
-                return (
-                  <div className="space-y-2">
-                    {DAYS.map((day, i) => {
-                      const pct = (counts[i] / max) * 100;
-                      return (
-                        <div key={day} className="flex items-center gap-3">
-                          <span className="text-[11px] w-7 text-[#71717a] font-medium">{day}</span>
-                          <div className="flex-1 h-6 rounded-md bg-[#27272a] overflow-hidden relative">
-                            <div className="h-full rounded-md transition-all duration-700"
-                              style={{ width: `${pct}%`, backgroundColor: `rgba(99,102,241,${0.15 + (pct / 100) * 0.75})` }} />
-                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-[#a1a1aa]">{counts[i]}</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
-            </Card>
-
-            {/* Agent performance table */}
-            <Card className="p-5 border-t-[3px]" style={{ borderTopColor: '#22c55e' }}>
-              <h2 className="text-[14px] font-semibold text-[#fafafa] mb-4 flex items-center gap-2">
-                <svg className="w-4 h-4 text-[#22c55e]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-                Agent Performance
-              </h2>
-              {(() => {
-                const agentMap = {};
-                tickets.forEach(t => {
-                  if (!t.assignedTo || t.assignedTo === 'Unassigned') return;
-                  if (!agentMap[t.assignedTo]) agentMap[t.assignedTo] = { resolved: 0, resTimes: [], csat: [], open: 0 };
-                  const a = agentMap[t.assignedTo];
-                  if (t.status === 'Resolved' || t.status === 'Closed') {
-                    a.resolved++;
-                    if (t.resolvedAt) a.resTimes.push(new Date(t.resolvedAt) - new Date(t.createdAt));
-                    if (t.satisfaction?.rating) a.csat.push(t.satisfaction.rating);
-                  } else if (t.status === 'Open' || t.status === 'In Progress') {
-                    a.open++;
-                  }
-                });
-                const rows = Object.entries(agentMap)
-                  .map(([name, d]) => ({
-                    name,
-                    resolved: d.resolved,
-                    open: d.open,
-                    avgRes: d.resTimes.length ? d.resTimes.reduce((s, v) => s + v, 0) / d.resTimes.length : null,
-                    csat: d.csat.length ? (d.csat.reduce((s, v) => s + v, 0) / d.csat.length).toFixed(1) : null,
-                  }))
-                  .sort((a, b) => b.resolved - a.resolved)
-                  .slice(0, 6);
-                const fmtMs = ms => {
-                  if (!ms) return '—';
-                  const h = Math.floor(ms / 3600000);
-                  return h < 48 ? `${h}h` : `${Math.floor(h / 24)}d`;
-                };
-                if (rows.length === 0) return <p className="text-[12px] text-[#52525b]">No assigned tickets yet.</p>;
-                return (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-[12px]">
-                      <thead>
-                        <tr className="text-[11px] text-[#52525b] uppercase tracking-wider border-b border-[#27272a]">
-                          <th className="pb-2 text-left font-semibold">Agent</th>
-                          <th className="pb-2 text-center font-semibold">Resolved</th>
-                          <th className="pb-2 text-center font-semibold">Open</th>
-                          <th className="pb-2 text-center font-semibold">Avg Res.</th>
-                          <th className="pb-2 text-center font-semibold">CSAT</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {rows.map((r, i) => (
-                          <tr key={r.name} className="border-b border-[#27272a]/50 last:border-0">
-                            <td className="py-2 text-[#fafafa] font-medium">{r.name}</td>
-                            <td className="py-2 text-center text-[#22c55e] font-semibold">{r.resolved}</td>
-                            <td className="py-2 text-center text-[#f59e0b]">{r.open}</td>
-                            <td className="py-2 text-center text-[#a1a1aa]">{fmtMs(r.avgRes)}</td>
-                            <td className="py-2 text-center">
-                              {r.csat ? <span className="text-[#f59e0b]">⭐ {r.csat}</span> : <span className="text-[#52525b]">—</span>}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                );
-              })()}
-            </Card>
+          <div className="mb-5">
+            <button
+              onClick={() => navigate('/reports')}
+              className="w-full flex items-center justify-between gap-4 p-5 bg-gradient-to-r from-[#6366f1]/10 via-[#3b82f6]/5 to-transparent border border-[#6366f1]/25 hover:border-[#6366f1]/50 rounded-2xl transition-all group"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-[#6366f1]/15 border border-[#6366f1]/25 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-6 h-6 text-[#6366f1]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                </div>
+                <div className="text-left">
+                  <p className="text-[14px] font-semibold text-[#fafafa]">Advanced Reports &amp; Analytics</p>
+                  <p className="text-[12px] text-[#71717a] mt-0.5">CSAT trends · resolution times · agent performance · category breakdown · CSV export</p>
+                </div>
+              </div>
+              <svg className="w-5 h-5 text-[#6366f1] group-hover:translate-x-1 transition-transform flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
           </div>
         )}
 

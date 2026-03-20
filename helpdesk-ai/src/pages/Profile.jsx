@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import PageWrapper from '../components/layout/PageWrapper';
 import Breadcrumb from '../components/layout/Breadcrumb';
 import Button from '../components/ui/Button';
@@ -25,7 +26,11 @@ const getPasswordStrength = (pw) => {
   return { score, ...levels[Math.min(score, levels.length - 1)] };
 };
 
+const STATUS_COLOR = { Open: '#22c55e', 'In Progress': '#f59e0b', Resolved: '#3b82f6', Closed: '#52525b' };
+const STATUS_BG = { Open: 'bg-[#22c55e]/10 text-[#22c55e]', 'In Progress': 'bg-[#f59e0b]/10 text-[#f59e0b]', Resolved: 'bg-[#3b82f6]/10 text-[#3b82f6]', Closed: 'bg-[#27272a] text-[#a1a1aa]' };
+
 const Profile = () => {
+  const navigate = useNavigate();
   const userEmail = localStorage.getItem('userEmail') || '';
   const userRole  = localStorage.getItem('userRole') || 'user';
 
@@ -37,6 +42,8 @@ const Profile = () => {
 
   // Ticket stats from API
   const [stats, setStats] = useState({ total: 0, active: 0, resolved: 0 });
+  const [recentTickets, setRecentTickets] = useState([]);
+  const [userSince, setUserSince] = useState('');
 
   // Password change state
   const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' });
@@ -56,12 +63,14 @@ const Profile = () => {
           location: u.location || '',
           jobTitle: u.jobTitle || '',
         });
+        if (u.createdAt) setUserSince(new Date(u.createdAt).toLocaleDateString([], { year: 'numeric', month: 'long' }));
         const tickets = ticketsRes.data.tickets || [];
         setStats({
           total: tickets.length,
           active: tickets.filter((t) => t.status === 'Open' || t.status === 'In Progress').length,
           resolved: tickets.filter((t) => t.status === 'Resolved' || t.status === 'Closed').length,
         });
+        setRecentTickets(tickets.slice(0, 5));
       })
       .catch(() => setError('Failed to load profile'))
       .finally(() => setLoading(false));
@@ -167,6 +176,21 @@ const Profile = () => {
           <div>
             <h1 className="text-[24px] font-bold text-[#fafafa] mb-0.5">My Profile</h1>
             <p className="text-[13px] text-[#a1a1aa]">Manage your account information and preferences</p>
+            {userSince && <p className="text-[11px] text-[#52525b] mt-1">Member since {userSince}</p>}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {['user', 'admin', 'agent'].includes(userRole) && (
+              <button onClick={() => navigate(userRole === 'user' ? '/my-tickets' : '/admin')}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] hover:border-[#3f3f46] text-[12px] text-[#a1a1aa] hover:text-[#fafafa] transition-all">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                View Tickets
+              </button>
+            )}
+            <button onClick={() => navigate('/chatbot')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#3b82f6] hover:bg-[#2563eb] text-white text-[12px] font-semibold transition-all">
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+              New Ticket
+            </button>
           </div>
         </div>
 
@@ -305,6 +329,31 @@ const Profile = () => {
             </button>
           </form>
         </div>
+
+        {/* Recent Tickets */}
+        {recentTickets.length > 0 && (
+          <div className="mt-5 bg-[#18181b] border border-[#27272a] rounded-xl p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-[14px] font-semibold text-[#fafafa]">Recent Tickets</h2>
+              <button onClick={() => navigate(userRole === 'user' ? '/my-tickets' : '/admin')}
+                className="text-[12px] text-[#3b82f6] hover:underline">View all →</button>
+            </div>
+            <div className="space-y-1">
+              {recentTickets.map(t => (
+                <button
+                  key={t._id}
+                  onClick={() => navigate(`/tickets/${t._id}`)}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-[#27272a] transition-colors text-left group"
+                >
+                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: STATUS_COLOR[t.status] || '#52525b' }} />
+                  <span className="flex-1 text-[12.5px] text-[#fafafa] truncate min-w-0">{t.title}</span>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${STATUS_BG[t.status] || 'bg-[#27272a] text-[#a1a1aa]'}`}>{t.status}</span>
+                  <span className="hidden sm:block text-[11px] font-['JetBrains_Mono'] text-[#3f3f46] group-hover:text-[#52525b] flex-shrink-0">{t.ticketId || ''}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </PageWrapper>
   );

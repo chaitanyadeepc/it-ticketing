@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import PageWrapper from '../components/layout/PageWrapper';
 import Breadcrumb from '../components/layout/Breadcrumb';
 import { useTheme } from '../context/ThemeContext';
@@ -41,6 +42,7 @@ const SectionCard = ({ title, icon, children, accentColor = '#3b82f6' }) => (
 );
 
 const Settings = () => {
+  const navigate = useNavigate();
   const { theme, toggleTheme, isDark } = useTheme();
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [pushNotifications, setPushNotifications] = useState(false);
@@ -416,6 +418,37 @@ const Settings = () => {
           )}
         </SectionCard>
 
+        {/* Keyboard Shortcuts */}
+        <SectionCard
+          accentColor="#06b6d4"
+          title="Keyboard Shortcuts"
+          icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0H3" /></svg>}
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {[
+              { keys: ['G', 'then', 'H'], desc: 'Go to Home' },
+              { keys: ['G', 'then', 'T'], desc: 'Go to My Tickets' },
+              { keys: ['G', 'then', 'C'], desc: 'Open AI Chatbot' },
+              { keys: ['G', 'then', 'A'], desc: 'Admin Dashboard' },
+              { keys: ['G', 'then', 'N'], desc: 'Notifications' },
+              { keys: ['?'], desc: 'Show keyboard shortcuts' },
+              { keys: ['Esc'], desc: 'Close modal / cancel' },
+              { keys: ['Ctrl', 'K'], desc: 'Quick search (upcoming)' },
+            ].map(({ keys, desc }) => (
+              <div key={desc} className="flex items-center justify-between py-2 border-b border-[#27272a] last:border-0">
+                <span className="text-[12.5px] text-[#a1a1aa]">{desc}</span>
+                <div className="flex items-center gap-1">
+                  {keys.map((k, i) => (
+                    k === 'then'
+                      ? <span key={i} className="text-[10px] text-[#52525b] mx-0.5">then</span>
+                      : <kbd key={i} className="inline-flex items-center px-2 py-0.5 rounded-md bg-[#27272a] border border-[#3f3f46] text-[10px] font-mono font-semibold text-[#a1a1aa]">{k}</kbd>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </SectionCard>
+
         {/* Account — full width bottom row */}
         <div className="bg-[#18181b] border border-[#27272a] border-l-[3px] rounded-xl p-5" style={{ borderLeftColor: '#ef4444' }}>
           <div className="flex items-center gap-2 mb-4">
@@ -427,18 +460,59 @@ const Settings = () => {
             <h2 className="text-[14px] font-semibold text-[#fafafa]">Account</h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            {[
-              { label: 'Change Password', icon: 'M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z', color: 'text-[#a1a1aa]', bg: 'bg-[#27272a]', hover: 'hover:bg-[#3f3f46]' },
-              { label: 'Export My Data', icon: 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4', color: 'text-[#a1a1aa]', bg: 'bg-[#27272a]', hover: 'hover:bg-[#3f3f46]' },
-              { label: 'Delete Account', icon: 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16', color: 'text-[#ef4444]', bg: 'bg-[#1f0e0e]', hover: 'hover:bg-[#2a1010]', border: 'border border-[#3d1515]' },
-            ].map(({ label, icon, color, bg, hover, border }) => (
-              <button key={label} className={`flex items-center justify-center gap-2.5 px-4 py-3 rounded-lg ${bg} ${border || ''} ${hover} transition-colors ${color} text-[13.5px] font-medium`}>
-                <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d={icon} />
-                </svg>
-                {label}
-              </button>
-            ))}
+            <button
+              onClick={() => navigate('/profile')}
+              className="flex items-center justify-center gap-2.5 px-4 py-3 rounded-lg bg-[#27272a] hover:bg-[#3f3f46] transition-colors text-[#a1a1aa] text-[13.5px] font-medium"
+            >
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+              </svg>
+              Change Password
+            </button>
+            <button
+              onClick={() => {
+                api.get('/tickets').then(r => {
+                  const tickets = r.data.tickets || [];
+                  const userEmail = localStorage.getItem('userEmail') || '';
+                  const header = ['Ticket ID', 'Title', 'Category', 'Priority', 'Status', 'Created At'];
+                  const rows = tickets.map(t => [
+                    t.ticketId || t._id,
+                    `"${(t.title || '').replace(/"/g, '""')}"`,
+                    t.category || '', t.priority || '', t.status || '',
+                    new Date(t.createdAt).toLocaleDateString(),
+                  ]);
+                  const csv = [header, ...rows].map(r => r.join(',')).join('\n');
+                  const a = Object.assign(document.createElement('a'), {
+                    href: URL.createObjectURL(new Blob([csv], { type: 'text/csv' })),
+                    download: `my-tickets-${new Date().toISOString().slice(0,10)}.csv`,
+                  });
+                  a.click();
+                  URL.revokeObjectURL(a.href);
+                });
+              }}
+              className="flex items-center justify-center gap-2.5 px-4 py-3 rounded-lg bg-[#27272a] hover:bg-[#3f3f46] transition-colors text-[#a1a1aa] text-[13.5px] font-medium"
+            >
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Export My Data
+            </button>
+            <button
+              onClick={() => {
+                if (window.confirm('Are you sure you want to delete your account? This action is irreversible.')) {
+                  api.delete('/users/me').then(() => {
+                    localStorage.clear();
+                    window.location.href = '/login';
+                  }).catch(() => window.alert('Failed to delete account. Please contact an administrator.'));
+                }
+              }}
+              className="flex items-center justify-center gap-2.5 px-4 py-3 rounded-lg bg-[#1f0e0e] border border-[#3d1515] hover:bg-[#2a1010] transition-colors text-[#ef4444] text-[13.5px] font-medium"
+            >
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Delete Account
+            </button>
           </div>
         </div>
       </div>

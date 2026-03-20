@@ -74,6 +74,13 @@ const Home = () => {
   // Resolution rate
   const resolutionRate = total > 0 ? Math.round(((resolved + closed) / total) * 100) : 0;
 
+  // Overdue tickets — open/in-progress past their due date
+  const today = new Date(); today.setHours(0,0,0,0);
+  const overdueTickets = tickets.filter(t =>
+    (t.status === 'Open' || t.status === 'In Progress') &&
+    t.dueDate && new Date(t.dueDate) < today
+  );
+
   // ── Greeting time ──────────────────────────────────────────────────────────
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
@@ -88,12 +95,25 @@ const Home = () => {
             <div>
               <p className="text-[13px] text-[#a1a1aa] mb-0.5">{greeting},</p>
               <h1 className="text-[28px] font-bold text-[#fafafa]">{firstName}</h1>
-              {isAdmin && (
-                <span className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-full bg-[#f59e0b]/10 border border-[#f59e0b]/20 text-[#f59e0b] text-[11px] font-medium">
-                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                  Admin
-                </span>
-              )}
+              <div className="flex flex-wrap gap-2 mt-2">
+                {isAdmin && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#f59e0b]/10 border border-[#f59e0b]/20 text-[#f59e0b] text-[11px] font-medium">
+                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                    Admin
+                  </span>
+                )}
+                {userRole === 'agent' && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#6366f1]/10 border border-[#6366f1]/20 text-[#818cf8] text-[11px] font-medium">
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065zM15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    Agent
+                  </span>
+                )}
+                {!statsLoading && total > 0 && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#27272a] text-[#a1a1aa] text-[11px]">
+                    {total} ticket{total !== 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
             </div>
             {statsLoading && (
               <div className="flex gap-2 mt-1">
@@ -102,6 +122,34 @@ const Home = () => {
                 ))}
               </div>
             )}
+          </div>
+
+          {/* Quick actions */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+            {[
+              { label: 'AI Chatbot', sub: 'Raise a ticket', path: '/chatbot', icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z', color: '#3b82f6' },
+              { label: 'My Tickets', sub: 'View all', path: isAdmin ? '/admin' : '/my-tickets', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2', color: '#22c55e' },
+              { label: 'Calendar', sub: 'Due dates', path: '/my-tickets/calendar', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z', color: '#f59e0b' },
+              isAdmin || userRole === 'agent'
+                ? { label: 'Reports', sub: 'Analytics', path: '/reports', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z', color: '#8b5cf6' }
+                : { label: 'Notifications', sub: 'Alerts', path: '/notifications', icon: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9', color: '#06b6d4' },
+            ].map(({ label, sub, path, icon, color }) => (
+              <button
+                key={label}
+                onClick={() => navigate(path)}
+                className="flex items-center gap-3 p-3 sm:p-4 rounded-xl bg-[#18181b] border border-[#27272a] hover:border-[#3f3f46] hover:bg-[#1c1c1f] transition-all text-left group"
+              >
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110" style={{ backgroundColor: `${color}18` }}>
+                  <svg className="w-4 h-4" style={{ color }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d={icon} />
+                  </svg>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[12.5px] font-semibold text-[#fafafa] leading-tight">{label}</p>
+                  <p className="text-[11px] text-[#52525b] leading-tight">{sub}</p>
+                </div>
+              </button>
+            ))}
           </div>
 
           {statsLoading ? (
@@ -147,6 +195,29 @@ const Home = () => {
                   </div>
                 ))}
               </div>
+
+              {/* Overdue alert */}
+              {overdueTickets.length > 0 && (
+                <button
+                  onClick={() => navigate('/my-tickets/calendar')}
+                  className="w-full flex items-center gap-3 mb-5 p-3.5 rounded-xl bg-[#ef4444]/8 border border-[#ef4444]/25 hover:border-[#ef4444]/50 transition-all text-left"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-[#ef4444]/15 flex items-center justify-center flex-shrink-0">
+                    <svg className="w-4 h-4 text-[#ef4444]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-semibold text-[#ef4444]">
+                      {overdueTickets.length} overdue ticket{overdueTickets.length !== 1 ? 's' : ''}
+                    </p>
+                    <p className="text-[11px] text-[#a1a1aa]">Past their due date — view calendar for details</p>
+                  </div>
+                  <svg className="w-4 h-4 text-[#ef4444]/60 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
 
@@ -272,8 +343,10 @@ const Home = () => {
                     <h2 className="text-[14px] font-semibold text-[#fafafa] mb-3">Admin Tools</h2>
                     <div className="space-y-2">
                       {[
-                        { label: 'Open Admin Dashboard', sub: 'Charts, exports & full ticket table', path: '/admin', color: '#3b82f6' },
+                        { label: 'Admin Dashboard', sub: 'Ticket management, bulk actions & filters', path: '/admin', color: '#3b82f6' },
+                        { label: 'Advanced Reports', sub: 'CSAT, resolution times, agent analytics', path: '/reports', color: '#6366f1' },
                         { label: 'Manage Users', sub: 'Roles, activation & permissions', path: '/admin/users', color: '#a855f7' },
+                        { label: 'SLA Configuration', sub: 'Set response time targets by priority', path: '/admin/sla-config', color: '#f59e0b' },
                       ].map(({ label, sub, path, color }) => (
                         <button
                           key={path}
