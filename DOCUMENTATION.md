@@ -1,7 +1,7 @@
 # HiTicket — Full Technical Documentation
 
 > Complete reference covering architecture, authentication, data flows, encryption, UI system, API, security, and deployment.  
-> Version: 3.0 · Date: July 2025
+> Version: 4.0 · Date: March 2026
 
 ---
 
@@ -687,6 +687,37 @@ global error handler       → { error: message }
 
 ## 7. Frontend Pages
 
+### Home.jsx
+
+**Purpose:** Dual-mode page — renders the authenticated dashboard for logged-in users, or the marketing landing page for anonymous visitors.
+
+**Authenticated Dashboard:**
+- `Breadcrumb`: `[{ label: 'Home' }]`
+- **Command Center Header**: greeting + firstName, role badges (admin/agent/ticket count), inline "New Ticket" button (→ `/chatbot`)
+- **6-KPI ribbon** (`grid-cols-2 sm:grid-cols-3 lg:grid-cols-6`): Open (green), In Progress (amber), Resolved (blue), Critical (red), Resolution% (purple), Total (cyan) — each has icon, large colored number, label, glow blob; loading shows 6 skeleton tiles
+- **Empty state** (if total=0): centered card → Raise a Ticket button
+- **Overdue alert banner** (if any overdue tickets)
+- **Quick nav tiles** (4): AI Chatbot, My Tickets, Calendar, Reports — each with trailing chevron
+- **3-col grid**: LEFT (ticket timeline divide-y rows, ticket overview donut+status bars); RIGHT (by priority inline bars, top categories bars, admin tools panel or user CTA card)
+
+**Unauthenticated Landing Page sections:**
+1. Sticky nav: LogoMark | How It Works, Features, Use Cases, Survey | Sign In btn — `bg-[#09090b]/95 backdrop-blur-xl`
+2. Hero: ambient glow blobs, gradient headline, CTA buttons, social proof avatars, ticket mockup card, floating status badges
+3. KPI ribbon: 4-cell `divide-x` strip — 2,400+ Resolved, 98% Satisfaction, <2h Resolution, 8s Ticket Created
+4. How It Works (`id="how-it-works"`): centered header, 4-col card grid with step number watermarks
+5. Features (`id="features"`): bento grid — lg:col-span-2 hero card + 4 smaller feature cards on `bg-[#0d0d0f]`
+6. Roles (`id="roles"`): 3-col cards — Students, IT Staff & Agents, Admins & Managers
+7. Tech Stack: horizontal flex badge strip on `bg-[#0d0d0f]`
+8. Survey CTA: split card — amber left, dark survey preview right; seamless `overflow-hidden` join
+9. Final CTA: gradient wash, LogoMark centered, two action buttons
+10. Footer: 3 cols (brand + tagline | Product links | Info links); `© 2026 HiTicket` + green operational dot
+
+**Constants (kept):** `PRIORITY_COLOR`, `STATUS_COLOR`, `STATUS_BG`
+**Constants (removed):** `avatarColors`, `avatarInitials`, `features[]`, `Bar` component — all replaced by inline JSX
+**Added import:** `Breadcrumb` from `../components/layout/Breadcrumb`
+
+---
+
 ### Login.jsx
 
 **Purpose:** Authentication — supports register, login, 2FA verification (both email OTP and TOTP).
@@ -797,9 +828,24 @@ Full documentation in [Section 13](#13-admin-dashboard-logic).
 
 ---
 
+### Reports.jsx
+
+**Purpose:** Advanced analytics page with date range filter, KPI cards, charts, and data export.
+
+**Layout:** `PageWrapper` → `Breadcrumb` (`[{ label: 'Reports' }]`) → gradient header (`bg-gradient-to-r from-[#3b82f6]/8 via-[#6366f1]/4 to-transparent border border-[#3b82f6]/15`) → full-width content.
+
+**Features:**
+- KPI cards with gradient backgrounds; skeleton loading state
+- Date preset buttons (7d / 30d / 90d / All)
+- Charts using Recharts (line chart + bar chart) styled with design system tokens
+- SVG empty state when no data available
+- Full-screen width layout matching all other inner pages (`w-full` — no `max-w-*` constraints)
+
+---
+
 ### Profile.jsx
 
-**Purpose:** Edit profile info + change password.
+**Purpose:** Edit profile info, change password, access quick actions.
 
 **Password change flow:**
 1. Three fields: current password, new password, confirm new password
@@ -810,16 +856,25 @@ Full documentation in [Section 13](#13-admin-dashboard-logic).
 
 Show/hide toggles on all 3 password fields individually.
 
+**Quick Actions grid** (replaced old Recent Tickets section):
+6 tiles arranged in a responsive grid — New Ticket (→ `/chatbot`), My Tickets (→ `/my-tickets`), Knowledge Base (→ `/knowledge-base`), Notifications (→ `/settings`), Export Data, Settings (→ `/settings`). Each tile shows an icon, label, and trailing chevron.
+
 ---
 
 ### Settings.jsx
 
-**Purpose:** App preferences, 2FA management, notification preferences.
+**Purpose:** App preferences, 2FA management, notification preferences, activity logging.
 
 **Sections:**
 1. **Appearance** — dark/light toggle (ThemeContext)
 2. **Two-Factor Authentication** — enable/disable; choose method (email/TOTP); TOTP setup shows QR code
 3. **Notifications** — 4 toggles: emailEnabled, ticketUpdates, newComments, weeklyDigest; each saved immediately via `PUT /api/users/notifications`
+4. **Activity Logging** (replaced old Keyboard Shortcuts section) — toggle on/off + 3 level buttons:
+   - **All Events** (`detailed`) — every action logged
+   - **Info & Errors** (`info_error`) — informational + error events only
+   - **Errors Only** (`errors_only`) — only `error` and `critical` severity events
+   - State: `loggingEnabled` (localStorage `hd_log_enabled`), `logLevel` (localStorage `hd_log_level`)
+   - Wrapped in `<div className="mb-5">` to maintain gap with Account card below
 
 ---
 
@@ -830,6 +885,7 @@ Show/hide toggles on all 3 password fields individually.
 **Features:**
 - Logo (HiTicket brand wordmark)
 - Navigation links (Home, Tickets, KB, Admin — role-gated)
+- **Longest-match active-state algorithm** (`NavDropdown`): iterates all configured paths and marks `isActive = true` only for the longest prefix that matches `currentPath` — prevents multiple items being highlighted simultaneously (e.g. `/admin/users` won't also highlight `/admin`)
 - `?` button → dispatches `'?'` keydown event → triggers `KeyboardShortcutsModal` in App.jsx
 - `⌘K` hint badge → opens CommandPalette
 - Notification bell → last 5 ticket updates
@@ -1561,6 +1617,46 @@ api.interceptors.response.use(
 ---
 
 ## 20. Changelog
+
+### v4.0 — UI Overhaul & Quality of Life (Commits e5df2ed → 06fe8be)
+
+**Home page — complete dual-mode rewrite:**
+- Authenticated dashboard: 6-KPI ribbon, command center header, ticket timeline, donut+bars overview, priority/category charts
+- Landing page: new marketing layout across 10 sections (hero with ambient blobs, KPI divide-x strip, bento features grid, roles cards, survey CTA split card, gradient final CTA)
+- Removed unused constants: `avatarColors`, `avatarInitials`, `features[]`, `Bar` — replaced with inline JSX
+- Added `Breadcrumb` import to authenticated view
+
+**Reports page — full-screen rewrite:**
+- `PageWrapper` + `Breadcrumb` added
+- Gradient header (`from-[#3b82f6]/8 via-[#6366f1]/4 to-transparent`)
+- All colors and tokens aligned to design system
+
+**Settings page:**
+- Keyboard Shortcuts section replaced with **Activity Logging** card
+- 3 log levels: `detailed` / `info_error` / `errors_only`; persisted in localStorage
+- `mb-5` wrapper added to fix gap between Activity Logging and Account cards
+
+**`src/utils/activityLog.js`:**
+- Added `errors_only` severity check: `if (logLevel === 'errors_only' && severity !== 'error' && severity !== 'critical') return;`
+
+**Profile page:**
+- Removed `recentTickets` state and Recent Tickets section
+- Added 6-tile Quick Actions grid (New Ticket, My Tickets, KB, Notifications, Export Data, Settings)
+
+**Navbar:**
+- `NavDropdown` now uses longest-match algorithm — only the longest matching prefix path gets `isActive = true`
+
+**`src/index.css`:**
+- Global `select { appearance: none; background-image: chevron SVG; padding-right: 1.75rem }`
+- `select option { background-color: #18181b; color: #fafafa; }`
+
+**Chatbot:**
+- Chat history persists live: `useEffect` calls `saveToHistory(entry)` + `setChatHistory(getHistory())` on every message change
+
+**Stale SW / PWA cache:**
+- Forced redeploy with empty commit; instructed service worker unregister to clear stale bundles (double `/api/api/` routing, `handleReopen` error, missing PWA icon)
+
+---
 
 ### v3.0 — Bug Fixes & Polish (Commit c237abd)
 

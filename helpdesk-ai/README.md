@@ -102,6 +102,10 @@ A full-stack IT helpdesk and ticketing platform with AI-assisted triage, knowled
 - `?` help button in navbar triggers shortcuts modal
 - Confetti animation on ticket resolution for CSAT flow
 - Fully responsive — mobile, tablet, desktop; bottom tab bar on mobile
+- **Navbar active-state longest-match** — only the deepest matching path is highlighted; no multi-item highlight
+- **Styled native selects** — global `appearance: none` + SVG chevron replaces default OS filter dropdowns
+- **Chatbot live history** — session saves on every message; history visible immediately without requiring New Chat
+- **Profile Quick Actions** — 6-tile action grid (New Ticket, My Tickets, KB, Notifications, Export Data, Settings)
 
 ### User Roles
 
@@ -327,6 +331,16 @@ CLOUDINARY_API_SECRET=
 ---
 
 ## Changelog (Recent Versions)
+
+### v4.0 — UI Overhaul & Quality of Life
+- **Home page** — complete dual-mode rewrite: new authenticated dashboard (6-KPI ribbon, command center header, ticket timeline, donut + priority bars) + new landing page (hero with blobs, divide-x KPI strip, 4-col How It Works, bento features grid, roles cards, tech stack, survey CTA, gradient final CTA)
+- **Reports page** — rewritten full-screen layout with `PageWrapper` + `Breadcrumb`, gradient header, design system tokens
+- **Settings** — replaced Keyboard Shortcuts section with Activity Logging (enable/disable toggle + 3 log levels: All Events / Info & Errors / Errors Only); fixed gap between Activity Logging and Account cards
+- **Profile** — replaced recent tickets section with 6-tile Quick Actions grid (New Ticket, My Tickets, KB, Notifications, Export Data, Settings)
+- **Navbar** — longest-match algorithm: only the deepest matching path is highlighted active
+- **Filter selects** — global `appearance: none` + SVG chevron in `index.css`; `option` elements themed `#18181b`
+- **Chatbot** — chat history persists live via `useEffect`; no longer requires opening New Chat first
+- **activityLog.js** — added `errors_only` level (only `error`/`critical` severity events logged)
 
 ### v3.0 — Final Polish
 - `userId` now correctly stored in localStorage (fixed Watch feature)
