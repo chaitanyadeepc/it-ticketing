@@ -1,0 +1,33 @@
+---
+title: HiTicket - Sequence Diagram - User Registration
+---
+sequenceDiagram
+    actor User
+    participant React as React Login UI
+    participant API as Express API
+    participant DB as MongoDB
+    participant UserModel as User Model
+    participant JWT as JWT Service
+
+    User->>React: Submit { name, email, password }
+    React->>API: POST /api/auth/register (authLimiter 10 req/15min per IP)
+
+    alt Missing name, email, or password
+        API-->>React: 400 - Name, email and password are required
+    else All fields present
+        API->>DB: User.findOne({ email })
+        DB-->>API: existing user or null
+        alt Email already registered
+            API-->>React: 400 - Email already registered
+        else Email is available
+            API->>UserModel: User.create({ name, email, password, role: user })
+            UserModel->>UserModel: pre save hook - bcrypt.hash(password, saltRounds 12)
+            UserModel->>DB: INSERT user document (tokenVersion defaults to 0)
+            DB-->>UserModel: saved user document
+            UserModel-->>API: user object
+            API->>JWT: jwt.sign({ id, tokenVersion: 0 }, JWT_SECRET, expiresIn: 30d)
+            JWT-->>API: signed session JWT
+            API-->>React: 201 { token, user: { id, name, email, role } }
+            React-->>User: Store token in localStorage, navigate to home
+        end
+    end

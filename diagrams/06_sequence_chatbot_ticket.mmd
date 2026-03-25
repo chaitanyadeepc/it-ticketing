@@ -1,0 +1,48 @@
+---
+title: HiTicket - Sequence Diagram - Chatbot Ticket Creation
+---
+sequenceDiagram
+    actor User
+    participant Chatbot as Chatbot UI
+    participant API as Express API
+    participant DB as MongoDB
+    participant TicketModel as Ticket Model
+    participant Gmail as Gmail API
+
+    User->>Chatbot: Navigate to /chatbot
+    Chatbot-->>User: Step 1 - Display 10 category tiles
+    User->>Chatbot: Select category
+    Chatbot-->>User: Step 2 - Display sub-type chips for that category
+    User->>Chatbot: Select sub-type
+    Chatbot-->>User: Step 3 - Description input with KB deflection
+
+    Chatbot->>API: GET /api/kb?q=description keywords (JWT not required)
+    API->>DB: KbArticle.find({ $text: { $search: query }, isPublished: true })
+    DB-->>API: matching KB articles
+    API-->>Chatbot: KB articles array
+    Chatbot-->>User: Show KB suggestion chips - resolve without ticket?
+    User->>Chatbot: Dismiss KB suggestions - proceed to raise ticket
+
+    note over Chatbot: keyword regex auto-detects priority (critical/urgent/down)
+    Chatbot-->>User: Step 4 - Confirmation summary screen
+    User->>Chatbot: Confirm and submit
+
+    Chatbot->>API: POST /api/tickets { title, description, category, subType, priority } + JWT
+    note over API: protect middleware - verify JWT, tokenVersion, reject 2fa-pending tokens
+    API->>DB: getNextAgent() - count open tickets per active agent
+    DB-->>API: least-loaded agent name (round-robin)
+
+    loop Up to 3 attempts on duplicate ticketId collision
+        API->>TicketModel: Ticket.create({ fields, createdBy, assignedTo: agent.name })
+        TicketModel->>TicketModel: pre save - find last TKT-NNNN, increment, assign ticketId
+        TicketModel->>TicketModel: pre save - push HistoryEntry (Ticket created, by System)
+        TicketModel->>DB: INSERT ticket document
+        DB-->>TicketModel: saved ticket or 11000 duplicate key on ticketId
+    end
+
+    API->>DB: ticket.populate(createdBy name email)
+    DB-->>API: populated ticket
+    API-->>Chatbot: 201 { ticket }
+    Chatbot-->>User: Navigate to /tickets/:id
+
+    API--)Gmail: sendTicketCreated(ticket, user) async fire-and-forget

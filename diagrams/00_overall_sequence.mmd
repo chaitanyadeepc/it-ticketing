@@ -1,0 +1,166 @@
+---
+title: HiTicket - Overall System Sequence Diagram
+---
+sequenceDiagram
+    actor User
+    actor Agent
+    participant FE as React Frontend
+    participant API as Express API
+    participant Auth as Auth Middleware
+    participant DB as MongoDB
+    participant Gmail as Gmail API
+    participant CDN as Cloudinary
+    participant Cron as node-cron
+
+    rect rgb(20, 40, 90)
+        note over User, FE: PHASE 1 - USER REGISTRATION
+        User->>FE: Submit { name, email, password }
+        FE->>API: POST /api/auth/register (authLimiter 10/15min)
+        API->>DB: User.findOne({ email })
+        alt email taken
+            DB-->>API: existing user
+            API-->>FE: 400 Email already registered
+        else email available
+            DB-->>API: null
+            API->>DB: User.create({ name, email, password, role:user })
+            note over DB: pre-save - bcrypt.hash(password, 12)
+            DB-->>API: user (tokenVersion: 0)
+            API-->>FE: 201 { token, user }
+            FE-->>User: Store JWT in localStorage
+        end
+    end
+
+    rect rgb(20, 60, 40)
+        note over User, FE: PHASE 2 - LOGIN (WITH EMAIL OTP 2FA)
+        User->>FE: Submit { email, password }
+        FE->>API: POST /api/auth/login (authLimiter)
+        API->>DB: findOne({ email }).select(+password +tokenVersion +twoFactor)
+        DB-->>API: user document
+        API->>API: bcrypt.compare(entered, hash)
+
+        alt 2FA disabled
+            API->>DB: tokenVersion++, user.save()
+            API-->>FE: 200 { token, user }
+            FE-->>User: Navigate to home
+        else 2FA enabled - email OTP
+            API->>API: generateOTP() - 6-digit code
+            API->>DB: save pendingOtp + expiry (10 min)
+            API->>DB: signTempToken(id) type:2fa-pending 10m
+            API--)Gmail: sendOTPEmail(email, name, otp) async
+            API-->>FE: 200 { requires2FA:true, tempToken, method:email }
+            FE-->>User: Show OTP screen
+            User->>FE: Enter 6-digit OTP
+            FE->>API: POST /api/auth/2fa/verify { tempToken, code }
+            API->>API: jwt.verify(tempToken) assert type:2fa-pending
+            API->>DB: fetch pendingOtp, check expiry, compare code
+            DB-->>API: valid
+            API->>DB: clear OTP, tokenVersion++, save
+            API-->>FE: 200 { token, user }
+            FE-->>User: Navigate to home
+        else 2FA enabled - TOTP
+            API->>DB: signTempToken(id) type:2fa-pending 10m
+            API-->>FE: 200 { requires2FA:true, tempToken, method:totp }
+            FE-->>User: Show TOTP screen
+            User->>FE: Enter authenticator app code
+            FE->>API: POST /api/auth/2fa/verify { tempToken, code }
+            API->>DB: fetch totpSecret
+            DB-->>API: secret
+            API->>API: speakeasy.totp.verify({ secret, token, window:2 })
+            API->>DB: tokenVersion++, save
+            API-->>FE: 200 { token, user }
+            FE-->>User: Navigate to home
+        end
+    end
+
+    rect rgb(60, 30, 20)
+        note over User, FE: PHASE 3 - CHATBOT TICKET CREATION
+        User->>FE: Navigate to /chatbot
+        FE-->>User: Step 1 - 10 category tiles
+        User->>FE: Select category and sub-type
+        FE-->>User: Step 3 - Description input
+        FE->>API: GET /api/kb?q=keywords
+        API->>DB: KbArticle full-text search (isPublished:true)
+        DB-->>API: matching articles
+        API-->>FE: KB suggestions
+        FE-->>User: Show KB chips - self-service deflection
+        note over FE: keyword regex sets priority automatically
+        User->>FE: Confirm and submit ticket
+        FE->>API: POST /api/tickets { title, desc, category, subType, priority } + JWT
+        API->>Auth: protect() - verify JWT, assert not 2fa-pending, check tokenVersion
+        Auth-->>API: req.user attached
+        API->>DB: getNextAgent() - count open tickets per active agent
+        DB-->>API: least-loaded agent (round-robin)
+        loop up to 3 retry attempts on duplicate ticketId
+            API->>DB: Ticket.create({ fields, assignedTo:agent.name })
+            note over DB: pre-save - find last TKT-NNNN, increment, assign ticketId
+            note over DB: pre-save - push HistoryEntry(Ticket created, by:System)
+            DB-->>API: saved ticket or 11000 duplicate key error
+        end
+        API->>DB: ticket.populate(createdBy name email)
+        DB-->>API: populated ticket
+        API-->>FE: 201 { ticket }
+        FE-->>User: Navigate to /tickets/:id
+        API--)Gmail: sendTicketCreated(ticket, user) async fire-and-forget
+    end
+
+    rect rgb(40, 20, 60)
+        note over Agent, CDN: PHASE 4 - AGENT WORKFLOW
+        Agent->>FE: View assigned tickets
+        FE->>API: GET /api/tickets + JWT
+        API->>Auth: protect() + agentOrAdmin check
+        API->>DB: find({ assignedTo:agent.name OR createdBy:agent })
+        DB-->>API: ticket list
+        API-->>FE: 200 { tickets }
+
+        Agent->>FE: Update status to In Progress, add comment
+        FE->>API: PATCH /api/tickets/:id { status, comment } + JWT
+        API->>Auth: protect()
+        API->>DB: Ticket.findById - ownership check
+        DB-->>API: ticket
+        API->>DB: history.push(status change entry)
+        API->>DB: comments.push({ text, author, authorName })
+        API->>DB: ticket.save()
+        note over DB: pre-save - if Resolved set resolvedAt=now
+        DB-->>API: updated ticket
+        API-->>FE: 200 { ticket }
+        API--)DB: Notification.create({ user:owner, type:ticket_update }) async
+        API--)Gmail: sendStatusChanged(ticket, owner) async
+        API--)DB: Notification.create({ user:owner, type:comment }) async
+        API--)Gmail: sendCommentAdded(ticket, owner, comment) async
+
+        Agent->>FE: Upload file attachment
+        FE->>API: POST /api/tickets/:id/attachments (multipart, max 8MB) + JWT
+        API->>API: multer memoryStorage - file never written to disk
+        API->>CDN: cloudinary.upload_stream(buffer, folder:hiticket)
+        CDN-->>API: { secure_url, public_id }
+        API->>DB: ticket.attachments.push({ url, publicId, filename, mimetype, size })
+        DB-->>API: saved
+        API-->>FE: 200 { attachments }
+    end
+
+    rect rgb(15, 50, 50)
+        note over Cron, Gmail: PHASE 5 - BACKGROUND CRON JOBS
+        note over Cron: Every hour - SLA Escalation
+        Cron->>DB: find open+inprogress tickets older than 150pct SLA threshold
+        DB-->>Cron: overdue tickets
+        Cron->>DB: priority escalate one level, history.push(SLA breach), save
+        Cron--)DB: Notification.create({ type:sla_breach }) async
+        Cron--)Gmail: sendSLAEscalated(ticket, owner) async
+
+        note over Cron: Daily 02:00 UTC - Auto Close
+        Cron->>DB: find Resolved tickets with resolvedAt older than 7 days
+        DB-->>Cron: stale tickets
+        Cron->>DB: status=Closed, history.push(Auto-closed by System), save
+        Cron--)DB: Notification.create({ type:auto_close }) async
+        Cron--)Gmail: sendAutoClosedNotification(ticket, owner) async
+
+        note over Cron: Daily 09:00 UTC - Due Date Reminders
+        Cron->>DB: find active tickets with dueDate within next 24h
+        DB-->>Cron: due-soon tickets
+        Cron--)Gmail: sendDueDateReminder(ticket, owner) async
+
+        note over Cron: Monday 08:00 UTC - Weekly Digest
+        Cron->>DB: find all active users and their past 7-day tickets
+        DB-->>Cron: user+ticket summary data
+        Cron--)Gmail: sendWeeklyDigest(user, stats) async
+    end

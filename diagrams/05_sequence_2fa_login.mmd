@@ -1,0 +1,77 @@
+---
+title: HiTicket - Sequence Diagram - Two-Factor Authentication Login
+---
+sequenceDiagram
+    actor User
+    participant React as React Login UI
+    participant API as Express API
+    participant DB as MongoDB
+    participant Bcrypt as bcryptjs
+    participant TOTP as speakeasy TOTP
+    participant Gmail as Gmail API
+    participant JWT as JWT Service
+
+    User->>React: Submit { email, password }
+    React->>API: POST /api/auth/login (authLimiter 10 req/15min per IP)
+    API->>DB: User.findOne({ email }).select(+password +tokenVersion +twoFactor)
+    DB-->>API: user document or null
+
+    alt User not found or wrong password
+        API-->>React: 401 - Invalid email or password
+    else Account is disabled
+        API-->>React: 403 - Account is disabled
+    else Credentials valid and account active
+        API->>Bcrypt: bcrypt.compare(entered, stored hash)
+        Bcrypt-->>API: true
+
+        alt 2FA is disabled - normal login path
+            API->>DB: tokenVersion++, user.save({ validateBeforeSave: false })
+            DB-->>API: saved
+            API->>JWT: jwt.sign({ id, tokenVersion }, JWT_SECRET, 30d)
+            JWT-->>API: full session JWT
+            API-->>React: 200 { token, user: { id, name, email, role } }
+            React-->>User: Store token, navigate to home
+        else 2FA enabled - email OTP method
+            API->>JWT: signTempToken(id) - type 2fa-pending, 10m expiry
+            JWT-->>API: temp token
+            API->>API: generateOTP() - 6-digit random code
+            API->>DB: save pendingOtp + pendingOtpExpiry (10 min from now)
+            API--)Gmail: sendOTPEmail(email, name, otp) async fire-and-forget
+            API-->>React: 200 { requires2FA: true, tempToken, method: email }
+            React-->>User: Show OTP input screen
+
+            User->>React: Enter 6-digit code from email
+            React->>API: POST /api/auth/2fa/verify { tempToken, code }
+            API->>JWT: jwt.verify(tempToken) - assert type 2fa-pending
+            JWT-->>API: decoded { id }
+            API->>DB: User.findById(id).select(+twoFactor.pendingOtp +expiry)
+            DB-->>API: user with OTP fields
+            API->>API: compare code vs pendingOtp, assert expiry not passed
+            API->>DB: clear pendingOtp, pendingOtpExpiry, tokenVersion++, save
+            DB-->>API: saved
+            API->>JWT: jwt.sign({ id, tokenVersion }, JWT_SECRET, 30d)
+            JWT-->>API: full session JWT
+            API-->>React: 200 { token, user }
+            React-->>User: Store token, navigate to home
+        else 2FA enabled - TOTP authenticator method
+            API->>JWT: signTempToken(id) - type 2fa-pending, 10m expiry
+            JWT-->>API: temp token
+            API-->>React: 200 { requires2FA: true, tempToken, method: totp }
+            React-->>User: Show TOTP code input screen
+
+            User->>React: Enter 6-digit code from authenticator app
+            React->>API: POST /api/auth/2fa/verify { tempToken, code }
+            API->>JWT: jwt.verify(tempToken) - assert type 2fa-pending
+            JWT-->>API: decoded { id }
+            API->>DB: User.findById(id).select(+twoFactor.totpSecret)
+            DB-->>API: user with TOTP secret
+            API->>TOTP: speakeasy.totp.verify({ secret, token: code, window: 2 })
+            TOTP-->>API: valid true
+            API->>DB: tokenVersion++, user.save()
+            DB-->>API: saved
+            API->>JWT: jwt.sign({ id, tokenVersion }, JWT_SECRET, 30d)
+            JWT-->>API: full session JWT
+            API-->>React: 200 { token, user }
+            React-->>User: Store token, navigate to home
+        end
+    end

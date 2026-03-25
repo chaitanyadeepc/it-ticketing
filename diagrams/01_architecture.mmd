@@ -1,0 +1,61 @@
+%% HiTicket - Enhanced System Architecture (Three-Tier)
+architecture-beta
+    group presentation(cloud)[Presentation Tier]
+
+    group frontend(internet)[User Interface] in presentation
+    group pwa_layer(server)[PWA Layer] in presentation
+
+    group application(server)[Application Tier]
+
+    group api_layer(server)[REST API Layer] in application
+    group security(server)[Security Middleware] in application
+    group jobs(server)[Background Jobs] in application
+
+    group data(database)[Data Tier]
+
+    group storage(disk)[File Storage] in data
+    group messaging(internet)[Messaging] in data
+
+    service reactspa(internet)[React 19 SPA] in frontend
+    service router(server)[React Router v7] in frontend
+    service axios(internet)[Axios Client] in frontend
+
+    service sw(server)[Service Worker] in pwa_layer
+    service cache(disk)[Workbox Cache] in pwa_layer
+
+    service express(server)[Express 4 API] in api_layer
+    service jwt(server)[JWT Auth] in api_layer
+
+    service helmet(server)[Helmet Headers] in security
+    service ratelimit(server)[Rate Limiter] in security
+    service sanitize(server)[Mongo Sanitize] in security
+
+    service cron(server)[Cron Scheduler] in jobs
+    service sla(server)[SLA Escalation] in jobs
+    service autoclose(server)[Auto Close] in jobs
+
+    service mongodb(database)[MongoDB Atlas] in data
+    service mongoose(server)[Mongoose ODM] in data
+
+    service cloudinary(disk)[Cloudinary CDN] in storage
+    service multer(server)[Multer Upload] in storage
+
+    service gmail(internet)[Gmail REST API] in messaging
+    service oauth(server)[OAuth2 Client] in messaging
+
+    reactspa:R -- L:router
+    router:R -- L:axios
+    sw:R -- L:cache
+    express:R -- L:jwt
+    helmet:R -- L:ratelimit
+    ratelimit:R -- L:sanitize
+    cron:R -- L:sla
+    sla:R -- L:autoclose
+    mongodb:R -- L:mongoose
+    cloudinary:R -- L:multer
+    gmail:R -- L:oauth
+
+    reactspa{group}:B --> T:express{group}
+    express{group}:B --> T:mongodb{group}
+    express{group}:B --> T:cloudinary{group}
+    express{group}:B --> T:gmail{group}

@@ -1,0 +1,60 @@
+---
+title: HiTicket - Sequence Diagram - Ticket PATCH (Status, Comment, Assignment)
+---
+sequenceDiagram
+    actor Staff as Agent or Admin
+    participant UI as TicketDetail UI
+    participant API as Express API
+    participant DB as MongoDB
+    participant Notif as Notification
+    participant Gmail as Gmail API
+
+    Staff->>UI: Change status, add comment, or reassign ticket
+    UI->>API: PATCH /api/tickets/:id { status, comment, assignedTo, satisfaction } + JWT
+    note over API: protect middleware - verify JWT and tokenVersion
+    API->>DB: Ticket.findById(id)
+    DB-->>API: ticket document
+
+    note over API: Access check - admin all, agent assigned or own, user own only
+
+    opt Status is changing
+        note over API: User role can only reopen - staff can set any status
+        API->>DB: ticket.history.push({ action, field, from, to, by, byName })
+        API->>DB: ticket.status = newStatus
+    end
+
+    opt assignedTo is changing (staff only)
+        API->>DB: ticket.history.push assignment change entry
+        API->>DB: ticket.assignedTo = newAgentName
+    end
+
+    opt comment body is provided
+        API->>DB: ticket.comments.push({ text, author, authorName })
+    end
+
+    opt satisfaction rating provided and not yet set
+        API->>DB: ticket.satisfaction = { rating, feedback, submittedAt: now }
+    end
+
+    API->>DB: ticket.save()
+    note over DB: pre save - if status=Resolved and resolvedAt not set, set resolvedAt=now
+    DB-->>API: updated ticket document
+    API->>DB: ticket.populate(createdBy name email)
+    DB-->>API: populated ticket
+    API-->>UI: 200 { ticket } - internalNotes stripped for user role
+    UI-->>Staff: Update ticket view with new state
+
+    opt Status changed
+        API--)Notif: Notification.create({ user: createdBy, type: ticket_update }) async
+        API--)Gmail: sendStatusChanged(ticket, owner, oldStatus, newStatus) async
+    end
+
+    opt Comment added
+        API--)Notif: Notification.create({ user: createdBy, type: comment }) async
+        API--)Gmail: sendCommentAdded(ticket, owner, comment) async
+    end
+
+    opt Assignment changed and assignee user exists
+        API--)Notif: Notification.create({ user: assignedUser, type: assignment }) async
+        API--)Gmail: sendTicketAssigned(ticket, owner, assignedTo) async
+    end

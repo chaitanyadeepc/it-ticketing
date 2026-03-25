@@ -1,0 +1,152 @@
+---
+title: HiTicket - UML Class Diagram
+---
+classDiagram
+    direction TB
+
+    class User {
+        +ObjectId _id
+        +String name
+        +String email
+        -String password
+        +String role
+        +String department
+        +String phone
+        +String jobTitle
+        +String location
+        +Boolean isActive
+        +Number tokenVersion
+        +Object notificationPrefs
+        +Object twoFactor
+        +matchPassword(entered) Boolean
+        +preSave()
+    }
+
+    class Ticket {
+        +ObjectId _id
+        +String ticketId
+        +String title
+        +String description
+        +String category
+        +String subType
+        +String priority
+        +String status
+        +ObjectId createdBy
+        +String assignedTo
+        +Date dueDate
+        +Date resolvedAt
+        +Number satisfaction_rating
+        +String satisfaction_feedback
+        +ObjectId[] watchers
+        +preSave()
+    }
+
+    class KbArticle {
+        +ObjectId _id
+        +String title
+        +String content
+        +String category
+        +String[] tags
+        +ObjectId author
+        +Boolean isPublished
+        +Number views
+        +Number helpful
+        +Number notHelpful
+        +incrementViews()
+    }
+
+    class Notification {
+        +ObjectId _id
+        +ObjectId user
+        +String type
+        +String title
+        +String message
+        +String link
+        +String ticketId
+        +Boolean isRead
+        +Date createdAt
+        +markRead()
+    }
+
+    class CannedResponse {
+        +ObjectId _id
+        +String title
+        +String body
+        +String category
+        +String[] tags
+        +Boolean isGlobal
+        +ObjectId createdBy
+        +String createdByName
+        +Number usageCount
+    }
+
+    class Announcement {
+        +ObjectId _id
+        +String message
+        +String type
+        +Boolean isActive
+        +Date expiresAt
+        +ObjectId createdBy
+        +String createdByName
+    }
+
+    class AuthMiddleware {
+        <<middleware>>
+        +protect(req, res, next)
+        +adminOnly(req, res, next)
+        +agentOrAdmin(req, res, next)
+    }
+
+    class Comment {
+        +ObjectId _id
+        +ObjectId author
+        +String authorName
+        +String text
+        +Date createdAt
+    }
+
+    class InternalNote {
+        +ObjectId _id
+        +ObjectId author
+        +String authorName
+        +String authorRole
+        +String text
+        +Date createdAt
+    }
+
+    class HistoryEntry {
+        +ObjectId _id
+        +String action
+        +String field
+        +String from
+        +String to
+        +ObjectId by
+        +String byName
+        +Date createdAt
+    }
+
+    class Attachment {
+        +ObjectId _id
+        +String url
+        +String publicId
+        +String filename
+        +String mimetype
+        +Number size
+        +ObjectId uploadedBy
+        +String uploaderName
+        +Date createdAt
+    }
+
+    User "1" --> "N" Ticket : creates
+    User "1" --> "N" KbArticle : authors
+    User "1" --> "N" Notification : receives
+    User "M" --> "N" Ticket : watches
+    User "1" --> "N" CannedResponse : creates
+    User "1" --> "N" Announcement : posts
+
+    Ticket "1" *-- "N" Comment : embeds
+    Ticket "1" *-- "N" InternalNote : embeds
+    Ticket "1" *-- "N" HistoryEntry : embeds
+    Ticket "1" *-- "N" Attachment : embeds
+
+    AuthMiddleware ..> User : validates

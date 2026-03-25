@@ -1,0 +1,34 @@
+---
+title: HiTicket - Overall System Flow
+---
+sequenceDiagram
+    actor User
+    actor Agent
+    participant FE as React App
+    participant API as Express API
+    participant DB as MongoDB
+    participant Email as Gmail API
+
+    User->>FE: Register / Login (2FA)
+    FE->>API: POST /auth/register or /auth/login
+    API->>DB: Verify credentials, issue JWT
+    DB-->>API: User data
+    API-->>FE: JWT token
+
+    User->>FE: Create ticket via Chatbot wizard
+    FE->>API: POST /api/tickets + JWT
+    API->>DB: Auto-assign agent, save ticket TKT-NNNN
+    DB-->>API: Saved ticket
+    API-->>FE: 201 ticket created
+    API--)Email: Confirmation email async
+
+    Agent->>FE: View and update ticket
+    FE->>API: PATCH /api/tickets/:id + JWT
+    API->>DB: Update status, log history
+    DB-->>API: Updated ticket
+    API-->>FE: 200 updated ticket
+    API--)Email: Notify user of update async
+
+    note over API, DB: Cron Jobs run automatically
+    API->>DB: Hourly SLA check, daily auto-close, due-date reminders, weekly digest
+    API--)Email: Automated alerts async

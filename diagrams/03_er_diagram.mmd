@@ -1,0 +1,173 @@
+---
+title: HiTicket - Entity Relationship Diagram
+---
+erDiagram
+    USER {
+        string id PK
+        string name
+        string email
+        string password
+        string role
+        string department
+        string phone
+        string jobTitle
+        string location
+        boolean isActive
+        number tokenVersion
+        boolean notifEmail
+        boolean notifTicketUpdates
+        boolean notifComments
+        boolean notifWeeklyDigest
+        boolean twoFactor_enabled
+        string twoFactor_method
+    }
+
+    TICKET {
+        string id PK
+        string ticketId
+        string title
+        string description
+        string category
+        string subType
+        string priority
+        string status
+        string createdBy FK
+        string assignedTo
+        date dueDate
+        date resolvedAt
+        number satisfaction_rating
+        string satisfaction_feedback
+        date satisfaction_submittedAt
+        date createdAt
+        date updatedAt
+    }
+
+    KB_ARTICLE {
+        string id PK
+        string title
+        string content
+        string category
+        string author FK
+        boolean isPublished
+        number views
+        number helpful
+        number notHelpful
+    }
+
+    NOTIFICATION {
+        string id PK
+        string user FK
+        string type
+        string title
+        string message
+        string link
+        string ticketId
+        boolean isRead
+        date createdAt
+    }
+
+    CANNED_RESPONSE {
+        string id PK
+        string title
+        string body
+        string category
+        boolean isGlobal
+        string createdBy FK
+        string createdByName
+        number usageCount
+    }
+
+    ANNOUNCEMENT {
+        string id PK
+        string message
+        string type
+        boolean isActive
+        date expiresAt
+        string createdBy FK
+        string createdByName
+    }
+
+    COMMENT {
+        string id PK
+        string author FK
+        string authorName
+        string text
+        date createdAt
+    }
+
+    INTERNAL_NOTE {
+        string id PK
+        string author FK
+        string authorName
+        string authorRole
+        string text
+        date createdAt
+    }
+
+    HISTORY_ENTRY {
+        string id PK
+        string action
+        string field
+        string from
+        string to
+        string by FK
+        string byName
+        date createdAt
+    }
+
+    ATTACHMENT {
+        string id PK
+        string url
+        string publicId
+        string filename
+        string mimetype
+        number size
+        string uploadedBy FK
+        string uploaderName
+        date createdAt
+    }
+
+    USER ||--o{ TICKET : "creates"
+    USER ||--o{ KB_ARTICLE : "authors"
+    USER ||--o{ NOTIFICATION : "receives"
+    USER }o--o{ TICKET : "watches"
+    USER ||--o{ CANNED_RESPONSE : "creates"
+    USER ||--o{ ANNOUNCEMENT : "posts"
+    TICKET ||--o{ COMMENT : "contains"
+    TICKET ||--o{ INTERNAL_NOTE : "contains"
+    TICKET ||--o{ HISTORY_ENTRY : "tracks"
+    TICKET ||--o{ ATTACHMENT : "has"
+
+    HISTORY_ENTRY {
+        string id PK
+        string action
+        string field
+        string from
+        string to
+        string by FK
+        string byName
+        date createdAt
+    }
+
+    ATTACHMENT {
+        string id PK
+        string url
+        string publicId
+        string filename
+        string mimetype
+        number size
+        string uploadedBy FK
+        string uploaderName
+        date createdAt
+    }
+
+    USER ||--o{ TICKET : "creates"
+    USER ||--o{ KB_ARTICLE : "authors"
+    USER ||--o{ NOTIFICATION : "receives"
+    USER }o--o{ TICKET : "watches"
+    USER ||--o{ CANNED_RESPONSE : "creates"
+    USER ||--o{ ANNOUNCEMENT : "posts"
+    TICKET ||--o{ COMMENT : "contains"
+    TICKET ||--o{ INTERNAL_NOTE : "contains"
+    TICKET ||--o{ HISTORY_ENTRY : "tracks"
+    TICKET ||--o{ ATTACHMENT : "has"
