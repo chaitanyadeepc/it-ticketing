@@ -1,7 +1,7 @@
 const express = require('express');
 const zlib    = require('zlib');
 const archiver = require('archiver');
-const CodeShare = require('../models/CodeShare');
+const ScriptVault = require('../models/ScriptVault');
 const { protect, adminOnly } = require('../middleware/auth');
 
 const router = express.Router();
@@ -95,7 +95,7 @@ const buildFilter = (user) => {
 // GET /api/codeshare/has-access — lightweight check
 router.get('/has-access', async (req, res) => {
   try {
-    const count = await CodeShare.countDocuments(buildFilter(req.user));
+    const count = await ScriptVault.countDocuments(buildFilter(req.user));
     res.json({ hasAccess: count > 0 });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -105,7 +105,7 @@ router.get('/has-access', async (req, res) => {
 // GET /api/codeshare — list snippets (decompress content for each)
 router.get('/', async (req, res) => {
   try {
-    const docs = await CodeShare.find(buildFilter(req.user))
+    const docs = await ScriptVault.find(buildFilter(req.user))
       .populate('allowedUsers', 'name email role')
       .sort({ updatedAt: -1 });
     const snippets = await Promise.all(docs.map(serializeSnippet));
@@ -118,7 +118,7 @@ router.get('/', async (req, res) => {
 // GET /api/codeshare/:id — single snippet (decompress)
 router.get('/:id', async (req, res) => {
   try {
-    const doc = await CodeShare.findById(req.params.id)
+    const doc = await ScriptVault.findById(req.params.id)
       .populate('allowedUsers', 'name email role');
     if (!doc) return res.status(404).json({ error: 'Snippet not found' });
     if (!canView(doc, req.user)) {
@@ -134,7 +134,7 @@ router.get('/:id', async (req, res) => {
 // GET /api/codeshare/:id/download — stream a zip of the folder structure
 router.get('/:id/download', async (req, res) => {
   try {
-    const doc = await CodeShare.findById(req.params.id)
+    const doc = await ScriptVault.findById(req.params.id)
       .populate('allowedUsers', 'name email role');
     if (!doc) return res.status(404).json({ error: 'Snippet not found' });
     if (!canView(doc, req.user)) {
@@ -173,7 +173,7 @@ router.get('/:id/download', async (req, res) => {
 // PATCH /api/codeshare/:id/contribute — any viewer can append new content (files/text)
 router.patch('/:id/contribute', async (req, res) => {
   try {
-    const doc = await CodeShare.findById(req.params.id)
+    const doc = await ScriptVault.findById(req.params.id)
       .populate('allowedUsers', 'name email role');
     if (!doc) return res.status(404).json({ error: 'Snippet not found' });
     if (!canView(doc, req.user)) {
@@ -204,7 +204,7 @@ router.post('/', adminOnly, async (req, res) => {
     const { title, content, language, description, visibility, allowedUsers } = req.body;
     if (!title || !content) return res.status(400).json({ error: 'Title and content are required' });
     const compressed = await compress(content);
-    const doc = await CodeShare.create({
+    const doc = await ScriptVault.create({
       title,
       content: compressed,
       isCompressed: true,
@@ -228,7 +228,7 @@ router.put('/:id', adminOnly, async (req, res) => {
   try {
     const { title, content, language, description, visibility, allowedUsers } = req.body;
     const compressed = await compress(content);
-    const doc = await CodeShare.findByIdAndUpdate(
+    const doc = await ScriptVault.findByIdAndUpdate(
       req.params.id,
       {
         title,
@@ -252,7 +252,7 @@ router.put('/:id', adminOnly, async (req, res) => {
 // DELETE /api/codeshare/:id — delete (admin only)
 router.delete('/:id', adminOnly, async (req, res) => {
   try {
-    const snippet = await CodeShare.findByIdAndDelete(req.params.id);
+    const snippet = await ScriptVault.findByIdAndDelete(req.params.id);
     if (!snippet) return res.status(404).json({ error: 'Snippet not found' });
     res.json({ message: 'Snippet deleted' });
   } catch (err) {

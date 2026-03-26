@@ -169,7 +169,7 @@ const Navbar = () => {
   useEffect(() => {
     const isAuth = !!localStorage.getItem('token') && localStorage.getItem('isAuthenticated') === 'true';
     if (!isAuth) return;
-    api.get('/codeshare/has-access')
+    api.get('/script-vault/has-access')
       .then(({ data }) => setHasSharedSnippets(data.hasAccess))
       .catch(() => setHasSharedSnippets(false));
   }, [location.pathname]);
@@ -226,7 +226,7 @@ const Navbar = () => {
         { name: 'My Tickets',     path: '/my-tickets',          desc: 'View and manage your open tickets',     icon: 'tickets' },
         { name: 'Calendar',       path: '/my-tickets/calendar', desc: 'View tickets by due date',              icon: 'calendar' },
         ...(hasSharedSnippets && !isAdmin && !isAgent ? [
-          { name: 'Script Vault', path: '/codeshare', desc: 'Scripts & code shared with you', icon: 'code' },
+          { name: 'Script Vault', path: '/script-vault', desc: 'Scripts & code shared with you', icon: 'code' },
         ] : []),
       ],
     },
@@ -243,7 +243,7 @@ const Navbar = () => {
         { name: 'Canned Responses',path: '/admin/canned-responses',   desc: 'Shared reply templates for agents',     icon: 'template' },
         { name: 'Reports',         path: '/reports',                  desc: 'Advanced analytics & downloadable reports', icon: 'reports' },
         { name: 'SLA Config',      path: '/admin/sla-config',         desc: 'Configure response time targets',       icon: 'clock' },
-        { name: 'Script Vault',     path: '/admin/codeshare',          desc: 'Scripts, configs & code snippets',       icon: 'code' },
+        { name: 'Script Vault',     path: '/admin/script-vault',       desc: 'Scripts, configs & code snippets',       icon: 'code' },
       ],
     }] : isAgent ? [{
       label: 'Staff',
@@ -253,7 +253,7 @@ const Navbar = () => {
         { name: 'Reports',          path: '/reports',                 desc: 'Advanced analytics & reports',          icon: 'reports' },
         { name: 'Canned Responses', path: '/admin/canned-responses',  desc: 'Shared reply templates',                icon: 'template' },
         ...(hasSharedSnippets ? [
-          { name: 'Script Vault',    path: '/codeshare',              desc: 'Scripts & code shared with you',        icon: 'code' },
+          { name: 'Script Vault',    path: '/script-vault',           desc: 'Scripts & code shared with you',        icon: 'code' },
         ] : []),
       ],
     }] : []),

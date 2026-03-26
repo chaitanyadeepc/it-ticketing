@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const codeShareSchema = new mongoose.Schema(
+const scriptVaultSchema = new mongoose.Schema(
   {
     title:        { type: String, required: true, trim: true, maxlength: 200 },
     // Stored as gzip-compressed Buffer; isCompressed flag distinguishes old plain-text docs.
@@ -22,4 +22,4 @@ const codeShareSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model('CodeShare', codeShareSchema);
+module.exports = mongoose.model('ScriptVault', scriptVaultSchema);

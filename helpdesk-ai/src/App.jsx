@@ -48,7 +48,7 @@ import Reports from './pages/Reports';
 import TicketPrint from './pages/TicketPrint';
 import SLAConfig from './pages/SLAConfig';
 import CalendarView from './pages/CalendarView';
-import CodeShare from './pages/CodeShare';
+import ScriptVault from './pages/ScriptVault';
 import { logActivity } from './utils/activityLog';
 import OnboardingTour from './components/OnboardingTour';
 import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
@@ -152,8 +152,8 @@ function App() {
             <Route path="/admin/announcements" element={<AdminRoute><Announcements /></AdminRoute>} />
             <Route path="/admin/canned-responses" element={<StaffRoute><CannedResponses /></StaffRoute>} />
             <Route path="/admin/sla-config" element={<AdminRoute><SLAConfig /></AdminRoute>} />
-            <Route path="/admin/codeshare" element={<AdminRoute><CodeShare /></AdminRoute>} />
-            <Route path="/codeshare" element={<ProtectedRoute><CodeShare /></ProtectedRoute>} />
+            <Route path="/admin/script-vault" element={<AdminRoute><ScriptVault /></AdminRoute>} />
+            <Route path="/script-vault" element={<ProtectedRoute><ScriptVault /></ProtectedRoute>} />
             <Route path="/reports" element={<StaffRoute><Reports /></StaffRoute>} />
             <Route path="/my-tickets/calendar" element={<ProtectedRoute><CalendarView /></ProtectedRoute>} />
             <Route path="/tickets/:id/print" element={<ProtectedRoute><TicketPrint /></ProtectedRoute>} />

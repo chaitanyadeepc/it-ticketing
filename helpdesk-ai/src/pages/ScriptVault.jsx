@@ -441,7 +441,7 @@ function SnippetModal({ snippet, onClose, isAdmin, onEdit, onDelete, onContribut
     if (downloading) return;
     setDownloading(true);
     try {
-      const response = await api.get(`/codeshare/${snippet._id}/download`, { responseType: 'blob' });
+      const response = await api.get(`/script-vault/${snippet._id}/download`, { responseType: 'blob' });
       const url = URL.createObjectURL(response.data);
       const a = document.createElement('a');
       a.href = url;
@@ -1276,9 +1276,10 @@ function EditorModal({ initial, onSave, onClose, saving }) {
 }
 
 // ── Snippet card ─────────────────────────────────────────────────────────────
-function SnippetCard({ snippet, isAdmin, onClick, onEdit, onDelete }) {
+function SnippetCard({ snippet, isAdmin, onClick, onEdit, onDelete, relativeTime: relTime }) {
   const langColor = getLangColor(snippet.language);
   const lineCount = snippet.content.split('\n').length;
+  const fileCount = parseFileBlocks(snippet.content).length;
   const preview = snippet.content.slice(0, 300);
 
   return (
@@ -1344,10 +1345,23 @@ function SnippetCard({ snippet, isAdmin, onClick, onEdit, onDelete }) {
       </div>
 
       {/* Footer */}
-      <div className="px-4 pb-3.5 mt-auto flex items-center justify-between">
-        <span className="text-[11px] text-[rgba(255,255,255,0.28)]">
-          {lineCount} line{lineCount !== 1 ? 's' : ''} · {new Blob([snippet.content]).size}B
-        </span>
+      <div className="px-4 pb-3.5 mt-auto flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[11px] text-[rgba(255,255,255,0.28)]">
+            {lineCount} line{lineCount !== 1 ? 's' : ''}
+          </span>
+          {fileCount > 0 && (
+            <span className="text-[10px] text-[rgba(255,255,255,0.22)] flex items-center gap-1">
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+              {fileCount}
+            </span>
+          )}
+          {relTime && snippet.updatedAt && (
+            <span className="text-[10px] text-[rgba(255,255,255,0.22)]" title={new Date(snippet.updatedAt).toLocaleString()}>
+              · {relTime(snippet.updatedAt)}
+            </span>
+          )}
+        </div>
         <div onClick={(e) => e.stopPropagation()}>
           <CopyButton text={snippet.content} />
         </div>
@@ -1356,35 +1370,49 @@ function SnippetCard({ snippet, isAdmin, onClick, onEdit, onDelete }) {
   );
 }
 
+// ── Relative time helper ─────────────────────────────────────────────────────
+const relativeTime = (dateStr) => {
+  const diff = Date.now() - new Date(dateStr);
+  const s = Math.floor(diff / 1000);
+  if (s < 60) return 'just now';
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d < 30) return `${d}d ago`;
+  return new Date(dateStr).toLocaleDateString();
+};
+
 // ── Main page ────────────────────────────────────────────────────────────────
-export default function CodeShare() {
+export default function ScriptVault() {
   const userRole = localStorage.getItem('userRole');
   const isAdmin = userRole === 'admin';
-  const isStaff = ['admin', 'agent'].includes(userRole);
 
   const [snippets, setSnippets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [filterLang, setFilterLang] = useState('All');
+  const [filterVis, setFilterVis] = useState('All');
+  const [sortBy, setSortBy] = useState('updated'); // 'updated' | 'created' | 'title' | 'size'
 
   const [viewSnippet, setViewSnippet] = useState(null);
   const [showEditor, setShowEditor] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [toast, setToast] = useState('');
-  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [toast, setToast] = useState({ msg: '', type: 'info' });
   const [copiedAll, copyAll] = useCopyState();
 
-  const showToast = (msg) => {
-    setToast(msg);
-    setTimeout(() => setToast(''), 2800);
+  const showToast = (msg, type = 'info') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast({ msg: '', type: 'info' }), 2800);
   };
 
   useEffect(() => {
-    api.get('/codeshare')
+    api.get('/script-vault')
       .then(({ data }) => setSnippets(data.snippets || []))
-      .catch((err) => setError(err.response?.data?.error || 'Failed to load snippets'))
+      .catch((err) => setError(err.response?.data?.error || 'Failed to load scripts'))
       .finally(() => setLoading(false));
   }, []);
 
@@ -1392,25 +1420,47 @@ export default function CodeShare() {
 
   const filtered = snippets
     .filter(s => filterLang === 'All' || s.language === filterLang)
-    .filter(s => !search || s.title.toLowerCase().includes(search.toLowerCase()) || s.description?.toLowerCase().includes(search.toLowerCase()) || s.language?.toLowerCase().includes(search.toLowerCase()));
+    .filter(s => filterVis === 'All' || s.visibility === filterVis)
+    .filter(s => !search
+      || s.title.toLowerCase().includes(search.toLowerCase())
+      || s.description?.toLowerCase().includes(search.toLowerCase())
+      || s.language?.toLowerCase().includes(search.toLowerCase())
+    )
+    .sort((a, b) => {
+      if (sortBy === 'title') return a.title.localeCompare(b.title);
+      if (sortBy === 'created') return new Date(b.createdAt) - new Date(a.createdAt);
+      if (sortBy === 'size') return (b.content?.length || 0) - (a.content?.length || 0);
+      return new Date(b.updatedAt) - new Date(a.updatedAt); // default: updated
+    });
+
+  // Stats
+  const totalLines = snippets.reduce((acc, s) => acc + (s.content?.split('\n').length || 0), 0);
+  const totalFiles = snippets.reduce((acc, s) => {
+    const b = parseFileBlocks(s.content || '');
+    return acc + b.filter(x => x.filePath).length;
+  }, 0);
+  const langCounts = snippets.reduce((acc, s) => {
+    acc[s.language] = (acc[s.language] || 0) + 1; return acc;
+  }, {});
+  const topLang = Object.entries(langCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
 
   const handleSave = async (form) => {
     setSaving(true);
     try {
       if (editTarget?._id) {
-        const { data } = await api.put(`/codeshare/${editTarget._id}`, form);
+        const { data } = await api.put(`/script-vault/${editTarget._id}`, form);
         setSnippets(prev => prev.map(s => s._id === editTarget._id ? data.snippet : s));
         if (viewSnippet?._id === editTarget._id) setViewSnippet(data.snippet);
-        showToast('Snippet updated');
+        showToast('Script updated', 'success');
       } else {
-        const { data } = await api.post('/codeshare', form);
+        const { data } = await api.post('/script-vault', form);
         setSnippets(prev => [data.snippet, ...prev]);
-        showToast('Snippet created');
+        showToast('Script created', 'success');
       }
       setShowEditor(false);
       setEditTarget(null);
     } catch (err) {
-      showToast(err.response?.data?.error || 'Save failed');
+      showToast(err.response?.data?.error || 'Save failed', 'error');
     } finally {
       setSaving(false);
     }
@@ -1419,153 +1469,244 @@ export default function CodeShare() {
   const handleDelete = async (snippet) => {
     if (!window.confirm(`Delete "${snippet.title}"? This cannot be undone.`)) return;
     try {
-      await api.delete(`/codeshare/${snippet._id}`);
+      await api.delete(`/script-vault/${snippet._id}`);
       setSnippets(prev => prev.filter(s => s._id !== snippet._id));
       if (viewSnippet?._id === snippet._id) setViewSnippet(null);
-      showToast('Snippet deleted');
+      showToast('Script deleted', 'success');
     } catch (err) {
-      showToast(err.response?.data?.error || 'Delete failed');
+      showToast(err.response?.data?.error || 'Delete failed', 'error');
     }
-    setDeleteTarget(null);
   };
 
   const handleContribute = async (snippetId, newContent) => {
     try {
-      const { data } = await api.patch(`/codeshare/${snippetId}/contribute`, { newContent });
+      const { data } = await api.patch(`/script-vault/${snippetId}/contribute`, { newContent });
       setSnippets(prev => prev.map(s => s._id === snippetId ? data.snippet : s));
       setViewSnippet(data.snippet);
-      showToast('Content added to snippet');
+      showToast('Content added successfully', 'success');
     } catch (err) {
-      showToast(err.response?.data?.error || 'Failed to add content');
+      showToast(err.response?.data?.error || 'Failed to add content', 'error');
       throw err;
     }
   };
 
   const openCreate = () => { setEditTarget(null); setShowEditor(true); };
-  const openEdit = (snippet) => {
-    setEditTarget(snippet);
-    setShowEditor(true);
-    setViewSnippet(null);
-  };
+  const openEdit = (snippet) => { setEditTarget(snippet); setShowEditor(true); setViewSnippet(null); };
 
   const allContent = filtered.map(s => `// ── ${s.title} ──\n${s.content}`).join('\n\n');
 
+  const SORT_OPTIONS = [
+    { val: 'updated', label: 'Last updated' },
+    { val: 'created', label: 'Newest first' },
+    { val: 'title',   label: 'A → Z' },
+    { val: 'size',    label: 'Largest' },
+  ];
+
   return (
     <PageWrapper>
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
         <Breadcrumb items={[{ label: 'Home', path: '/' }, { label: 'Script Vault' }]} />
 
         {/* ── Page header ── */}
-        <div className="flex items-start justify-between gap-4 mt-4 mb-6 flex-wrap">
-          <div>
-            <div className="flex items-center gap-2.5 mb-1">
-              {/* Terminal / Code Icon */}
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ background: 'linear-gradient(135deg,#FF634A22,#FF634A08)', border: '1px solid #FF634A30' }}>
-                <svg className="w-5 h-5 text-[#FF634A]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
+        <div className="mt-4 mb-6 rounded-2xl overflow-hidden relative"
+          style={{ background: 'linear-gradient(135deg, rgba(255,99,74,0.1) 0%, rgba(255,99,74,0.04) 50%, rgba(255,255,255,0.02) 100%)', border: '1px solid rgba(255,99,74,0.15)' }}>
+          {/* subtle grid bg */}
+          <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.3) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.3) 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
+          <div className="relative px-6 py-5">
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg"
+                  style={{ background: 'linear-gradient(135deg,#FF634A,#c94230)', boxShadow: '0 4px 20px rgba(255,99,74,0.35)' }}>
+                  <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2.5 mb-0.5">
+                    <h1 className="text-[22px] font-bold text-white tracking-tight">Script Vault</h1>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest"
+                      style={{ background: 'rgba(255,99,74,0.15)', color: '#FF634A', border: '1px solid rgba(255,99,74,0.3)' }}>
+                      {isAdmin ? 'Admin' : 'Viewer'}
+                    </span>
+                  </div>
+                  <p className="text-[13px] text-[rgba(255,255,255,0.45)]">
+                    {isAdmin
+                      ? 'Manage, share and distribute scripts, configs & multi-file code to your team.'
+                      : 'Browse, copy and contribute to scripts shared with you.'}
+                  </p>
+                </div>
               </div>
-              <h1 className="text-[22px] font-bold text-white tracking-tight">Script Vault</h1>
-            </div>
-            <p className="text-[13px] text-[rgba(255,255,255,0.4)]">
-              {isAdmin ? 'Manage and distribute scripts, configs & code snippets.' : 'Scripts and code shared with you.'}
-              {' '}<span className="text-[rgba(255,255,255,0.25)]">{filtered.length} script{filtered.length !== 1 ? 's' : ''}</span>
-            </p>
-          </div>
 
-          <div className="flex items-center gap-2">
-            {/* Copy all visible */}
-            {filtered.length > 0 && (
-              <button
-                onClick={() => copyAll(allContent)}
-                className={`flex items-center gap-2 px-4 py-2 text-[13px] font-semibold rounded-xl border transition-all ${
-                  copiedAll
-                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
-                    : 'border-white/10 bg-white/5 text-[rgba(255,255,255,0.65)] hover:bg-white/10 hover:text-white hover:border-white/20'
-                }`}
-                title="Copy all visible snippets to clipboard"
-              >
-                {copiedAll ? <CheckIcon /> : <CopyAllIcon />}
-                {copiedAll ? 'Copied!' : 'Copy All'}
-              </button>
-            )}
-            {/* New snippet — admin only */}
-            {isAdmin && (
-              <button
-                onClick={openCreate}
-                className="flex items-center gap-1.5 px-4 py-2 text-[13px] font-semibold rounded-xl text-white transition-all hover:opacity-90 active:scale-95"
-                style={{ background: 'linear-gradient(135deg,#FF634A,#e0532d)' }}
-              >
-                <PlusIcon />
-                New Snippet
-              </button>
+              <div className="flex items-center gap-2 flex-wrap">
+                {filtered.length > 0 && (
+                  <button
+                    onClick={() => copyAll(allContent)}
+                    className={`flex items-center gap-2 px-4 py-2 text-[12px] font-semibold rounded-xl border transition-all ${
+                      copiedAll
+                        ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
+                        : 'border-white/10 bg-white/5 text-[rgba(255,255,255,0.65)] hover:bg-white/10 hover:text-white hover:border-white/20'
+                    }`}
+                  >
+                    {copiedAll ? <CheckIcon /> : <CopyAllIcon />}
+                    {copiedAll ? 'Copied!' : 'Copy All'}
+                  </button>
+                )}
+                {isAdmin && (
+                  <button
+                    onClick={openCreate}
+                    className="flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold rounded-xl text-white transition-all hover:opacity-90 active:scale-95 shadow-lg"
+                    style={{ background: 'linear-gradient(135deg,#FF634A,#e0532d)', boxShadow: '0 4px 14px rgba(255,99,74,0.4)' }}
+                  >
+                    <PlusIcon />
+                    New Script
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* ── Stats bar ── */}
+            {!loading && snippets.length > 0 && (
+              <div className="flex items-center gap-5 mt-4 pt-4 border-t flex-wrap" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
+                {[
+                  { label: 'Scripts', value: snippets.length },
+                  { label: 'Total Lines', value: totalLines.toLocaleString() },
+                  { label: 'Files', value: totalFiles > 0 ? totalFiles : '—' },
+                  { label: 'Top Language', value: topLang ? topLang.charAt(0).toUpperCase() + topLang.slice(1) : '—', color: topLang ? getLangColor(topLang) : undefined },
+                ].map(stat => (
+                  <div key={stat.label} className="flex items-center gap-2">
+                    <span className="text-[20px] font-bold leading-none" style={{ color: stat.color || 'rgba(255,255,255,0.85)' }}>{stat.value}</span>
+                    <span className="text-[11px] text-[rgba(255,255,255,0.3)] leading-tight">{stat.label}</span>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         </div>
 
-        {/* ── Search + filter bar ── */}
-        <div className="flex items-center gap-3 mb-6 flex-wrap">
+        {/* ── Search + filter + sort bar ── */}
+        <div className="flex items-center gap-3 mb-5 flex-wrap">
           <div className="relative flex-1 min-w-[200px]">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[rgba(255,255,255,0.3)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
             </svg>
             <input
               className="w-full pl-9 pr-4 py-2.5 text-[13px] rounded-xl border bg-[rgba(255,255,255,0.04)] border-[rgba(255,255,255,0.08)] text-white placeholder-[rgba(255,255,255,0.3)] focus:outline-none focus:border-[#FF634A]/40 transition-all"
-              placeholder="Search snippets…"
+              placeholder="Search by title, description or language…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[rgba(255,255,255,0.3)] hover:text-white"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            )}
           </div>
 
-          {/* Language filter pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto">
-            {availableLangs.slice(0, 8).map(lang => (
-              <button
-                key={lang}
-                onClick={() => setFilterLang(lang)}
-                className={`flex-shrink-0 px-3 py-1.5 text-[12px] font-medium rounded-lg border transition-all ${
-                  filterLang === lang
-                    ? 'border-[#FF634A]/40 bg-[#FF634A]/12 text-[#FF634A]'
-                    : 'border-white/8 bg-white/4 text-[rgba(255,255,255,0.5)] hover:bg-white/8 hover:text-white'
-                }`}
-              >
-                {lang}
-              </button>
-            ))}
-          </div>
+          {/* Sort */}
+          <select
+            value={sortBy}
+            onChange={e => setSortBy(e.target.value)}
+            className="px-3 py-2.5 text-[12px] rounded-xl border bg-[rgba(255,255,255,0.04)] border-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.6)] focus:outline-none appearance-none cursor-pointer hover:border-white/20 transition-all"
+            style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' viewBox='0 0 24 24' stroke='rgba(255,255,255,0.3)' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center', paddingRight: '30px' }}
+          >
+            {SORT_OPTIONS.map(o => <option key={o.val} value={o.val} style={{ background: '#18181b' }}>{o.label}</option>)}
+          </select>
+
+          {/* Visibility filter — admin only */}
+          {isAdmin && (
+            <select
+              value={filterVis}
+              onChange={e => setFilterVis(e.target.value)}
+              className="px-3 py-2.5 text-[12px] rounded-xl border bg-[rgba(255,255,255,0.04)] border-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.6)] focus:outline-none appearance-none cursor-pointer hover:border-white/20 transition-all"
+              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' viewBox='0 0 24 24' stroke='rgba(255,255,255,0.3)' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center', paddingRight: '30px' }}
+            >
+              <option value="All" style={{ background: '#18181b' }}>All visibility</option>
+              <option value="all" style={{ background: '#18181b' }}>Everyone</option>
+              <option value="staff" style={{ background: '#18181b' }}>Staff</option>
+              <option value="admins" style={{ background: '#18181b' }}>Admins only</option>
+              <option value="custom" style={{ background: '#18181b' }}>Custom</option>
+            </select>
+          )}
         </div>
+
+        {/* Language filter pills */}
+        {availableLangs.length > 1 && (
+          <div className="flex items-center gap-1.5 mb-5 overflow-x-auto pb-1">
+            {availableLangs.map(lang => {
+              const color = lang !== 'All' ? getLangColor(lang) : null;
+              const active = filterLang === lang;
+              return (
+                <button
+                  key={lang}
+                  onClick={() => setFilterLang(lang)}
+                  className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1 text-[11.5px] font-medium rounded-full border transition-all"
+                  style={active
+                    ? { borderColor: color || '#FF634A', backgroundColor: `${color || '#FF634A'}18`, color: color || '#FF634A' }
+                    : { borderColor: 'rgba(255,255,255,0.08)', backgroundColor: 'rgba(255,255,255,0.03)', color: 'rgba(255,255,255,0.45)' }
+                  }
+                >
+                  {lang !== 'All' && color && (
+                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                  )}
+                  {lang}
+                  {lang !== 'All' && (
+                    <span className="text-[10px] opacity-60 ml-0.5">{snippets.filter(s => s.language === lang).length}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── Active filter summary ── */}
+        {(search || filterLang !== 'All' || filterVis !== 'All') && !loading && (
+          <div className="flex items-center gap-2 mb-4 text-[12px] text-[rgba(255,255,255,0.4)]">
+            <span>{filtered.length} result{filtered.length !== 1 ? 's' : ''}</span>
+            <button onClick={() => { setSearch(''); setFilterLang('All'); setFilterVis('All'); }}
+              className="ml-1 px-2.5 py-0.5 rounded-md text-[11px] border border-white/10 bg-white/5 hover:bg-white/10 text-[rgba(255,255,255,0.5)] hover:text-white transition-all">
+              Clear filters
+            </button>
+          </div>
+        )}
 
         {/* ── States ── */}
         {loading && (
-          <div className="flex flex-col items-center justify-center py-24 gap-3">
-            <div className="w-6 h-6 border-2 border-[#FF634A]/30 border-t-[#FF634A] rounded-full animate-spin" />
-            <p className="text-[13px] text-[rgba(255,255,255,0.35)]">Loading snippets…</p>
+          <div className="flex flex-col items-center justify-center py-28 gap-4">
+            <div className="w-8 h-8 border-2 border-[#FF634A]/30 border-t-[#FF634A] rounded-full animate-spin" />
+            <p className="text-[13px] text-[rgba(255,255,255,0.3)]">Loading Script Vault…</p>
           </div>
         )}
-
         {!loading && error && (
-          <div className="text-center py-16 text-red-400 text-[13px]">{error}</div>
+          <div className="flex flex-col items-center py-16 gap-3">
+            <svg className="w-10 h-10 text-red-400/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
+            <p className="text-[13px] text-red-400">{error}</p>
+          </div>
         )}
-
         {!loading && !error && filtered.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-24 gap-3 text-center">
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-1"
-              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
-              <svg className="w-7 h-7 text-[rgba(255,255,255,0.2)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <div className="flex flex-col items-center justify-center py-28 gap-4 text-center">
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-1 relative"
+              style={{ background: 'rgba(255,99,74,0.06)', border: '1px solid rgba(255,99,74,0.12)' }}>
+              <svg className="w-8 h-8 text-[rgba(255,99,74,0.4)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.4}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
             </div>
-            <p className="text-[15px] font-semibold text-[rgba(255,255,255,0.6)]">
-              {search || filterLang !== 'All' ? 'No scripts match your search' : 'No scripts yet'}
-            </p>
-            <p className="text-[12px] text-[rgba(255,255,255,0.3)] max-w-xs">
-              {isAdmin && !search ? 'Create your first script to share with your team.' : 'Try a different search or filter.'}
-            </p>
-            {isAdmin && !search && (
-              <button onClick={openCreate} className="mt-3 flex items-center gap-1.5 px-4 py-2 text-[13px] font-semibold rounded-xl text-white"
-                style={{ background: 'linear-gradient(135deg,#FF634A,#e0532d)' }}>
-                <PlusIcon /> Create Script
+            <div>
+              <p className="text-[16px] font-semibold text-[rgba(255,255,255,0.55)]">
+                {search || filterLang !== 'All' || filterVis !== 'All' ? 'No scripts match your filters' : 'Vault is empty'}
+              </p>
+              <p className="text-[12px] text-[rgba(255,255,255,0.25)] mt-1 max-w-xs mx-auto">
+                {isAdmin && !search ? 'Create and share your first script with the team.' : 'Try adjusting your search or filters.'}
+              </p>
+            </div>
+            {isAdmin && !search && filterLang === 'All' && filterVis === 'All' && (
+              <button onClick={openCreate} className="mt-2 flex items-center gap-1.5 px-5 py-2.5 text-[13px] font-semibold rounded-xl text-white shadow-lg"
+                style={{ background: 'linear-gradient(135deg,#FF634A,#e0532d)', boxShadow: '0 4px 14px rgba(255,99,74,0.4)' }}>
+                <PlusIcon /> Create First Script
               </button>
             )}
           </div>
@@ -1573,7 +1714,7 @@ export default function CodeShare() {
 
         {/* ── Grid ── */}
         {!loading && !error && filtered.length > 0 && (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
             {filtered.map(snippet => (
               <SnippetCard
                 key={snippet._id}
@@ -1582,6 +1723,7 @@ export default function CodeShare() {
                 onClick={() => setViewSnippet(snippet)}
                 onEdit={openEdit}
                 onDelete={handleDelete}
+                relativeTime={relativeTime}
               />
             ))}
           </div>
@@ -1589,10 +1731,12 @@ export default function CodeShare() {
       </div>
 
       {/* ── Toast ── */}
-      {toast && (
-        <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-[100] px-5 py-2.5 rounded-xl text-[13px] font-medium text-white shadow-xl animate-fade-in"
-          style={{ background: 'rgba(30,30,35,0.96)', border: '1px solid rgba(255,255,255,0.12)', backdropFilter: 'blur(12px)' }}>
-          {toast}
+      {toast.msg && (
+        <div className={`fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2.5 px-5 py-2.5 rounded-xl text-[13px] font-medium text-white shadow-xl`}
+          style={{ background: 'rgba(24,24,27,0.97)', border: `1px solid ${toast.type === 'error' ? 'rgba(239,68,68,0.3)' : toast.type === 'success' ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.12)'}`, backdropFilter: 'blur(12px)' }}>
+          {toast.type === 'success' && <svg className="w-4 h-4 text-emerald-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>}
+          {toast.type === 'error' && <svg className="w-4 h-4 text-red-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>}
+          {toast.msg}
         </div>
       )}
 
@@ -1620,3 +1764,4 @@ export default function CodeShare() {
     </PageWrapper>
   );
 }
+

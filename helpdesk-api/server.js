@@ -16,7 +16,7 @@ const announcementRoutes  = require('./routes/announcements');
 const notificationRoutes  = require('./routes/notifications');
 const cannedResponseRoutes = require('./routes/cannedResponses');
 const configRoutes        = require('./routes/config');
-const codeShareRoutes     = require('./routes/codeShare');
+const scriptVaultRoutes     = require('./routes/scriptVault');
 
 const cron = require('node-cron');
 const User         = require('./models/User');
@@ -83,7 +83,7 @@ app.use('/api/announcements',  announcementRoutes);
 app.use('/api/notifications',  notificationRoutes);
 app.use('/api/canned-responses', cannedResponseRoutes);
 app.use('/api/config',         configRoutes);
-app.use('/api/codeshare',      codeShareRoutes);
+app.use('/api/script-vault',   scriptVaultRoutes);
 
 // ── Health check ─────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date() }));
