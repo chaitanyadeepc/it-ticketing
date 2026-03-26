@@ -157,6 +157,12 @@ const FolderUploadIcon = () => (
   </svg>
 );
 
+const AddFileIcon = () => (
+  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+  </svg>
+);
+
 const EMPTY_FORM = { title: '', content: '', language: 'text', description: '', visibility: 'all', allowedUsers: [] };
 
 // ── Visibility config ────────────────────────────────────────────────────────
@@ -413,9 +419,23 @@ function CodePanel({ block }) {
 }
 
 // ── Snippet modal (view) ─────────────────────────────────────────────────────
-function SnippetModal({ snippet, onClose, isAdmin, onEdit, onDelete }) {
+function SnippetModal({ snippet, onClose, isAdmin, onEdit, onDelete, onContribute }) {
   const [copiedAll, copyAll] = useCopyState();
   const [downloading, setDownloading] = useState(false);
+  const [showContribute, setShowContribute] = useState(false);
+  const [contribSaving, setContribSaving] = useState(false);
+
+  const handleContribSave = async (newContent) => {
+    setContribSaving(true);
+    try {
+      await onContribute(snippet._id, newContent);
+      setShowContribute(false);
+    } catch {
+      // error toast shown by parent
+    } finally {
+      setContribSaving(false);
+    }
+  };
 
   const handleDownload = async () => {
     if (downloading) return;
@@ -522,6 +542,15 @@ function SnippetModal({ snippet, onClose, isAdmin, onEdit, onDelete }) {
               {copiedAll ? <CheckIcon /> : <CopyAllIcon />}
               {copiedAll ? 'Copied!' : 'Copy All'}
             </button>
+            {/* Add Files button — visible to all viewers */}
+            <button
+              onClick={() => setShowContribute(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[12px] font-semibold transition-all border-emerald-500/30 bg-emerald-500/8 text-emerald-400 hover:bg-emerald-500/18"
+              title="Add files or content to this snippet"
+            >
+              <AddFileIcon />
+              Add Files
+            </button>
             {/* Download button — visible to all who can view */}
             <button
               onClick={handleDownload}
@@ -605,6 +634,270 @@ function SnippetModal({ snippet, onClose, isAdmin, onEdit, onDelete }) {
           <span className="text-[11px] text-[rgba(255,255,255,0.28)]">
             Updated {new Date(snippet.updatedAt).toLocaleDateString()}
           </span>
+        </div>
+      </div>
+      {showContribute && (
+        <ContributeModal
+          snippet={snippet}
+          onSave={handleContribSave}
+          onClose={() => setShowContribute(false)}
+          saving={contribSaving}
+        />
+      )}
+    </div>
+  );
+}
+
+
+// ── Contribute modal (add files/content to an existing snippet) ───────────────
+function ContributeModal({ snippet, onSave, onClose, saving }) {
+  const [mode, setMode] = useState('write'); // 'write' | 'files' | 'folder'
+  const [filePath, setFilePath] = useState('');
+  const [code, setCode] = useState('');
+  const [pendingBlocks, setPendingBlocks] = useState([]);
+  const [fileLoading, setFileLoading] = useState(false);
+  const fileInputRef = useRef(null);
+  const folderInputRef = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  const switchMode = (m) => {
+    setMode(m);
+    setPendingBlocks([]);
+    setFilePath('');
+    setCode('');
+  };
+
+  const readFileList = async (files, getPath) => {
+    setFileLoading(true);
+    try {
+      const sorted = [...files].sort((a, b) => getPath(a).localeCompare(getPath(b)));
+      const blocks = await Promise.all(sorted.map(async (f) => {
+        const text = await f.text();
+        return { filePath: getPath(f), code: text };
+      }));
+      setPendingBlocks(blocks);
+    } catch (err) {
+      console.error('File read error', err);
+    } finally {
+      setFileLoading(false);
+    }
+  };
+
+  const handleFiles = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length) readFileList(files, (f) => f.name);
+    e.target.value = '';
+  };
+
+  const handleFolder = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length) {
+      readFileList(files, (f) => {
+        const parts = f.webkitRelativePath.split('/');
+        return parts.slice(1).join('/') || parts[0];
+      });
+    }
+    e.target.value = '';
+  };
+
+  const removeBlock = (idx) => setPendingBlocks(b => b.filter((_, i) => i !== idx));
+
+  const buildNewContent = () => {
+    if (mode === 'write') {
+      if (!code.trim()) return '';
+      return filePath.trim() ? `// ${filePath.trim()}\n${code}` : code;
+    }
+    return pendingBlocks.map(b => `// ${b.filePath}\n${b.code}`).join('\n\n');
+  };
+
+  const newContent = buildNewContent();
+  const canSubmit = newContent.trim().length > 0;
+
+  const inputCls = 'w-full bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.08)] rounded-xl px-3.5 py-2.5 text-[13px] text-white placeholder-[rgba(255,255,255,0.25)] focus:outline-none focus:border-[#FF634A]/50 transition-all';
+
+  const TABS = [
+    { key: 'write', label: 'Write' },
+    { key: 'files', label: 'Upload Files' },
+    { key: 'folder', label: 'Upload Folder' },
+  ];
+
+  // Shared pending-blocks list used in both 'files' and 'folder' modes
+  const PendingList = ({ onChangeClick }) => (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-[12px] font-semibold text-[rgba(255,255,255,0.5)]">
+          {pendingBlocks.length} file{pendingBlocks.length !== 1 ? 's' : ''} ready to add
+        </p>
+        <button onClick={onChangeClick} className="text-[11px] text-[#FF634A] hover:underline">Change</button>
+      </div>
+      <div className="space-y-1 max-h-56 overflow-y-auto pr-1">
+        {pendingBlocks.map((b, i) => (
+          <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ backgroundColor: 'rgba(255,255,255,0.04)' }}>
+            <span className="text-[11px]" style={{ color: extColor(b.filePath) || 'rgba(255,255,255,0.4)' }}>
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </span>
+            <span className="text-[12px] font-mono text-[rgba(255,255,255,0.7)] truncate flex-1">{b.filePath}</span>
+            <span className="text-[10px] text-[rgba(255,255,255,0.3)] flex-shrink-0">{b.code.split('\n').length}L</span>
+            <button
+              onClick={() => removeBlock(i)}
+              className="ml-1 flex-shrink-0 p-0.5 rounded text-[rgba(255,255,255,0.3)] hover:text-red-400 transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const DropZone = ({ onClick, label, sublabel }) => (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={fileLoading}
+      className="w-full flex flex-col items-center justify-center gap-3 py-12 rounded-xl border-2 border-dashed transition-all hover:border-[rgba(255,255,255,0.25)] disabled:opacity-50"
+      style={{ borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(255,255,255,0.02)' }}
+    >
+      <svg className="w-9 h-9 text-[rgba(255,255,255,0.18)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+      </svg>
+      <span className="text-[13px] text-[rgba(255,255,255,0.45)]">{fileLoading ? 'Reading\u2026' : label}</span>
+      <span className="text-[11px] text-[rgba(255,255,255,0.25)]">{sublabel}</span>
+    </button>
+  );
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+      style={{ backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)' }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div
+        className="w-full max-w-xl max-h-[88vh] flex flex-col rounded-2xl border overflow-hidden shadow-2xl"
+        style={{ backgroundColor: 'var(--bg)', borderColor: 'rgba(255,255,255,0.1)' }}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
+          <div>
+            <h2 className="text-[15px] font-bold text-white">Add to Snippet</h2>
+            <p className="text-[11px] text-[rgba(255,255,255,0.35)] mt-0.5 truncate max-w-xs">{snippet.title}</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-[rgba(255,255,255,0.4)] hover:text-white hover:bg-white/8 transition-all">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Mode tabs */}
+        <div className="flex px-6 pt-4 flex-shrink-0 gap-1">
+          {TABS.map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => switchMode(tab.key)}
+              className="px-4 py-2 text-[12px] font-semibold border-b-2 transition-all"
+              style={{
+                borderColor: mode === tab.key ? '#FF634A' : 'transparent',
+                color: mode === tab.key ? '#FF634A' : 'rgba(255,255,255,0.4)',
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        <div className="border-b flex-shrink-0" style={{ borderColor: 'rgba(255,255,255,0.07)' }} />
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+
+          {/* Write mode */}
+          {mode === 'write' && (
+            <>
+              <div>
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-[rgba(255,255,255,0.4)] mb-1.5">
+                  File path
+                  <span className="ml-2 normal-case font-normal text-[rgba(255,255,255,0.25)]">(optional — e.g. src/utils/helper.ts)</span>
+                </label>
+                <input
+                  className={inputCls}
+                  placeholder="src/utils/helper.ts"
+                  value={filePath}
+                  onChange={(e) => setFilePath(e.target.value)}
+                />
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-[rgba(255,255,255,0.4)]">Content *</label>
+                  <span className="text-[11px] text-[rgba(255,255,255,0.25)]">{code.split('\n').length} lines</span>
+                </div>
+                <textarea
+                  className="w-full bg-[#080809] border border-[rgba(255,255,255,0.08)] rounded-xl px-4 py-3.5 text-[12.5px] leading-6 font-mono text-[rgba(255,255,255,0.85)] placeholder-[rgba(255,255,255,0.2)] focus:outline-none focus:border-[#FF634A]/40 resize-none transition-all"
+                  placeholder="Paste your code or text here\u2026"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  rows={10}
+                  spellCheck={false}
+                />
+              </div>
+            </>
+          )}
+
+          {/* Upload Files mode */}
+          {mode === 'files' && (
+            <>
+              <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFiles} />
+              {pendingBlocks.length === 0
+                ? <DropZone onClick={() => fileInputRef.current?.click()} label="Click to select files" sublabel="Multiple files supported" />
+                : <PendingList onChangeClick={() => fileInputRef.current?.click()} />
+              }
+            </>
+          )}
+
+          {/* Upload Folder mode */}
+          {mode === 'folder' && (
+            <>
+              <input ref={folderInputRef} type="file" webkitdirectory="true" directory="true" multiple className="hidden" onChange={handleFolder} />
+              {pendingBlocks.length === 0
+                ? <DropZone onClick={() => folderInputRef.current?.click()} label="Click to select a folder" sublabel="All files inside will be added" />
+                : <PendingList onChangeClick={() => folderInputRef.current?.click()} />
+              }
+            </>
+          )}
+
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 pb-6 pt-4 border-t flex items-center justify-between flex-shrink-0" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
+          <span className="text-[11px] text-[rgba(255,255,255,0.3)]">
+            {canSubmit
+              ? mode === 'write'
+                ? `Will append ${code.split('\n').length} line${code.split('\n').length !== 1 ? 's' : ''}`
+                : `Will append ${pendingBlocks.length} file${pendingBlocks.length !== 1 ? 's' : ''}`
+              : 'Add content above to continue'
+            }
+          </span>
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-[13px] font-medium text-[rgba(255,255,255,0.5)] hover:text-white transition-colors">
+              Cancel
+            </button>
+            <button
+              onClick={() => onSave(newContent)}
+              disabled={saving || !canSubmit}
+              className="px-5 py-2 text-[13px] font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: 'linear-gradient(135deg,#FF634A,#e0532d)', color: '#fff' }}
+            >
+              {saving ? 'Adding\u2026' : 'Add to Snippet'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -1136,6 +1429,18 @@ export default function CodeShare() {
     setDeleteTarget(null);
   };
 
+  const handleContribute = async (snippetId, newContent) => {
+    try {
+      const { data } = await api.patch(`/codeshare/${snippetId}/contribute`, { newContent });
+      setSnippets(prev => prev.map(s => s._id === snippetId ? data.snippet : s));
+      setViewSnippet(data.snippet);
+      showToast('Content added to snippet');
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Failed to add content');
+      throw err;
+    }
+  };
+
   const openCreate = () => { setEditTarget(null); setShowEditor(true); };
   const openEdit = (snippet) => {
     setEditTarget(snippet);
@@ -1299,6 +1604,7 @@ export default function CodeShare() {
           isAdmin={isAdmin}
           onEdit={openEdit}
           onDelete={handleDelete}
+          onContribute={handleContribute}
         />
       )}
 

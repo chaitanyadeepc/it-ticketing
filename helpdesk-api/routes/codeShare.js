@@ -163,6 +163,34 @@ router.get('/:id/download', async (req, res) => {
   }
 });
 
+// PATCH /api/codeshare/:id/contribute — any viewer can append new content (files/text)
+router.patch('/:id/contribute', async (req, res) => {
+  try {
+    const doc = await CodeShare.findById(req.params.id)
+      .populate('allowedUsers', 'name email role');
+    if (!doc) return res.status(404).json({ error: 'Snippet not found' });
+    if (!canView(doc, req.user)) {
+      return res.status(403).json({ error: 'You do not have access to this snippet' });
+    }
+
+    const { newContent } = req.body;
+    if (!newContent || !newContent.trim()) {
+      return res.status(400).json({ error: 'newContent is required' });
+    }
+
+    const existing = await getContent(doc);
+    const combined = existing.trimEnd() + '\n\n' + newContent.trim();
+    doc.content = await compress(combined);
+    doc.isCompressed = true;
+    await doc.save();
+
+    const snippet = await serializeSnippet(doc);
+    res.json({ snippet });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/codeshare — create (admin only, compress content)
 router.post('/', adminOnly, async (req, res) => {
   try {
