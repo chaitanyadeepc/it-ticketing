@@ -116,6 +116,7 @@ const Navbar = () => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [overdueCount, setOverdueCount] = useState(0);
+  const [hasSharedSnippets, setHasSharedSnippets] = useState(false);
   const navRef = useRef(null);
   const bellRef = useRef(null);
   const avatarRef = useRef(null);
@@ -162,6 +163,15 @@ const Navbar = () => {
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 60000);
     return () => clearInterval(interval);
+  }, [location.pathname]);
+
+  // Check if current user has any snippets shared with them
+  useEffect(() => {
+    const isAuth = !!localStorage.getItem('token') && localStorage.getItem('isAuthenticated') === 'true';
+    if (!isAuth) return;
+    api.get('/codeshare/has-access')
+      .then(({ data }) => setHasSharedSnippets(data.hasAccess))
+      .catch(() => setHasSharedSnippets(false));
   }, [location.pathname]);
 
   const markAllRead = () => {
@@ -215,6 +225,9 @@ const Navbar = () => {
         { name: 'AI Assistant',   path: '/raise-ticket',        desc: 'Raise a ticket with AI guidance',       icon: 'chat' },
         { name: 'My Tickets',     path: '/my-tickets',          desc: 'View and manage your open tickets',     icon: 'tickets' },
         { name: 'Calendar',       path: '/my-tickets/calendar', desc: 'View tickets by due date',              icon: 'calendar' },
+        ...(hasSharedSnippets && !isAdmin && !isAgent ? [
+          { name: 'Shared Snippets', path: '/codeshare', desc: 'Code & scripts shared with you', icon: 'code' },
+        ] : []),
       ],
     },
     { label: 'Knowledge Base', path: '/knowledge-base', icon: 'book' },
@@ -239,6 +252,9 @@ const Navbar = () => {
         { name: 'Dashboard',        path: '/admin',                   desc: 'Tickets overview & analytics',          icon: 'dashboard' },
         { name: 'Reports',          path: '/reports',                 desc: 'Advanced analytics & reports',          icon: 'reports' },
         { name: 'Canned Responses', path: '/admin/canned-responses',  desc: 'Shared reply templates',                icon: 'template' },
+        ...(hasSharedSnippets ? [
+          { name: 'Shared Snippets', path: '/codeshare',              desc: 'Code & scripts shared with you',        icon: 'code' },
+        ] : []),
       ],
     }] : []),
   ];

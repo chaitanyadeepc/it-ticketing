@@ -153,6 +153,7 @@ function App() {
             <Route path="/admin/canned-responses" element={<StaffRoute><CannedResponses /></StaffRoute>} />
             <Route path="/admin/sla-config" element={<AdminRoute><SLAConfig /></AdminRoute>} />
             <Route path="/admin/codeshare" element={<AdminRoute><CodeShare /></AdminRoute>} />
+            <Route path="/codeshare" element={<ProtectedRoute><CodeShare /></ProtectedRoute>} />
             <Route path="/reports" element={<StaffRoute><Reports /></StaffRoute>} />
             <Route path="/my-tickets/calendar" element={<ProtectedRoute><CalendarView /></ProtectedRoute>} />
             <Route path="/tickets/:id/print" element={<ProtectedRoute><TicketPrint /></ProtectedRoute>} />

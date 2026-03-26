@@ -35,6 +35,16 @@ const buildFilter = (user) => {
   return { $or: orConds };
 };
 
+// GET /api/codeshare/has-access — lightweight check: does this user have any accessible snippets?
+router.get('/has-access', async (req, res) => {
+  try {
+    const count = await CodeShare.countDocuments(buildFilter(req.user));
+    res.json({ hasAccess: count > 0 });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/codeshare — list snippets visible to the requester
 router.get('/', async (req, res) => {
   try {
