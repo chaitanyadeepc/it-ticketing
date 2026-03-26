@@ -6,11 +6,14 @@ const codeShareSchema = new mongoose.Schema(
     content:     { type: String, required: true, maxlength: 100000 },
     language:    { type: String, default: 'text', trim: true },
     description: { type: String, trim: true, maxlength: 500 },
-    // 'all'  → any authenticated user can view
-    // 'staff' → only agent/admin
-    visibility:  { type: String, enum: ['all', 'staff'], default: 'all' },
-    createdBy:   { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    authorName:  { type: String },
+    // 'all'    → every authenticated user
+    // 'staff'  → agents + admins
+    // 'admins' → admins only
+    // 'custom' → only users listed in allowedUsers (admins always implicitly included)
+    visibility:   { type: String, enum: ['all', 'staff', 'admins', 'custom'], default: 'all' },
+    allowedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    createdBy:    { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    authorName:   { type: String },
   },
   { timestamps: true }
 );

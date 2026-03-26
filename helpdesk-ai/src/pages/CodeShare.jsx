@@ -71,7 +71,72 @@ const CopyAllIcon = () => (
   </svg>
 );
 
-const EMPTY_FORM = { title: '', content: '', language: 'text', description: '', visibility: 'all' };
+const EMPTY_FORM = { title: '', content: '', language: 'text', description: '', visibility: 'all', allowedUsers: [] };
+
+// ── Visibility config ────────────────────────────────────────────────────────
+const VISIBILITY_OPTIONS = [
+  {
+    key: 'all',
+    label: 'Everyone',
+    desc: 'All authenticated users',
+    color: '#3b82f6',
+    icon: (cls) => (
+      <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+  },
+  {
+    key: 'staff',
+    label: 'Staff',
+    desc: 'Agents & Admins',
+    color: '#f59e0b',
+    icon: (cls) => (
+      <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+      </svg>
+    ),
+  },
+  {
+    key: 'admins',
+    label: 'Admins only',
+    desc: 'Only admin accounts',
+    color: '#ef4444',
+    icon: (cls) => (
+      <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+      </svg>
+    ),
+  },
+  {
+    key: 'custom',
+    label: 'Custom',
+    desc: 'Specific people',
+    color: '#a78bfa',
+    icon: (cls) => (
+      <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+  },
+];
+
+const getVisibilityConfig = (key) => VISIBILITY_OPTIONS.find(v => v.key === key) || VISIBILITY_OPTIONS[0];
+
+function VisibilityBadge({ visibility, allowedUsers = [] }) {
+  const cfg = getVisibilityConfig(visibility);
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium"
+      style={{ backgroundColor: `${cfg.color}18`, color: cfg.color, border: `1px solid ${cfg.color}30` }}
+    >
+      {cfg.icon('w-2.5 h-2.5')}
+      {visibility === 'custom' && allowedUsers.length > 0
+        ? `${allowedUsers.length} user${allowedUsers.length !== 1 ? 's' : ''}`
+        : cfg.label}
+    </span>
+  );
+}
 
 function useCopyState() {
   const [copied, setCopied] = useState(false);
@@ -140,14 +205,7 @@ function SnippetModal({ snippet, onClose, isAdmin, onEdit, onDelete }) {
               >
                 {snippet.language || 'text'}
               </span>
-              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium ${
-                snippet.visibility === 'staff'
-                  ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                  : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-              }`}>
-                {snippet.visibility === 'staff' ? <LockIcon /> : <GlobeIcon />}
-                {snippet.visibility === 'staff' ? 'Staff only' : 'All users'}
-              </span>
+              <VisibilityBadge visibility={snippet.visibility} allowedUsers={snippet.allowedUsers} />
             </div>
             <h2 className="text-lg font-bold text-white leading-tight truncate">{snippet.title}</h2>
             {snippet.description && (
@@ -206,11 +264,21 @@ function SnippetModal({ snippet, onClose, isAdmin, onEdit, onDelete }) {
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3 border-t flex items-center justify-between" style={{ borderColor: 'rgba(255,255,255,0.06)', backgroundColor: '#0d0d0f' }}>
+        <div className="px-5 py-3 border-t flex items-center justify-between flex-wrap gap-2" style={{ borderColor: 'rgba(255,255,255,0.06)', backgroundColor: '#0d0d0f' }}>
           <span className="text-[11px] text-[rgba(255,255,255,0.28)]">
             {snippet.authorName && `By ${snippet.authorName} · `}
             {snippet.content.split('\n').length} lines · {new Blob([snippet.content]).size} bytes
           </span>
+          {isAdmin && snippet.visibility === 'custom' && snippet.allowedUsers?.length > 0 && (
+            <div className="flex items-center gap-1 flex-wrap">
+              <span className="text-[10px] text-[rgba(255,255,255,0.3)] mr-1">Visible to:</span>
+              {snippet.allowedUsers.map(u => (
+                <span key={u._id || u} className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 border border-white/8 text-[rgba(255,255,255,0.5)]">
+                  {u.name || u.email}
+                </span>
+              ))}
+            </div>
+          )}
           <span className="text-[11px] text-[rgba(255,255,255,0.28)]">
             Updated {new Date(snippet.updatedAt).toLocaleDateString()}
           </span>
@@ -222,21 +290,76 @@ function SnippetModal({ snippet, onClose, isAdmin, onEdit, onDelete }) {
 
 // ── Create / Edit modal ──────────────────────────────────────────────────────
 function EditorModal({ initial, onSave, onClose, saving }) {
-  const [form, setForm] = useState(initial || EMPTY_FORM);
   const isEdit = !!initial?._id;
 
+  // Seed allowedUsers from populated objects if editing
+  const seedForm = () => {
+    if (!initial) return EMPTY_FORM;
+    return {
+      title:        initial.title        || '',
+      content:      initial.content      || '',
+      language:     initial.language     || 'text',
+      description:  initial.description  || '',
+      visibility:   initial.visibility   || 'all',
+      allowedUsers: Array.isArray(initial.allowedUsers) ? initial.allowedUsers : [],
+    };
+  };
+
+  const [form, setForm] = useState(seedForm);
+  const [allUsers, setAllUsers]       = useState([]);
+  const [userSearch, setUserSearch]   = useState('');
+  const [userDropOpen, setUserDropOpen] = useState(false);
+  const userSearchRef = useRef(null);
+  const dropRef = useRef(null);
+
+  // Fetch all users for the custom picker
   useEffect(() => {
-    const handler = (e) => { if (e.key === 'Escape') onClose(); };
+    api.get('/users').then(({ data }) => setAllUsers(data.users || [])).catch(() => {});
+  }, []);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (dropRef.current && !dropRef.current.contains(e.target)) setUserDropOpen(false);
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('mousedown', handler);
     document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
+    return () => {
+      document.removeEventListener('mousedown', handler);
+      document.removeEventListener('keydown', handler);
+    };
   }, [onClose]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!form.title.trim() || !form.content.trim()) return;
-    onSave(form);
+    // Send only IDs for allowedUsers
+    onSave({
+      ...form,
+      allowedUsers: form.allowedUsers.map(u => u._id || u),
+    });
   };
 
+  const addUser = (user) => {
+    if (form.allowedUsers.find(u => (u._id || u) === user._id)) return;
+    setForm(f => ({ ...f, allowedUsers: [...f.allowedUsers, user] }));
+    setUserSearch('');
+  };
+
+  const removeUser = (userId) => {
+    setForm(f => ({ ...f, allowedUsers: f.allowedUsers.filter(u => (u._id || u) !== userId) }));
+  };
+
+  const selectedIds = new Set(form.allowedUsers.map(u => u._id || u));
+  const filteredUsers = allUsers.filter(u =>
+    !selectedIds.has(u._id) &&
+    (u.name?.toLowerCase().includes(userSearch.toLowerCase()) ||
+     u.email?.toLowerCase().includes(userSearch.toLowerCase()) ||
+     u.role?.toLowerCase().includes(userSearch.toLowerCase()))
+  );
+
+  const ROLE_COLORS = { admin: '#ef4444', agent: '#f59e0b', user: '#3b82f6' };
   const inputClass = "w-full bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.08)] rounded-xl px-3.5 py-2.5 text-[13px] text-white placeholder-[rgba(255,255,255,0.25)] focus:outline-none focus:border-[#FF634A]/50 focus:bg-[rgba(255,99,74,0.04)] transition-all";
 
   return (
@@ -246,11 +369,11 @@ function EditorModal({ initial, onSave, onClose, saving }) {
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
-        className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl border overflow-hidden shadow-2xl"
+        className="w-full max-w-2xl max-h-[92vh] flex flex-col rounded-2xl border overflow-hidden shadow-2xl"
         style={{ backgroundColor: 'var(--bg)', borderColor: 'rgba(255,255,255,0.1)' }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
+        <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
           <h2 className="text-[15px] font-bold text-white">{isEdit ? 'Edit Snippet' : 'New Snippet'}</h2>
           <button onClick={onClose} className="p-1.5 rounded-lg text-[rgba(255,255,255,0.4)] hover:text-white hover:bg-white/8 transition-all">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -261,7 +384,8 @@ function EditorModal({ initial, onSave, onClose, saving }) {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
-          <div className="p-6 space-y-4">
+          <div className="p-6 space-y-5">
+
             {/* Title */}
             <div>
               <label className="block text-[11px] font-semibold uppercase tracking-wider text-[rgba(255,255,255,0.4)] mb-1.5">Title *</label>
@@ -287,34 +411,150 @@ function EditorModal({ initial, onSave, onClose, saving }) {
               />
             </div>
 
-            {/* Language + Visibility row */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wider text-[rgba(255,255,255,0.4)] mb-1.5">Language</label>
-                <select
-                  className={inputClass}
-                  value={form.language}
-                  onChange={(e) => setForm(f => ({ ...f, language: e.target.value }))}
-                  style={{ appearance: 'none' }}
-                >
-                  {LANGUAGES.map(l => (
-                    <option key={l} value={l} style={{ background: '#1a1a1f' }}>{l}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wider text-[rgba(255,255,255,0.4)] mb-1.5">Visibility</label>
-                <select
-                  className={inputClass}
-                  value={form.visibility}
-                  onChange={(e) => setForm(f => ({ ...f, visibility: e.target.value }))}
-                  style={{ appearance: 'none' }}
-                >
-                  <option value="all" style={{ background: '#1a1a1f' }}>All authenticated users</option>
-                  <option value="staff" style={{ background: '#1a1a1f' }}>Staff only (agent / admin)</option>
-                </select>
+            {/* Language */}
+            <div>
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-[rgba(255,255,255,0.4)] mb-1.5">Language</label>
+              <select
+                className={inputClass}
+                value={form.language}
+                onChange={(e) => setForm(f => ({ ...f, language: e.target.value }))}
+                style={{ appearance: 'none' }}
+              >
+                {LANGUAGES.map(l => (
+                  <option key={l} value={l} style={{ background: '#1a1a1f' }}>{l}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* ── Visibility picker ── */}
+            <div>
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-[rgba(255,255,255,0.4)] mb-2">Who can view this snippet</label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {VISIBILITY_OPTIONS.map(opt => {
+                  const active = form.visibility === opt.key;
+                  return (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, visibility: opt.key, allowedUsers: opt.key !== 'custom' ? [] : f.allowedUsers }))}
+                      className="flex flex-col items-start gap-1.5 p-3 rounded-xl border transition-all text-left"
+                      style={{
+                        borderColor: active ? `${opt.color}50` : 'rgba(255,255,255,0.07)',
+                        backgroundColor: active ? `${opt.color}12` : 'rgba(255,255,255,0.03)',
+                      }}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        {opt.icon('w-3.5 h-3.5')}
+                        {active && (
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: opt.color }} />
+                        )}
+                      </div>
+                      <span className="text-[12px] font-semibold leading-none" style={{ color: active ? opt.color : 'rgba(255,255,255,0.7)' }}>
+                        {opt.label}
+                      </span>
+                      <span className="text-[10px] leading-tight" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                        {opt.desc}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
+
+            {/* ── Custom user picker (only when visibility === 'custom') ── */}
+            {form.visibility === 'custom' && (
+              <div>
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-[rgba(255,255,255,0.4)] mb-2">
+                  Select users
+                  <span className="ml-2 text-[rgba(255,255,255,0.25)] normal-case font-normal">(admins always have access)</span>
+                </label>
+
+                {/* Selected pills */}
+                {form.allowedUsers.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {form.allowedUsers.map(u => (
+                      <span
+                        key={u._id || u}
+                        className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-lg text-[11px] font-medium border"
+                        style={{ backgroundColor: `${ROLE_COLORS[u.role] || '#3b82f6'}15`, borderColor: `${ROLE_COLORS[u.role] || '#3b82f6'}30`, color: ROLE_COLORS[u.role] || '#3b82f6' }}
+                      >
+                        <span className="text-white/80">{u.name || u.email}</span>
+                        <span className="text-[9px] uppercase tracking-wider opacity-70">{u.role}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeUser(u._id || u)}
+                          className="ml-0.5 w-3.5 h-3.5 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/50 hover:text-white transition-all"
+                        >
+                          <svg className="w-2 h-2" viewBox="0 0 8 8" fill="currentColor">
+                            <path d="M6.5 1.5l-5 5M1.5 1.5l5 5" stroke="currentColor" strokeWidth={1.2} strokeLinecap="round" />
+                          </svg>
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Search input + dropdown */}
+                <div className="relative" ref={dropRef}>
+                  <div className="relative">
+                    <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[rgba(255,255,255,0.3)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
+                    </svg>
+                    <input
+                      ref={userSearchRef}
+                      className="w-full pl-8 pr-4 py-2 text-[12px] rounded-xl border bg-[rgba(255,255,255,0.04)] border-[rgba(255,255,255,0.08)] text-white placeholder-[rgba(255,255,255,0.3)] focus:outline-none focus:border-[#a78bfa]/40 transition-all"
+                      placeholder="Search by name, email or role…"
+                      value={userSearch}
+                      onChange={(e) => { setUserSearch(e.target.value); setUserDropOpen(true); }}
+                      onFocus={() => setUserDropOpen(true)}
+                    />
+                  </div>
+                  {userDropOpen && filteredUsers.length > 0 && (
+                    <div
+                      className="absolute z-10 top-full mt-1 w-full rounded-xl border shadow-2xl overflow-hidden"
+                      style={{ backgroundColor: '#18181b', borderColor: 'rgba(255,255,255,0.1)' }}
+                    >
+                      <div className="max-h-[200px] overflow-y-auto">
+                        {filteredUsers.slice(0, 30).map(u => (
+                          <button
+                            key={u._id}
+                            type="button"
+                            onClick={() => { addUser(u); setUserDropOpen(false); }}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-white/6 transition-colors text-left"
+                          >
+                            <div
+                              className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
+                              style={{ backgroundColor: `${ROLE_COLORS[u.role] || '#3b82f6'}25`, color: ROLE_COLORS[u.role] || '#3b82f6' }}
+                            >
+                              {(u.name || u.email || '?').slice(0, 1).toUpperCase()}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[12px] font-medium text-white leading-none truncate">{u.name || '—'}</p>
+                              <p className="text-[11px] text-[rgba(255,255,255,0.38)] truncate mt-0.5">{u.email}</p>
+                            </div>
+                            <span
+                              className="flex-shrink-0 text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded"
+                              style={{ backgroundColor: `${ROLE_COLORS[u.role] || '#3b82f6'}20`, color: ROLE_COLORS[u.role] || '#3b82f6' }}
+                            >
+                              {u.role}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {userDropOpen && userSearch && filteredUsers.length === 0 && (
+                    <div className="absolute z-10 top-full mt-1 w-full rounded-xl border px-4 py-3 text-[12px] text-[rgba(255,255,255,0.35)]" style={{ backgroundColor: '#18181b', borderColor: 'rgba(255,255,255,0.08)' }}>
+                      No users found
+                    </div>
+                  )}
+                </div>
+
+                {form.allowedUsers.length === 0 && (
+                  <p className="text-[11px] text-[rgba(255,255,255,0.3)] mt-1.5">No users selected — nobody except admins will see this snippet.</p>
+                )}
+              </div>
+            )}
 
             {/* Content */}
             <div>
@@ -329,7 +569,7 @@ function EditorModal({ initial, onSave, onClose, saving }) {
                 placeholder="Paste your code or text here…"
                 value={form.content}
                 onChange={(e) => setForm(f => ({ ...f, content: e.target.value }))}
-                rows={14}
+                rows={12}
                 required
                 spellCheck={false}
               />
@@ -337,7 +577,7 @@ function EditorModal({ initial, onSave, onClose, saving }) {
           </div>
 
           {/* Footer */}
-          <div className="px-6 pb-6 flex items-center justify-end gap-3">
+          <div className="px-6 pb-6 flex items-center justify-end gap-3 flex-shrink-0">
             <button type="button" onClick={onClose} className="px-4 py-2 text-[13px] font-medium text-[rgba(255,255,255,0.5)] hover:text-white transition-colors">
               Cancel
             </button>
@@ -382,11 +622,7 @@ function SnippetCard({ snippet, isAdmin, onClick, onEdit, onDelete }) {
               >
                 {snippet.language || 'text'}
               </span>
-              {snippet.visibility === 'staff' && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                  <LockIcon /> Staff only
-                </span>
-              )}
+              <VisibilityBadge visibility={snippet.visibility} allowedUsers={snippet.allowedUsers} />
             </div>
             <h3 className="text-[14px] font-semibold text-white leading-tight line-clamp-1">{snippet.title}</h3>
             {snippet.description && (
