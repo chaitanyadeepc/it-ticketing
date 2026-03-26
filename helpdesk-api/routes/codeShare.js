@@ -70,8 +70,10 @@ const canView = (snippet, user) => {
   if (v === 'staff') return ['agent', 'admin'].includes(user.role);
   if (v === 'admins') return user.role === 'admin';
   if (v === 'custom') {
+    // allowedUsers may be populated objects OR raw ObjectIds depending on the query.
+    // Use (id._id || id) so both cases normalise to an ObjectId string.
     return (snippet.allowedUsers || []).some(
-      (id) => id.toString() === user._id.toString()
+      (id) => (id._id || id).toString() === user._id.toString()
     );
   }
   return false;
