@@ -3,9 +3,11 @@ const mongoose = require('mongoose');
 const codeShareSchema = new mongoose.Schema(
   {
     title:        { type: String, required: true, trim: true, maxlength: 200 },
-    // Stored as gzip-compressed Buffer (base64 in JSON); isCompressed flag distinguishes old plain-text docs
+    // Stored as gzip-compressed Buffer; isCompressed flag distinguishes old plain-text docs.
+    // NO default — old docs have this field absent in MongoDB, so Mongoose returns undefined,
+    // which lets getContent treat them as plain text instead of trying to gunzip them.
     content:      { type: Buffer, required: true },
-    isCompressed: { type: Boolean, default: true },
+    isCompressed: { type: Boolean },
     language:     { type: String, default: 'text', trim: true },
     description:  { type: String, trim: true, maxlength: 500 },
     // 'all'    → every authenticated user

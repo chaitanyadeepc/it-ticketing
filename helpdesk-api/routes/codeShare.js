@@ -23,14 +23,16 @@ const decompress = (buf) => new Promise((resolve, reject) => {
 // Decompress a stored snippet doc and return plain-text content
 const getContent = async (doc) => {
   if (!doc.content) return '';
-  // Only decompress when flag is explicitly true — legacy docs have isCompressed=undefined
-  if (!doc.isCompressed) {
-    // Legacy plain-text stored as a string or Buffer before compression was added
-    return Buffer.isBuffer(doc.content)
-      ? doc.content.toString('utf8')
-      : String(doc.content);
+  // Strict check: only decompress when the flag is EXPLICITLY true.
+  // Old docs have no isCompressed field → Mongoose returns undefined (schema has no default),
+  // so they safely fall through to the plain-text branch.
+  if (doc.isCompressed === true) {
+    return decompress(doc.content);
   }
-  return decompress(doc.content);
+  // Legacy plain-text: Mongoose may have already coerced the BSON string to a Buffer.
+  return Buffer.isBuffer(doc.content)
+    ? doc.content.toString('utf8')
+    : String(doc.content);
 };
 
 // ── File-block parser (mirrors frontend logic) ────────────────────────────────
