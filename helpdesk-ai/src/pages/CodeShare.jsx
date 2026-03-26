@@ -23,9 +23,9 @@ const getLangColor = (lang) => LANG_COLORS[lang?.toLowerCase()] || LANG_COLORS.t
 
 // ── File block parser ─────────────────────────────────────────────────────────
 // Detects lines like:  // path/to/File.cs   or   // src/app/service.ts
-// Pattern: line starts with // (or # or --) followed by a path containing at
-// least one / and ending with a known extension (or any word after last slash).
-const FILE_PATH_RE = /^(?:\/\/|#|--)\s*((?:[\w.\-]+\/)+[\w.\-]+\.\w+)\s*$/;
+// Pattern: line starts with // (or # or --) followed by any file path
+// (with or without folders) ending with a file extension. No spaces allowed.
+const FILE_PATH_RE = /^(?:\/\/|#|--)\s*((?:[\w.\-/\\]*\/)?[\w.\-]+\.\w+)\s*$/;
 
 // Returns array of { filePath, code, startLine } blocks.
 // If no file-path markers are found → single block with filePath = null.
