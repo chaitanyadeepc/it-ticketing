@@ -23,9 +23,12 @@ const decompress = (buf) => new Promise((resolve, reject) => {
 // Decompress a stored snippet doc and return plain-text content
 const getContent = async (doc) => {
   if (!doc.content) return '';
-  if (doc.isCompressed === false) {
-    // Legacy plain-text (stored before compression was added)
-    return doc.content.toString('utf8');
+  // Only decompress when flag is explicitly true — legacy docs have isCompressed=undefined
+  if (!doc.isCompressed) {
+    // Legacy plain-text stored as a string or Buffer before compression was added
+    return Buffer.isBuffer(doc.content)
+      ? doc.content.toString('utf8')
+      : String(doc.content);
   }
   return decompress(doc.content);
 };
