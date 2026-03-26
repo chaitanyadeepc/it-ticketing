@@ -84,6 +84,7 @@ app.use('/api/notifications',  notificationRoutes);
 app.use('/api/canned-responses', cannedResponseRoutes);
 app.use('/api/config',         configRoutes);
 app.use('/api/script-vault',   scriptVaultRoutes);
+app.use('/api/codeshare',      scriptVaultRoutes); // backward-compat alias
 
 // ── Health check ─────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date() }));
