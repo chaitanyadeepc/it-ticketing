@@ -18,6 +18,11 @@ const scriptVaultSchema = new mongoose.Schema(
     allowedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     createdBy:    { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     authorName:   { type: String },
+    // Zip-file snippets — raw binary stored here, served as-is on download
+    isZip:        { type: Boolean, default: false },
+    zipName:      { type: String },
+    zipSize:      { type: Number },   // bytes
+    zipBuffer:    { type: Buffer },   // raw zip bytes (≤ 12 MB)
   },
   { timestamps: true }
 );

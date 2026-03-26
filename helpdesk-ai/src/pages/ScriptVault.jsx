@@ -523,7 +523,7 @@ function SnippetModal({ snippet, onClose, isAdmin, onEdit, onDelete, onContribut
       const url = URL.createObjectURL(response.data);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${snippet.title.replace(/[^a-zA-Z0-9_\-]/g, '_')}.zip`;
+      a.download = snippet.zipName || `${snippet.title.replace(/[^a-zA-Z0-9_\-]/g, '_')}.zip`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -552,7 +552,8 @@ function SnippetModal({ snippet, onClose, isAdmin, onEdit, onDelete, onContribut
   }, [onClose]);
 
   if (!snippet) return null;
-  const langColor = getLangColor(snippet.language);
+  const isZipSnippet = !!snippet.isZip;
+  const langColor = isZipSnippet ? '#f59e0b' : getLangColor(snippet.language);
   const fileCount = blocks.filter(b => b.filePath).length;
 
   const toggleFolder = (path) => setExpanded(prev => {
@@ -576,14 +577,25 @@ function SnippetModal({ snippet, onClose, isAdmin, onEdit, onDelete, onContribut
           style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
           <div className="flex-1 min-w-0 pr-4">
             <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <span
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-widest uppercase"
-                style={{ backgroundColor: `${langColor}18`, color: langColor, border: `1px solid ${langColor}30` }}
-              >
-                {snippet.language || 'text'}
-              </span>
+              {isZipSnippet ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-widest uppercase"
+                  style={{ backgroundColor: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.3)' }}>
+                  <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M20 7H8a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V9a2 2 0 00-2-2z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16 7V5a2 2 0 00-2-2h-2a2 2 0 00-2 2v2" />
+                  </svg>
+                  ZIP Archive
+                </span>
+              ) : (
+                <span
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-widest uppercase"
+                  style={{ backgroundColor: `${langColor}18`, color: langColor, border: `1px solid ${langColor}30` }}
+                >
+                  {snippet.language || 'text'}
+                </span>
+              )}
               <VisibilityBadge visibility={snippet.visibility} allowedUsers={snippet.allowedUsers} />
-              {isMultiFile && (
+              {!isZipSnippet && isMultiFile && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-white/5 text-[rgba(255,255,255,0.4)] border border-white/8">
                   <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -609,32 +621,39 @@ function SnippetModal({ snippet, onClose, isAdmin, onEdit, onDelete, onContribut
                 </button>
               </>
             )}
-            <button
-              onClick={() => copyAll(snippet.content)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[12px] font-semibold transition-all ${
-                copiedAll
-                  ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
-                  : 'border-[#FF634A]/30 bg-[#FF634A]/10 text-[#FF634A] hover:bg-[#FF634A]/20'
-              }`}
-            >
-              {copiedAll ? <CheckIcon /> : <CopyAllIcon />}
-              {copiedAll ? 'Copied!' : 'Copy All'}
-            </button>
-            {/* Add Files button — visible to all viewers */}
-            <button
-              onClick={() => setShowContribute(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[12px] font-semibold transition-all border-emerald-500/30 bg-emerald-500/8 text-emerald-400 hover:bg-emerald-500/18"
-              title="Add files or content to this snippet"
-            >
-              <AddFileIcon />
-              Add Files
-            </button>
-            {/* Download button — visible to all who can view */}
+            {!isZipSnippet && (
+              <>
+                <button
+                  onClick={() => copyAll(snippet.content)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[12px] font-semibold transition-all ${
+                    copiedAll
+                      ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
+                      : 'border-[#FF634A]/30 bg-[#FF634A]/10 text-[#FF634A] hover:bg-[#FF634A]/20'
+                  }`}
+                >
+                  {copiedAll ? <CheckIcon /> : <CopyAllIcon />}
+                  {copiedAll ? 'Copied!' : 'Copy All'}
+                </button>
+                <button
+                  onClick={() => setShowContribute(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[12px] font-semibold transition-all border-emerald-500/30 bg-emerald-500/8 text-emerald-400 hover:bg-emerald-500/18"
+                  title="Add files or content to this snippet"
+                >
+                  <AddFileIcon />
+                  Add Files
+                </button>
+              </>
+            )}
+            {/* Download button — always visible */}
             <button
               onClick={handleDownload}
               disabled={downloading}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[12px] font-semibold transition-all disabled:opacity-50 border-white/10 bg-white/5 text-[rgba(255,255,255,0.6)] hover:bg-white/10 hover:text-white"
-              title="Download as zip (preserves folder structure)"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[12px] font-semibold transition-all disabled:opacity-50 ${
+                isZipSnippet
+                  ? 'border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20'
+                  : 'border-white/10 bg-white/5 text-[rgba(255,255,255,0.6)] hover:bg-white/10 hover:text-white'
+              }`}
+              title={isZipSnippet ? 'Download zip file' : 'Download as zip (preserves folder structure)'}
             >
               <DownloadIcon />
               {downloading ? 'Downloading…' : 'Download'}
@@ -648,7 +667,34 @@ function SnippetModal({ snippet, onClose, isAdmin, onEdit, onDelete, onContribut
         </div>
 
         {/* ── Body ── */}
-        {isMultiFile ? (
+        {isZipSnippet ? (
+          /* ZIP file view */
+          <div className="flex-1 flex flex-col items-center justify-center gap-5 py-14" style={{ backgroundColor: '#080809' }}>
+            <div className="p-5 rounded-2xl border" style={{ borderColor: 'rgba(245,158,11,0.2)', backgroundColor: 'rgba(245,158,11,0.06)' }}>
+              <svg className="w-16 h-16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.2} style={{ color: '#f59e0b' }}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M20 7H8a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V9a2 2 0 00-2-2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16 7V5a2 2 0 00-2-2h-2a2 2 0 00-2 2v2" />
+                <line x1="12" y1="11" x2="12" y2="17" strokeLinecap="round" />
+                <line x1="9" y1="14" x2="15" y2="14" strokeLinecap="round" />
+              </svg>
+            </div>
+            <div className="text-center">
+              <p className="text-[17px] font-bold text-white">{snippet.zipName || snippet.title + '.zip'}</p>
+              <p className="text-[13px] text-[rgba(255,255,255,0.4)] mt-1">
+                {fmtBytes(snippet.zipSize)}
+                {snippet.authorName && ` · uploaded by ${snippet.authorName}`}
+              </p>
+            </div>
+            <button
+              onClick={handleDownload}
+              disabled={downloading}
+              className="flex items-center gap-2 px-6 py-3 rounded-xl border text-[14px] font-semibold transition-all disabled:opacity-50 border-amber-500/40 bg-amber-500/12 text-amber-400 hover:bg-amber-500/22"
+            >
+              <DownloadIcon />
+              {downloading ? 'Downloading…' : `Download ${snippet.zipName || snippet.title + '.zip'}`}
+            </button>
+          </div>
+        ) : isMultiFile ? (
           /* Explorer layout */
           <div className="flex flex-1 overflow-hidden" style={{ minHeight: 0 }}>
             {/* Left: file tree */}
@@ -769,8 +815,10 @@ function SnippetModal({ snippet, onClose, isAdmin, onEdit, onDelete, onContribut
         <div className="px-5 py-2.5 border-t flex items-center justify-between flex-wrap gap-2 flex-shrink-0"
           style={{ borderColor: 'rgba(255,255,255,0.06)', backgroundColor: '#0d0d0f' }}>
           <span className="text-[11px] text-[rgba(255,255,255,0.28)]">
-            {snippet.authorName && `By ${snippet.authorName} · `}
-            {snippet.content.split('\n').length} lines · {new Blob([snippet.content]).size} bytes
+            {isZipSnippet
+              ? `${snippet.zipName || snippet.title + '.zip'} · ${fmtBytes(snippet.zipSize)}${snippet.authorName ? ` · uploaded by ${snippet.authorName}` : ''}`
+              : `${snippet.authorName ? `By ${snippet.authorName} · ` : ''}${snippet.content.split('\n').length} lines · ${new Blob([snippet.content]).size} bytes`
+            }
           </span>
           {isAdmin && snippet.visibility === 'custom' && snippet.allowedUsers?.length > 0 && (
             <div className="flex items-center gap-1 flex-wrap">
@@ -1656,28 +1704,59 @@ function EditorModal({ initial, onSave, onClose, saving }) {
 }
 
 // ── Snippet card ─────────────────────────────────────────────────────────────
+// ── Format bytes helper ──────────────────────────────────────────────────────
+const fmtBytes = (bytes) => {
+  if (!bytes) return '—';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+// ── Zip file card preview ────────────────────────────────────────────────────
+function ZipPreview({ snippet }) {
+  return (
+    <div className="mx-4 mb-4 rounded-xl overflow-hidden border flex items-center gap-3 px-4 py-4"
+      style={{ borderColor: 'rgba(255,165,0,0.15)', backgroundColor: 'rgba(255,165,0,0.04)' }}>
+      <svg className="w-9 h-9 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.4}
+        style={{ color: '#f59e0b' }}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M20 7H8a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V9a2 2 0 00-2-2z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M16 7V5a2 2 0 00-2-2h-2a2 2 0 00-2 2v2" />
+        <line x1="12" y1="11" x2="12" y2="17" strokeLinecap="round" />
+        <line x1="9" y1="14" x2="15" y2="14" strokeLinecap="round" />
+      </svg>
+      <div className="flex-1 min-w-0">
+        <p className="text-[12px] font-mono font-semibold text-[rgba(255,255,255,0.8)] truncate">
+          {snippet.zipName || snippet.title + '.zip'}
+        </p>
+        <p className="text-[11px] text-[rgba(255,255,255,0.35)] mt-0.5">{fmtBytes(snippet.zipSize)}</p>
+      </div>
+    </div>
+  );
+}
+
 function SnippetCard({ snippet, isAdmin, onClick, onEdit, onDelete, relativeTime: relTime, isSelected, onToggleSelect }) {
-  const langColor = getLangColor(snippet.language);
-  const lineCount = snippet.content.split('\n').length;
-  const blocks = parseFileBlocks(snippet.content);
+  const isZip = !!snippet.isZip;
+  const accentColor = isZip ? '#f59e0b' : getLangColor(snippet.language);
+  const lineCount = isZip ? null : snippet.content.split('\n').length;
+  const blocks = isZip ? [] : parseFileBlocks(snippet.content);
   const fileBlocks = blocks.filter(b => b.filePath);
   const isMultiFile = fileBlocks.length > 0;
-  const preview = snippet.content.slice(0, 300);
+  const preview = isZip ? '' : snippet.content.slice(0, 300);
 
   return (
     <div
       className="group relative flex flex-col rounded-2xl border overflow-hidden cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/40"
       style={{
         backgroundColor: 'var(--color-canvas-overlay)',
-        borderColor: isSelected ? `${langColor}60` : 'rgba(255,255,255,0.07)',
-        boxShadow: isSelected ? `0 0 0 2px ${langColor}30` : undefined,
+        borderColor: isSelected ? `${accentColor}60` : 'rgba(255,255,255,0.07)',
+        boxShadow: isSelected ? `0 0 0 2px ${accentColor}30` : undefined,
       }}
       onClick={(e) => {
         if (e.ctrlKey || e.metaKey) { e.preventDefault(); onToggleSelect?.(snippet._id); }
         else onClick(e);
       }}
     >
-      {/* Select checkbox (shown on ctrl/meta hover or when selected) */}
+      {/* Select checkbox */}
       {onToggleSelect && (
         <div
           className={`absolute top-2.5 left-2.5 z-10 transition-opacity ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-70'}`}
@@ -1685,12 +1764,12 @@ function SnippetCard({ snippet, isAdmin, onClick, onEdit, onDelete, relativeTime
         >
           <div className="w-4 h-4 rounded border flex items-center justify-center transition-all"
             style={{
-              borderColor: isSelected ? langColor : 'rgba(255,255,255,0.3)',
-              backgroundColor: isSelected ? `${langColor}30` : 'rgba(0,0,0,0.5)',
+              borderColor: isSelected ? accentColor : 'rgba(255,255,255,0.3)',
+              backgroundColor: isSelected ? `${accentColor}30` : 'rgba(0,0,0,0.5)',
             }}>
             {isSelected && (
               <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}
-                style={{ color: langColor }}>
+                style={{ color: accentColor }}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
             )}
@@ -1698,19 +1777,28 @@ function SnippetCard({ snippet, isAdmin, onClick, onEdit, onDelete, relativeTime
         </div>
       )}
       {/* Top accent */}
-      <div className="h-0.5 w-full" style={{ background: `linear-gradient(90deg, ${langColor}60, transparent)` }} />
+      <div className="h-0.5 w-full" style={{ background: `linear-gradient(90deg, ${accentColor}60, transparent)` }} />
 
       {/* Header */}
       <div className="px-4 pt-4 pb-3">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-              <span
-                className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold tracking-widest uppercase"
-                style={{ backgroundColor: `${langColor}18`, color: langColor, border: `1px solid ${langColor}28` }}
-              >
-                {snippet.language || 'text'}
-              </span>
+              {isZip ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-widest uppercase"
+                  style={{ backgroundColor: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.3)' }}>
+                  <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M20 7H8a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V9a2 2 0 00-2-2z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16 7V5a2 2 0 00-2-2h-2a2 2 0 00-2 2v2" />
+                  </svg>
+                  ZIP
+                </span>
+              ) : (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold tracking-widest uppercase"
+                  style={{ backgroundColor: `${accentColor}18`, color: accentColor, border: `1px solid ${accentColor}28` }}>
+                  {snippet.language || 'text'}
+                </span>
+              )}
               <VisibilityBadge visibility={snippet.visibility} allowedUsers={snippet.allowedUsers} />
             </div>
             <h3 className="text-[14px] font-semibold text-white leading-tight line-clamp-1">{snippet.title}</h3>
@@ -1721,18 +1809,14 @@ function SnippetCard({ snippet, isAdmin, onClick, onEdit, onDelete, relativeTime
           {/* Admin actions */}
           {isAdmin && (
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-              <button
-                onClick={() => onEdit(snippet)}
-                className="p-1.5 rounded-lg border border-white/10 bg-white/5 text-[rgba(255,255,255,0.4)] hover:text-white hover:bg-white/12 transition-all"
-                title="Edit"
-              >
-                <EditIcon />
-              </button>
-              <button
-                onClick={() => onDelete(snippet)}
-                className="p-1.5 rounded-lg border border-red-500/15 bg-red-500/5 text-red-400/50 hover:text-red-400 hover:bg-red-500/12 transition-all"
-                title="Delete"
-              >
+              {!isZip && (
+                <button onClick={() => onEdit(snippet)}
+                  className="p-1.5 rounded-lg border border-white/10 bg-white/5 text-[rgba(255,255,255,0.4)] hover:text-white hover:bg-white/12 transition-all" title="Edit">
+                  <EditIcon />
+                </button>
+              )}
+              <button onClick={() => onDelete(snippet)}
+                className="p-1.5 rounded-lg border border-red-500/15 bg-red-500/5 text-red-400/50 hover:text-red-400 hover:bg-red-500/12 transition-all" title="Delete">
                 <TrashIcon />
               </button>
             </div>
@@ -1740,57 +1824,65 @@ function SnippetCard({ snippet, isAdmin, onClick, onEdit, onDelete, relativeTime
         </div>
       </div>
 
-      {/* Code preview / mini file tree */}
-      <div className="mx-4 mb-4 rounded-xl overflow-hidden border" style={{ borderColor: 'rgba(255,255,255,0.05)', backgroundColor: '#080809' }}>
-        {isMultiFile ? (
-          <div className="px-3 py-2.5 space-y-0.5">
-            {fileBlocks.slice(0, 5).map((b, i) => {
-              const color = extColor(b.filePath);
-              const parts = b.filePath.split('/');
-              const fname = parts.pop();
-              const folder = parts.join('/');
-              return (
-                <div key={i} className="flex items-center gap-1.5 py-0.5">
-                  <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}
-                    style={{ color: color || 'rgba(255,255,255,0.3)' }}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  <span className="text-[11px] font-mono truncate flex-1" style={{ color: color || 'rgba(255,255,255,0.5)' }}>
-                    {folder && <span style={{ color: 'rgba(255,255,255,0.25)' }}>{folder}/</span>}
-                    {fname}
-                  </span>
-                  <span className="text-[10px] flex-shrink-0" style={{ color: 'rgba(255,255,255,0.2)' }}>
-                    {b.code.split('\n').length}L
-                  </span>
+      {/* Preview area */}
+      {isZip ? (
+        <ZipPreview snippet={snippet} />
+      ) : (
+        <div className="mx-4 mb-4 rounded-xl overflow-hidden border" style={{ borderColor: 'rgba(255,255,255,0.05)', backgroundColor: '#080809' }}>
+          {isMultiFile ? (
+            <div className="px-3 py-2.5 space-y-0.5">
+              {fileBlocks.slice(0, 5).map((b, i) => {
+                const color = extColor(b.filePath);
+                const parts = b.filePath.split('/');
+                const fname = parts.pop();
+                const folder = parts.join('/');
+                return (
+                  <div key={i} className="flex items-center gap-1.5 py-0.5">
+                    <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}
+                      style={{ color: color || 'rgba(255,255,255,0.3)' }}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span className="text-[11px] font-mono truncate flex-1" style={{ color: color || 'rgba(255,255,255,0.5)' }}>
+                      {folder && <span style={{ color: 'rgba(255,255,255,0.25)' }}>{folder}/</span>}
+                      {fname}
+                    </span>
+                    <span className="text-[10px] flex-shrink-0" style={{ color: 'rgba(255,255,255,0.2)' }}>
+                      {b.code.split('\n').length}L
+                    </span>
+                  </div>
+                );
+              })}
+              {fileBlocks.length > 5 && (
+                <div className="text-[10px] text-[rgba(255,255,255,0.25)] pt-0.5 pl-4">+{fileBlocks.length - 5} more files</div>
+              )}
+            </div>
+          ) : (
+            <>
+              <pre className="px-4 py-3 text-[11px] leading-5 font-mono text-[rgba(255,255,255,0.55)] overflow-hidden m-0"
+                style={{ maxHeight: '80px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical' }}>
+                {preview}
+              </pre>
+              {snippet.content.length > 300 && (
+                <div className="px-4 py-1.5 border-t text-[10px] text-[rgba(255,255,255,0.25)] font-medium" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
+                  + more…
                 </div>
-              );
-            })}
-            {fileBlocks.length > 5 && (
-              <div className="text-[10px] text-[rgba(255,255,255,0.25)] pt-0.5 pl-4">+{fileBlocks.length - 5} more files</div>
-            )}
-          </div>
-        ) : (
-          <>
-            <pre className="px-4 py-3 text-[11px] leading-5 font-mono text-[rgba(255,255,255,0.55)] overflow-hidden m-0"
-              style={{ maxHeight: '80px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical' }}>
-              {preview}
-            </pre>
-            {snippet.content.length > 300 && (
-              <div className="px-4 py-1.5 border-t text-[10px] text-[rgba(255,255,255,0.25)] font-medium" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
-                + more…
-              </div>
-            )}
-          </>
-        )}
-      </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
 
       {/* Footer */}
       <div className="px-4 pb-3.5 mt-auto flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[11px] text-[rgba(255,255,255,0.28)]">
-            {lineCount} line{lineCount !== 1 ? 's' : ''}
-          </span>
-          {fileBlocks.length > 0 && (
+          {isZip ? (
+            <span className="text-[11px] text-[rgba(255,255,255,0.28)]">{fmtBytes(snippet.zipSize)}</span>
+          ) : (
+            <span className="text-[11px] text-[rgba(255,255,255,0.28)]">
+              {lineCount} line{lineCount !== 1 ? 's' : ''}
+            </span>
+          )}
+          {!isZip && fileBlocks.length > 0 && (
             <span className="text-[10px] text-[rgba(255,255,255,0.22)] flex items-center gap-1">
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
               {fileBlocks.length}
@@ -1803,7 +1895,19 @@ function SnippetCard({ snippet, isAdmin, onClick, onEdit, onDelete, relativeTime
           )}
         </div>
         <div onClick={(e) => e.stopPropagation()}>
-          <CopyButton text={snippet.content} />
+          {isZip
+            ? (
+              <a
+                href={`${import.meta.env.VITE_API_BASE_URL || ''}/api/script-vault/${snippet._id}/download`}
+                download={snippet.zipName || snippet.title + '.zip'}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium rounded-lg border transition-all border-amber-500/30 bg-amber-500/8 text-amber-400 hover:bg-amber-500/18"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <DownloadIcon /> Download
+              </a>
+            )
+            : <CopyButton text={snippet.content} />
+          }
         </div>
       </div>
     </div>

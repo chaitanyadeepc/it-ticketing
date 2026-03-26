@@ -2,19 +2,19 @@ const express = require('express');
 const zlib    = require('zlib');
 const archiver = require('archiver');
 const multer  = require('multer');
-const AdmZip  = require('adm-zip');
 const ScriptVault = require('../models/ScriptVault');
 const { protect, adminOnly } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Multer: accept zip files into memory (max 50 MB)
+// Multer: accept zip files into memory (max 12 MB — stays under MongoDB 16 MB doc limit)
 const zipUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 50 * 1024 * 1024 },
+  limits: { fileSize: 12 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const ok = file.mimetype === 'application/zip' ||
                file.mimetype === 'application/x-zip-compressed' ||
+               file.mimetype === 'application/octet-stream' ||
                file.originalname.toLowerCase().endsWith('.zip');
     cb(ok ? null : new Error('Only .zip files are accepted'), ok);
   },
@@ -70,9 +70,11 @@ const parseFileBlocks = (content) => {
 };
 
 // ── Serialize a snippet doc to a plain JSON-friendly object ──────────────────
+// zipBuffer is never sent over the API — it's binary and can be large.
 const serializeSnippet = async (doc) => {
   const plain = typeof doc.toObject === 'function' ? doc.toObject() : { ...doc };
   plain.content = await getContent(doc);
+  delete plain.zipBuffer;
   return plain;
 };
 
@@ -120,6 +122,7 @@ router.get('/has-access', async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     const docs = await ScriptVault.find(buildFilter(req.user))
+      .select('-zipBuffer')   // never send binary data in list
       .populate('allowedUsers', 'name email role')
       .sort({ updatedAt: -1 });
     const snippets = await Promise.all(docs.map(serializeSnippet));
@@ -133,6 +136,7 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const doc = await ScriptVault.findById(req.params.id)
+      .select('-zipBuffer')   // never send binary data
       .populate('allowedUsers', 'name email role');
     if (!doc) return res.status(404).json({ error: 'Snippet not found' });
     if (!canView(doc, req.user)) {
@@ -145,9 +149,12 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// GET /api/codeshare/:id/download — stream a zip of the folder structure
+// GET /api/codeshare/:id/download
+// — if the snippet was uploaded as a zip, serve the original bytes unchanged
+// — otherwise build a zip on-the-fly from the stored file blocks
 router.get('/:id/download', async (req, res) => {
   try {
+    // Must include zipBuffer for raw-zip snippets
     const doc = await ScriptVault.findById(req.params.id)
       .populate('allowedUsers', 'name email role');
     if (!doc) return res.status(404).json({ error: 'Snippet not found' });
@@ -155,6 +162,19 @@ router.get('/:id/download', async (req, res) => {
       return res.status(403).json({ error: 'You do not have access to this snippet' });
     }
 
+    // ── Raw zip: serve the original file unchanged ──────────────────────────
+    if (doc.isZip && doc.zipBuffer) {
+      const buf = Buffer.isBuffer(doc.zipBuffer)
+        ? doc.zipBuffer
+        : Buffer.from(doc.zipBuffer.buffer || doc.zipBuffer);
+      const filename = doc.zipName || `${doc.title.replace(/[^a-zA-Z0-9_\-]/g, '_')}.zip`;
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Length', buf.length);
+      return res.send(buf);
+    }
+
+    // ── Text/multi-file snippet: build zip on the fly ────────────────────────
     const content = await getContent(doc);
     const blocks = parseFileBlocks(content);
     const safeName = doc.title.replace(/[^a-zA-Z0-9_\-]/g, '_');
@@ -167,12 +187,10 @@ router.get('/:id/download', async (req, res) => {
     archive.pipe(res);
 
     if (blocks.length > 0 && blocks[0].filePath) {
-      // Multi-file: each block becomes a file inside the zip
       for (const block of blocks) {
         archive.append(block.code, { name: block.filePath });
       }
     } else {
-      // Single-file: put whole content in a single file named after the title
       archive.append(content, { name: `${safeName}.txt` });
     }
 
@@ -274,73 +292,42 @@ router.delete('/:id', adminOnly, async (req, res) => {
   }
 });
 
-// POST /api/codeshare/upload-zip — create a new snippet from a zip upload (admin only)
-// Multipart field: "file" (the zip), optional body fields: title, language, description, visibility
+// POST /api/codeshare/upload-zip — store a zip file as-is (admin only)
+// The original zip bytes are preserved and served unchanged on download.
+// Multipart field: "file" (.zip), optional body: title, description, visibility
 router.post('/upload-zip', adminOnly, zipUpload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No zip file provided' });
 
-    const SKIP_RE = /^(__MACOSX|\.DS_Store|\._)/;
-    const zip = new AdmZip(req.file.buffer);
-    const entries = zip.getEntries();
-
-    const blocks = [];
-    for (const entry of entries) {
-      if (entry.isDirectory) continue;
-      const name = entry.entryName.replace(/\\/g, '/');
-      if (SKIP_RE.test(name) || name.split('/').some(p => SKIP_RE.test(p))) continue;
-      try {
-        const text = entry.getData().toString('utf8');
-        // Basic binary guard
-        const nullCount = (text.match(/\0/g) || []).length;
-        if (nullCount > text.length * 0.01) continue;
-        blocks.push({ filePath: name, code: text });
-      } catch { continue; }
-    }
-
-    if (!blocks.length) {
-      return res.status(400).json({ error: 'No readable text files found inside the zip' });
-    }
-
-    // Strip common root prefix
-    const rootParts = blocks[0].filePath.split('/');
-    if (rootParts.length > 1) {
-      const root = rootParts[0] + '/';
-      if (blocks.every(b => b.filePath.startsWith(root))) {
-        blocks.forEach(b => { b.filePath = b.filePath.slice(root.length); });
-      }
-    }
-
-    blocks.sort((a, b) => a.filePath.localeCompare(b.filePath));
-
-    const zipName = req.file.originalname.replace(/\.zip$/i, '');
-    const title    = (req.body.title       || zipName).slice(0, 200);
-    const language = req.body.language     || 'text';
-    const description = req.body.description || `Uploaded from ${req.file.originalname}`;
+    const originalName = req.file.originalname;
+    const title = (req.body.title || originalName.replace(/\.zip$/i, '')).slice(0, 200);
+    const description = req.body.description || `Zip file: ${originalName}`;
     const visibility  = req.body.visibility  || 'all';
 
-    const content = blocks.map(b => `// ${b.filePath}\n${b.code}`).join('\n\n');
-    const compressed = await compress(content);
+    // Minimal placeholder content so the required field is satisfied
+    const placeholder = `// zip: ${originalName}`;
+    const compressed  = await compress(placeholder);
 
     const doc = await ScriptVault.create({
       title,
       content: compressed,
       isCompressed: true,
-      language,
+      language:    'zip',
       description,
       visibility,
       allowedUsers: [],
-      createdBy: req.user._id,
-      authorName: req.user.name,
+      createdBy:   req.user._id,
+      authorName:  req.user.name,
+      isZip:       true,
+      zipName:     originalName,
+      zipSize:     req.file.size,
+      zipBuffer:   req.file.buffer,
     });
     await doc.populate('allowedUsers', 'name email role');
     const snippet = await serializeSnippet(doc);
-    res.status(201).json({ snippet, fileCount: blocks.length });
+    res.status(201).json({ snippet });
   } catch (err) {
-    if (err.message === 'Only .zip files are accepted') {
-      return res.status(400).json({ error: err.message });
-    }
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
