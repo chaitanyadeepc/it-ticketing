@@ -36,6 +36,7 @@ const NavIcon = ({ id, className = 'w-4 h-4' }) => {
     reports:   'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
     clock:     'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
     calendar:  'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
+    code:      'M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
   };
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7}>
@@ -229,6 +230,7 @@ const Navbar = () => {
         { name: 'Canned Responses',path: '/admin/canned-responses',   desc: 'Shared reply templates for agents',     icon: 'template' },
         { name: 'Reports',         path: '/reports',                  desc: 'Advanced analytics & downloadable reports', icon: 'reports' },
         { name: 'SLA Config',      path: '/admin/sla-config',         desc: 'Configure response time targets',       icon: 'clock' },
+        { name: 'Code Share',      path: '/admin/codeshare',          desc: 'Share code & scripts with your team',   icon: 'code' },
       ],
     }] : isAgent ? [{
       label: 'Staff',
