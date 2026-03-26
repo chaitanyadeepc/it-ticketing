@@ -21,6 +21,79 @@ const LANG_COLORS = {
 
 const getLangColor = (lang) => LANG_COLORS[lang?.toLowerCase()] || LANG_COLORS.text;
 
+// ── File block parser ─────────────────────────────────────────────────────────
+// Detects lines like:  // path/to/File.cs   or   // src/app/service.ts
+// Pattern: line starts with // (or # or --) followed by a path containing at
+// least one / and ending with a known extension (or any word after last slash).
+const FILE_PATH_RE = /^(?:\/\/|#|--)\s*((?:[\w.\-]+\/)+[\w.\-]+\.\w+)\s*$/;
+
+// Returns array of { filePath, code, startLine } blocks.
+// If no file-path markers are found → single block with filePath = null.
+const parseFileBlocks = (content) => {
+  const lines = content.split('\n');
+  const blocks = [];
+  let current = null;
+
+  lines.forEach((line, idx) => {
+    const m = line.match(FILE_PATH_RE);
+    if (m) {
+      if (current) blocks.push(current);
+      current = { filePath: m[1], lines: [], startLine: idx + 1 };
+    } else if (current) {
+      current.lines.push(line);
+    } else {
+      // Before first marker — put into a "header" block
+      if (!blocks[0] || blocks[0].filePath !== null) {
+        blocks.unshift({ filePath: null, lines: [], startLine: 1, isHeader: true });
+      }
+      blocks[0].lines.push(line);
+    }
+  });
+  if (current) blocks.push(current);
+
+  // If we never hit any markers, return the whole content as one block
+  if (blocks.length === 0 || (blocks.length === 1 && blocks[0].filePath === null)) {
+    return [{ filePath: null, code: content, startLine: 1 }];
+  }
+
+  return blocks.map(b => ({ ...b, code: b.lines.join('\n').replace(/^\n+/, '') }));
+};
+
+// Derive display language colour from file extension
+const EXT_LANG = {
+  cs: 'csharp', ts: 'typescript', tsx: 'tsx', jsx: 'jsx', js: 'javascript',
+  py: 'python', rb: 'ruby', go: 'go', rs: 'rust', java: 'java',
+  php: 'php', swift: 'swift', kt: 'kotlin', cpp: 'cpp', c: 'cpp',
+  html: 'html', css: 'css', scss: 'css', json: 'json', yaml: 'yaml',
+  yml: 'yaml', sh: 'bash', bash: 'bash', sql: 'sql', md: 'markdown',
+  xml: 'xml', dockerfile: 'dockerfile',
+};
+const extColor = (filePath) => {
+  if (!filePath) return null;
+  const ext = filePath.split('.').pop()?.toLowerCase();
+  return getLangColor(EXT_LANG[ext] || ext);
+};
+
+// File icon — shows folder path + filename styled differently
+function FilePathBadge({ filePath }) {
+  const parts = filePath.split('/');
+  const filename = parts.pop();
+  const folder = parts.join('/');
+  const color = extColor(filePath);
+  return (
+    <div className="flex items-center gap-2 px-4 py-2.5 border-b border-t"
+      style={{ backgroundColor: '#0e0e11', borderColor: 'rgba(255,255,255,0.06)' }}>
+      <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} style={{ color: color || 'rgba(255,255,255,0.35)' }}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+      <span className="text-[11px] font-mono">
+        {folder && <span style={{ color: 'rgba(255,255,255,0.35)' }}>{folder}/</span>}
+        <span className="font-semibold" style={{ color: color || 'rgba(255,255,255,0.75)' }}>{filename}</span>
+      </span>
+    </div>
+  );
+}
+
 const CopyIcon = () => (
   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
     <rect x="9" y="9" width="13" height="13" rx="2" ry="2" strokeLinejoin="round" />
@@ -172,6 +245,111 @@ function CopyButton({ text, label = 'Copy', size = 'sm' }) {
   );
 }
 
+// ── FileBlocksView ────────────────────────────────────────────────────────────
+// Renders content as one or multiple file blocks depending on detected markers.
+function FileBlocksView({ content }) {
+  const blocks = parseFileBlocks(content);
+  const isMulti = blocks.length > 1 || blocks[0]?.filePath !== null;
+
+  if (!isMulti) {
+    // Single block — classic line-number view
+    const lines = content.split('\n');
+    return (
+      <div className="flex">
+        <div
+          className="select-none flex-shrink-0 text-right px-4 py-5 text-[12px] leading-6 font-mono"
+          style={{ color: 'rgba(255,255,255,0.18)', userSelect: 'none', borderRight: '1px solid rgba(255,255,255,0.05)', minWidth: '52px', backgroundColor: '#0a0a0c' }}
+        >
+          {lines.map((_, i) => <div key={i}>{i + 1}</div>)}
+        </div>
+        <pre className="flex-1 px-5 py-5 text-[13px] leading-6 font-mono overflow-x-auto m-0"
+          style={{ color: 'rgba(255,255,255,0.88)', background: 'transparent', whiteSpace: 'pre' }}>
+          <code>{content}</code>
+        </pre>
+      </div>
+    );
+  }
+
+  return (
+    <div className="divide-y" style={{ divideColor: 'rgba(255,255,255,0.05)' }}>
+      {blocks.map((block, idx) => (
+        <FileBlock key={idx} block={block} index={idx} total={blocks.length} />
+      ))}
+    </div>
+  );
+}
+
+function FileBlock({ block, index, total }) {
+  const [copied, copy] = useCopyState();
+  const lines = block.code.split('\n');
+  // Strip trailing empty lines for display
+  const displayLines = lines[lines.length - 1] === '' ? lines.slice(0, -1) : lines;
+
+  return (
+    <div className="group/block">
+      {/* File header bar */}
+      {block.filePath ? (
+        <div className="flex items-center justify-between pr-3"
+          style={{ backgroundColor: '#0e0e11', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+          <FilePathBadge filePath={block.filePath} />
+          {/* Per-file copy button */}
+          <button
+            onClick={() => copy(block.code)}
+            className={`flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all ${
+              copied
+                ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
+                : 'border-white/8 bg-white/4 text-[rgba(255,255,255,0.45)] hover:bg-white/10 hover:text-white hover:border-white/20'
+            }`}
+            title={`Copy ${block.filePath}`}
+          >
+            {copied
+              ? <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+              : <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><rect x="9" y="9" width="13" height="13" rx="2" ry="2" strokeLinejoin="round" /><path strokeLinecap="round" strokeLinejoin="round" d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>
+            }
+            {copied ? 'Copied' : 'Copy file'}
+          </button>
+        </div>
+      ) : (
+        // Header block (content before first marker) — minimal bar
+        <div className="flex items-center justify-between px-4 py-1.5 pr-3"
+          style={{ backgroundColor: '#0b0b0d', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+          <span className="text-[10px] font-mono text-[rgba(255,255,255,0.25)]">header</span>
+          <button
+            onClick={() => copy(block.code)}
+            className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] border transition-all ${
+              copied
+                ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
+                : 'border-white/6 text-[rgba(255,255,255,0.3)] hover:text-white'
+            }`}
+          >
+            {copied
+              ? <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+              : <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><rect x="9" y="9" width="13" height="13" rx="2" ry="2" strokeLinejoin="round" /><path strokeLinecap="round" strokeLinejoin="round" d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>
+            }
+            Copy
+          </button>
+        </div>
+      )}
+
+      {/* Code + line numbers */}
+      <div className="flex" style={{ backgroundColor: '#080809' }}>
+        <div
+          className="select-none flex-shrink-0 text-right px-3 py-4 text-[11.5px] leading-6 font-mono"
+          style={{ color: 'rgba(255,255,255,0.15)', userSelect: 'none', borderRight: '1px solid rgba(255,255,255,0.04)', minWidth: '46px', backgroundColor: '#0a0a0c' }}
+        >
+          {displayLines.map((_, i) => (
+            <div key={i}>{(block.startLine || 1) + i}</div>
+          ))}
+        </div>
+        <pre className="flex-1 px-5 py-4 text-[12.5px] leading-6 font-mono overflow-x-auto m-0"
+          style={{ color: 'rgba(255,255,255,0.85)', background: 'transparent', whiteSpace: 'pre' }}>
+          <code>{displayLines.join('\n')}</code>
+        </pre>
+      </div>
+    </div>
+  );
+}
+
 // ── Snippet modal (view) ─────────────────────────────────────────────────────
 function SnippetModal({ snippet, onClose, isAdmin, onEdit, onDelete }) {
   const [copiedAll, copyAll] = useCopyState();
@@ -244,23 +422,7 @@ function SnippetModal({ snippet, onClose, isAdmin, onEdit, onDelete }) {
 
         {/* Code area */}
         <div className="flex-1 overflow-auto relative" style={{ backgroundColor: '#080809' }}>
-          {/* Line numbers + code */}
-          <div className="flex">
-            {/* Line numbers */}
-            <div
-              className="select-none flex-shrink-0 text-right px-4 py-5 text-[12px] leading-6 font-mono"
-              style={{ color: 'rgba(255,255,255,0.18)', userSelect: 'none', borderRight: '1px solid rgba(255,255,255,0.05)', minWidth: '52px', backgroundColor: '#0a0a0c' }}
-            >
-              {snippet.content.split('\n').map((_, i) => (
-                <div key={i}>{i + 1}</div>
-              ))}
-            </div>
-            {/* Code */}
-            <pre className="flex-1 px-5 py-5 text-[13px] leading-6 font-mono overflow-x-auto m-0"
-              style={{ color: 'rgba(255,255,255,0.88)', background: 'transparent', whiteSpace: 'pre', wordBreak: 'normal', overflowWrap: 'normal' }}>
-              <code>{snippet.content}</code>
-            </pre>
-          </div>
+          <FileBlocksView content={snippet.content} />
         </div>
 
         {/* Footer */}
