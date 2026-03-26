@@ -144,6 +144,19 @@ const CopyAllIcon = () => (
   </svg>
 );
 
+const DownloadIcon = () => (
+  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+  </svg>
+);
+
+const FolderUploadIcon = () => (
+  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 11v6m-3-3l3-3 3 3" />
+  </svg>
+);
+
 const EMPTY_FORM = { title: '', content: '', language: 'text', description: '', visibility: 'all', allowedUsers: [] };
 
 // ── Visibility config ────────────────────────────────────────────────────────
@@ -402,6 +415,27 @@ function CodePanel({ block }) {
 // ── Snippet modal (view) ─────────────────────────────────────────────────────
 function SnippetModal({ snippet, onClose, isAdmin, onEdit, onDelete }) {
   const [copiedAll, copyAll] = useCopyState();
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownload = async () => {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      const response = await api.get(`/codeshare/${snippet._id}/download`, { responseType: 'blob' });
+      const url = URL.createObjectURL(response.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${snippet.title.replace(/[^a-zA-Z0-9_\-]/g, '_')}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      // silently ignore
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const blocks = parseFileBlocks(snippet.content);
   const isMultiFile = blocks.some(b => b.filePath !== null);
@@ -487,6 +521,16 @@ function SnippetModal({ snippet, onClose, isAdmin, onEdit, onDelete }) {
             >
               {copiedAll ? <CheckIcon /> : <CopyAllIcon />}
               {copiedAll ? 'Copied!' : 'Copy All'}
+            </button>
+            {/* Download button — visible to all who can view */}
+            <button
+              onClick={handleDownload}
+              disabled={downloading}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[12px] font-semibold transition-all disabled:opacity-50 border-white/10 bg-white/5 text-[rgba(255,255,255,0.6)] hover:bg-white/10 hover:text-white"
+              title="Download as zip (preserves folder structure)"
+            >
+              <DownloadIcon />
+              {downloading ? 'Downloading…' : 'Download'}
             </button>
             <button onClick={onClose} className="p-2 rounded-lg text-[rgba(255,255,255,0.4)] hover:text-white hover:bg-white/8 transition-all">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -586,11 +630,50 @@ function EditorModal({ initial, onSave, onClose, saving }) {
   };
 
   const [form, setForm] = useState(seedForm);
-  const [allUsers, setAllUsers]       = useState([]);
-  const [userSearch, setUserSearch]   = useState('');
+  const [allUsers, setAllUsers]         = useState([]);
+  const [userSearch, setUserSearch]     = useState('');
   const [userDropOpen, setUserDropOpen] = useState(false);
+  const [uploadingFolder, setUploadingFolder] = useState(false);
   const userSearchRef = useRef(null);
   const dropRef = useRef(null);
+  const folderInputRef = useRef(null);
+
+  // ── Folder upload handler ─────────────────────────────────────────────────
+  const handleFolderUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    setUploadingFolder(true);
+    try {
+      // Sort by webkitRelativePath so folders are grouped naturally
+      files.sort((a, b) => a.webkitRelativePath.localeCompare(b.webkitRelativePath));
+
+      const blocks = await Promise.all(
+        files.map(async (file) => {
+          const text = await file.text();
+          // webkitRelativePath starts with the root folder name: "myproject/src/App.tsx"
+          // We strip the top-level folder name so the tree starts from its children
+          const parts = file.webkitRelativePath.split('/');
+          const relativePath = parts.slice(1).join('/') || parts[0];
+          return `// ${relativePath}\n${text}`;
+        })
+      );
+
+      // Auto-set title to folder name if title is empty
+      const folderName = files[0].webkitRelativePath.split('/')[0];
+      const builtContent = blocks.join('\n\n');
+      setForm(f => ({
+        ...f,
+        content: builtContent,
+        title: f.title || folderName,
+      }));
+    } catch (err) {
+      console.error('Folder read error', err);
+    } finally {
+      setUploadingFolder(false);
+      // Reset so the same folder can be re-uploaded
+      e.target.value = '';
+    }
+  };
 
   // Fetch all users for the custom picker
   useEffect(() => {
@@ -840,9 +923,32 @@ function EditorModal({ initial, onSave, onClose, saving }) {
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="block text-[11px] font-semibold uppercase tracking-wider text-[rgba(255,255,255,0.4)]">Content *</label>
-                <span className="text-[11px] text-[rgba(255,255,255,0.25)]">
-                  {form.content.split('\n').length} lines
-                </span>
+                <div className="flex items-center gap-3">
+                  <span className="text-[11px] text-[rgba(255,255,255,0.25)]">
+                    {form.content.split('\n').length} lines
+                  </span>
+                  {/* Hidden folder input */}
+                  <input
+                    ref={folderInputRef}
+                    type="file"
+                    webkitdirectory="true"
+                    directory="true"
+                    multiple
+                    className="hidden"
+                    onChange={handleFolderUpload}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => folderInputRef.current?.click()}
+                    disabled={uploadingFolder}
+                    className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-lg border transition-all disabled:opacity-50"
+                    style={{ borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.6)' }}
+                    title="Upload a folder — all files will be added as separate blocks"
+                  >
+                    <FolderUploadIcon />
+                    {uploadingFolder ? 'Reading…' : 'Upload Folder'}
+                  </button>
+                </div>
               </div>
               <textarea
                 className="w-full bg-[#080809] border border-[rgba(255,255,255,0.08)] rounded-xl px-4 py-3.5 text-[12.5px] leading-6 font-mono text-[rgba(255,255,255,0.85)] placeholder-[rgba(255,255,255,0.2)] focus:outline-none focus:border-[#FF634A]/40 resize-none transition-all"

@@ -2,10 +2,12 @@ const mongoose = require('mongoose');
 
 const codeShareSchema = new mongoose.Schema(
   {
-    title:       { type: String, required: true, trim: true, maxlength: 200 },
-    content:     { type: String, required: true, maxlength: 500000 },
-    language:    { type: String, default: 'text', trim: true },
-    description: { type: String, trim: true, maxlength: 500 },
+    title:        { type: String, required: true, trim: true, maxlength: 200 },
+    // Stored as gzip-compressed Buffer (base64 in JSON); isCompressed flag distinguishes old plain-text docs
+    content:      { type: Buffer, required: true },
+    isCompressed: { type: Boolean, default: true },
+    language:     { type: String, default: 'text', trim: true },
+    description:  { type: String, trim: true, maxlength: 500 },
     // 'all'    → every authenticated user
     // 'staff'  → agents + admins
     // 'admins' → admins only
