@@ -1,7 +1,46 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import JSZip from 'jszip';
 import PageWrapper from '../components/layout/PageWrapper';
 import Breadcrumb from '../components/layout/Breadcrumb';
 import api from '../api/api';
+
+// ── Zip extraction helper (browser-side) ─────────────────────────────────────
+// Returns array of { filePath, code } blocks from a zip File/Blob.
+// Skips __MACOSX, .DS_Store and binary files (non-UTF-8).
+const extractZip = async (file) => {
+  const zip = await JSZip.loadAsync(file);
+  const SKIP_RE = /^(__MACOSX|\.DS_Store|\._)/;
+  const results = [];
+
+  await Promise.all(
+    Object.keys(zip.files).map(async (name) => {
+      const entry = zip.files[name];
+      if (entry.dir) return;
+      if (SKIP_RE.test(name) || name.includes('/__MACOSX/')) return;
+      try {
+        const text = await entry.async('string');
+        // Basic binary detection: reject strings with too many replacement chars
+        const nullCount = (text.match(/\0/g) || []).length;
+        if (nullCount > text.length * 0.01) return; // likely binary
+        // Strip leading root folder if all files share it
+        results.push({ filePath: name, code: text });
+      } catch {
+        // silently skip unreadable entries
+      }
+    })
+  );
+
+  // Strip common root prefix (e.g. "myproject/src/..." → "src/...")
+  if (results.length > 1) {
+    const parts = results[0].filePath.split('/');
+    const rootPrefix = parts[0] + '/';
+    if (results.every(r => r.filePath.startsWith(rootPrefix))) {
+      results.forEach(r => { r.filePath = r.filePath.slice(rootPrefix.length); });
+    }
+  }
+
+  return results.sort((a, b) => a.filePath.localeCompare(b.filePath));
+};
 
 const LANGUAGES = [
   'text', 'javascript', 'typescript', 'jsx', 'tsx', 'python', 'bash', 'shell',
@@ -369,7 +408,7 @@ function FileTreeNode({ node, depth, selectedIdx, onSelect, expanded, onToggle }
 }
 
 // ── Right-side code panel ─────────────────────────────────────────────────────
-function CodePanel({ block }) {
+function CodePanel({ block, isAdmin, onEdit, editIdx }) {
   const [copied, copy] = useCopyState();
   if (!block) return (
     <div className="flex-1 flex items-center justify-center text-[13px] text-[rgba(255,255,255,0.2)]">
@@ -385,21 +424,35 @@ function CodePanel({ block }) {
         <div className="flex items-center justify-between pl-1 pr-3 flex-shrink-0 border-b"
           style={{ backgroundColor: '#0e0e11', borderColor: 'rgba(255,255,255,0.06)' }}>
           <FilePathBadge filePath={block.filePath} />
-          <button
-            onClick={() => copy(block.code)}
-            className={`flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all ${
-              copied
-                ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
-                : 'border-white/8 bg-white/4 text-[rgba(255,255,255,0.45)] hover:bg-white/10 hover:text-white hover:border-white/20'
-            }`}
-            title={`Copy ${block.filePath}`}
-          >
+          <div className="flex items-center gap-1.5">
+            {isAdmin && onEdit && (
+              <button
+                onClick={() => onEdit(editIdx)}
+                className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium border border-white/10 bg-white/4 text-[rgba(255,255,255,0.45)] hover:bg-white/10 hover:text-white hover:border-white/20 transition-all"
+                title="Edit this file inline"
+              >
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 13l6.293-6.293a1 1 0 011.414 0l1.586 1.586a1 1 0 010 1.414L12 16H9v-3z" />
+                </svg>
+                Edit
+              </button>
+            )}
+            <button
+              onClick={() => copy(block.code)}
+              className={`flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all ${
+                copied
+                  ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
+                  : 'border-white/8 bg-white/4 text-[rgba(255,255,255,0.45)] hover:bg-white/10 hover:text-white hover:border-white/20'
+              }`}
+              title={`Copy ${block.filePath}`}
+            >
             {copied
               ? <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
               : <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><rect x="9" y="9" width="13" height="13" rx="2" ry="2" strokeLinejoin="round" /><path strokeLinecap="round" strokeLinejoin="round" d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>
             }
             {copied ? 'Copied' : 'Copy file'}
           </button>
+          </div>
         </div>
       )}
       <div className="flex flex-1 overflow-auto" style={{ backgroundColor: '#080809' }}>
@@ -419,11 +472,36 @@ function CodePanel({ block }) {
 }
 
 // ── Snippet modal (view) ─────────────────────────────────────────────────────
-function SnippetModal({ snippet, onClose, isAdmin, onEdit, onDelete, onContribute }) {
+function SnippetModal({ snippet, onClose, isAdmin, onEdit, onDelete, onContribute, onSaveInline }) {
   const [copiedAll, copyAll] = useCopyState();
   const [downloading, setDownloading] = useState(false);
   const [showContribute, setShowContribute] = useState(false);
   const [contribSaving, setContribSaving] = useState(false);
+
+  // ── Inline edit state ────────────────────────────────────────────────────
+  const [editingIdx, setEditingIdx] = useState(null);
+  const [editValue, setEditValue]   = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+
+  const startInlineEdit = (idx) => {
+    setEditingIdx(idx);
+    setEditValue(blocks[idx]?.code || '');
+  };
+
+  const discardEdit = () => { setEditingIdx(null); setEditValue(''); };
+
+  const saveEdit = async () => {
+    if (editingIdx === null) return;
+    setEditSaving(true);
+    try {
+      const newContent = blocks.map((b, i) => {
+        const code = i === editingIdx ? editValue : b.code;
+        return b.filePath ? `// ${b.filePath}\n${code}` : code;
+      }).join('\n\n');
+      await onSaveInline?.(snippet._id, newContent);
+      setEditingIdx(null);
+    } catch { /* error handled by parent */ } finally { setEditSaving(false); }
+  };
 
   const handleContribSave = async (newContent) => {
     setContribSaving(true);
@@ -593,24 +671,97 @@ function SnippetModal({ snippet, onClose, isAdmin, onEdit, onDelete, onContribut
             </div>
             {/* Right: code panel */}
             <div className="flex-1 flex flex-col overflow-hidden">
-              <CodePanel block={blocks[selectedIdx]} />
+              {editingIdx === selectedIdx ? (
+                /* Inline editor */
+                <div className="flex flex-col h-full">
+                  <div className="flex items-center justify-between px-4 py-2.5 border-b flex-shrink-0"
+                    style={{ backgroundColor: '#0e0e11', borderColor: 'rgba(255,255,255,0.06)' }}>
+                    {blocks[selectedIdx]?.filePath
+                      ? <FilePathBadge filePath={blocks[selectedIdx].filePath} />
+                      : <span className="text-[12px] font-mono text-[rgba(255,255,255,0.4)] px-4 py-2.5">Editing content</span>
+                    }
+                    <div className="flex items-center gap-2">
+                      <button onClick={discardEdit}
+                        className="px-3 py-1 text-[11px] font-medium rounded-lg border border-white/10 text-[rgba(255,255,255,0.5)] hover:text-white transition-all">
+                        Discard
+                      </button>
+                      <button onClick={saveEdit} disabled={editSaving}
+                        className="px-3 py-1 text-[11px] font-semibold rounded-lg transition-all disabled:opacity-50"
+                        style={{ background: 'linear-gradient(135deg,#FF634A,#e0532d)', color: '#fff' }}>
+                        {editSaving ? 'Saving…' : 'Save'}
+                      </button>
+                    </div>
+                  </div>
+                  <textarea
+                    className="flex-1 w-full px-5 py-4 text-[12.5px] leading-6 font-mono resize-none focus:outline-none"
+                    style={{ backgroundColor: '#080809', color: 'rgba(255,255,255,0.85)', caretColor: '#FF634A' }}
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    spellCheck={false}
+                    autoFocus
+                  />
+                </div>
+              ) : (
+                <CodePanel block={blocks[selectedIdx]} isAdmin={isAdmin} onEdit={startInlineEdit} editIdx={selectedIdx} />
+              )}
             </div>
           </div>
         ) : (
           /* Single flat view */
           <div className="flex-1 overflow-auto" style={{ backgroundColor: '#080809' }}>
-            <div className="flex">
-              <div
-                className="select-none flex-shrink-0 text-right px-4 py-5 text-[12px] leading-6 font-mono"
-                style={{ color: 'rgba(255,255,255,0.18)', userSelect: 'none', borderRight: '1px solid rgba(255,255,255,0.05)', minWidth: '52px', backgroundColor: '#0a0a0c' }}
-              >
-                {snippet.content.split('\n').map((_, i) => <div key={i}>{i + 1}</div>)}
+            {editingIdx === 0 ? (
+              <div className="flex flex-col h-full min-h-0">
+                <div className="flex items-center justify-between px-5 py-2.5 border-b flex-shrink-0"
+                  style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                  <span className="text-[12px] font-mono text-[rgba(255,255,255,0.4)]">Editing content</span>
+                  <div className="flex items-center gap-2">
+                    <button onClick={discardEdit}
+                      className="px-3 py-1 text-[11px] font-medium rounded-lg border border-white/10 text-[rgba(255,255,255,0.5)] hover:text-white transition-all">
+                      Discard
+                    </button>
+                    <button onClick={saveEdit} disabled={editSaving}
+                      className="px-3 py-1 text-[11px] font-semibold rounded-lg transition-all disabled:opacity-50"
+                      style={{ background: 'linear-gradient(135deg,#FF634A,#e0532d)', color: '#fff' }}>
+                      {editSaving ? 'Saving…' : 'Save'}
+                    </button>
+                  </div>
+                </div>
+                <textarea
+                  className="flex-1 w-full px-5 py-5 text-[13px] leading-6 font-mono resize-none focus:outline-none"
+                  style={{ backgroundColor: '#080809', color: 'rgba(255,255,255,0.88)', caretColor: '#FF634A' }}
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  spellCheck={false}
+                  autoFocus
+                />
               </div>
-              <pre className="flex-1 px-5 py-5 text-[13px] leading-6 font-mono overflow-x-auto m-0"
-                style={{ color: 'rgba(255,255,255,0.88)', background: 'transparent', whiteSpace: 'pre' }}>
-                <code>{snippet.content}</code>
-              </pre>
-            </div>
+            ) : (
+              <>
+                {isAdmin && onSaveInline && (
+                  <div className="flex justify-end px-5 pt-3">
+                    <button onClick={() => startInlineEdit(0)}
+                      className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-lg border border-white/10 bg-white/4 text-[rgba(255,255,255,0.4)] hover:text-white hover:bg-white/8 transition-all">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 13l6.293-6.293a1 1 0 011.414 0l1.586 1.586a1 1 0 010 1.414L12 16H9v-3z" />
+                      </svg>
+                      Edit
+                    </button>
+                  </div>
+                )}
+                <div className="flex">
+                  <div
+                    className="select-none flex-shrink-0 text-right px-4 py-5 text-[12px] leading-6 font-mono"
+                    style={{ color: 'rgba(255,255,255,0.18)', userSelect: 'none', borderRight: '1px solid rgba(255,255,255,0.05)', minWidth: '52px', backgroundColor: '#0a0a0c' }}
+                  >
+                    {snippet.content.split('\n').map((_, i) => <div key={i}>{i + 1}</div>)}
+                  </div>
+                  <pre className="flex-1 px-5 py-5 text-[13px] leading-6 font-mono overflow-x-auto m-0"
+                    style={{ color: 'rgba(255,255,255,0.88)', background: 'transparent', whiteSpace: 'pre' }}>
+                    <code>{snippet.content}</code>
+                  </pre>
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -651,13 +802,14 @@ function SnippetModal({ snippet, onClose, isAdmin, onEdit, onDelete, onContribut
 
 // ── Contribute modal (add files/content to an existing snippet) ───────────────
 function ContributeModal({ snippet, onSave, onClose, saving }) {
-  const [mode, setMode] = useState('write'); // 'write' | 'files' | 'folder'
+  const [mode, setMode] = useState('write'); // 'write' | 'files' | 'folder' | 'zip'
   const [filePath, setFilePath] = useState('');
   const [code, setCode] = useState('');
   const [pendingBlocks, setPendingBlocks] = useState([]);
   const [fileLoading, setFileLoading] = useState(false);
   const fileInputRef = useRef(null);
   const folderInputRef = useRef(null);
+  const zipInputRef = useRef(null);
 
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') onClose(); };
@@ -683,6 +835,21 @@ function ContributeModal({ snippet, onSave, onClose, saving }) {
       setPendingBlocks(blocks);
     } catch (err) {
       console.error('File read error', err);
+    } finally {
+      setFileLoading(false);
+    }
+  };
+
+  const handleZip = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    setFileLoading(true);
+    try {
+      const blocks = await extractZip(file);
+      setPendingBlocks(blocks);
+    } catch (err) {
+      console.error('Zip read error', err);
     } finally {
       setFileLoading(false);
     }
@@ -724,6 +891,7 @@ function ContributeModal({ snippet, onSave, onClose, saving }) {
     { key: 'write', label: 'Write' },
     { key: 'files', label: 'Upload Files' },
     { key: 'folder', label: 'Upload Folder' },
+    { key: 'zip',   label: '🗜 Upload Zip' },
   ];
 
   // Shared pending-blocks list used in both 'files' and 'folder' modes
@@ -873,6 +1041,36 @@ function ContributeModal({ snippet, onSave, onClose, saving }) {
             </>
           )}
 
+          {/* Upload Zip mode */}
+          {mode === 'zip' && (
+            <>
+              <input ref={zipInputRef} type="file" accept=".zip,application/zip" className="hidden" onChange={handleZip} />
+              {pendingBlocks.length === 0
+                ? (
+                  <button
+                    type="button"
+                    onClick={() => zipInputRef.current?.click()}
+                    disabled={fileLoading}
+                    className="w-full flex flex-col items-center justify-center gap-3 py-12 rounded-xl border-2 border-dashed transition-all hover:border-[rgba(255,255,255,0.25)] disabled:opacity-50"
+                    style={{ borderColor: 'rgba(255,99,74,0.25)', backgroundColor: 'rgba(255,99,74,0.03)' }}
+                  >
+                    <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.4} style={{ color: 'rgba(255,99,74,0.5)' }}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M20 7H8a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V9a2 2 0 00-2-2z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16 7V5a2 2 0 00-2-2h-2a2 2 0 00-2 2v2" />
+                      <line x1="12" y1="11" x2="12" y2="17" strokeLinecap="round" />
+                      <line x1="9" y1="14" x2="15" y2="14" strokeLinecap="round" />
+                    </svg>
+                    <span className="text-[13px]" style={{ color: 'rgba(255,99,74,0.7)' }}>
+                      {fileLoading ? 'Extracting zip\u2026' : 'Click to select a .zip file'}
+                    </span>
+                    <span className="text-[11px] text-[rgba(255,255,255,0.25)]">Files will be extracted automatically</span>
+                  </button>
+                )
+                : <PendingList onChangeClick={() => zipInputRef.current?.click()} />
+              }
+            </>
+          )}
+
         </div>
 
         {/* Footer */}
@@ -905,75 +1103,52 @@ function ContributeModal({ snippet, onSave, onClose, saving }) {
 }
 
 
-// ── Create / Edit modal ──────────────────────────────────────────────────────
+// ── Create / Edit modal (split-pane) ─────────────────────────────────────────
 function EditorModal({ initial, onSave, onClose, saving }) {
   const isEdit = !!initial?._id;
 
-  // Seed allowedUsers from populated objects if editing
-  const seedForm = () => {
-    if (!initial) return EMPTY_FORM;
-    return {
-      title:        initial.title        || '',
-      content:      initial.content      || '',
-      language:     initial.language     || 'text',
-      description:  initial.description  || '',
-      visibility:   initial.visibility   || 'all',
-      allowedUsers: Array.isArray(initial.allowedUsers) ? initial.allowedUsers : [],
-    };
-  };
+  // ── Metadata state ────────────────────────────────────────────────────────
+  const [meta, setMeta] = useState(() => ({
+    title:        initial?.title        || '',
+    language:     initial?.language     || 'text',
+    description:  initial?.description  || '',
+    visibility:   initial?.visibility   || 'all',
+    allowedUsers: Array.isArray(initial?.allowedUsers) ? initial.allowedUsers : [],
+  }));
 
-  const [form, setForm] = useState(seedForm);
-  const [allUsers, setAllUsers]         = useState([]);
-  const [userSearch, setUserSearch]     = useState('');
+  // ── File list state ───────────────────────────────────────────────────────
+  const [files, setFiles] = useState(() => {
+    const raw = initial?.content || '';
+    const blks = parseFileBlocks(raw);
+    if (blks.length === 0) return [{ id: 1, filePath: null, code: '' }];
+    if (blks.length === 1 && !blks[0].filePath) return [{ id: 1, filePath: null, code: blks[0].code }];
+    return blks.map((b, i) => ({ id: i + 1, filePath: b.filePath, code: b.code }));
+  });
+  const [selectedId, setSelectedId]   = useState(() => 1);
+  const [renaming, setRenaming]       = useState(null);
+  const [renameVal, setRenameVal]     = useState('');
+  const [dragging, setDragging]       = useState(false);
+  const [uploading, setUploading]     = useState(false);
+  const [showMeta, setShowMeta]       = useState(false);
+  const [allUsers, setAllUsers]       = useState([]);
+  const [userSearch, setUserSearch]   = useState('');
   const [userDropOpen, setUserDropOpen] = useState(false);
-  const [uploadingFolder, setUploadingFolder] = useState(false);
-  const userSearchRef = useRef(null);
-  const dropRef = useRef(null);
+
+  const nextId        = useRef(100);
+  const fileInputRef  = useRef(null);
   const folderInputRef = useRef(null);
+  const dropRef       = useRef(null);
+  const renameRef     = useRef(null);
+  const textareaRef   = useRef(null);
 
-  // ── Folder upload handler ─────────────────────────────────────────────────
-  const handleFolderUpload = async (e) => {
-    const files = Array.from(e.target.files);
-    if (!files.length) return;
-    setUploadingFolder(true);
-    try {
-      // Sort by webkitRelativePath so folders are grouped naturally
-      files.sort((a, b) => a.webkitRelativePath.localeCompare(b.webkitRelativePath));
+  const selectedFile = files.find(f => f.id === selectedId) ?? files[0];
 
-      const blocks = await Promise.all(
-        files.map(async (file) => {
-          const text = await file.text();
-          // webkitRelativePath starts with the root folder name: "myproject/src/App.tsx"
-          // We strip the top-level folder name so the tree starts from its children
-          const parts = file.webkitRelativePath.split('/');
-          const relativePath = parts.slice(1).join('/') || parts[0];
-          return `// ${relativePath}\n${text}`;
-        })
-      );
+  useEffect(() => { if (renaming && renameRef.current) renameRef.current.focus(); }, [renaming]);
 
-      // Auto-set title to folder name if title is empty
-      const folderName = files[0].webkitRelativePath.split('/')[0];
-      const builtContent = blocks.join('\n\n');
-      setForm(f => ({
-        ...f,
-        content: builtContent,
-        title: f.title || folderName,
-      }));
-    } catch (err) {
-      console.error('Folder read error', err);
-    } finally {
-      setUploadingFolder(false);
-      // Reset so the same folder can be re-uploaded
-      e.target.value = '';
-    }
-  };
-
-  // Fetch all users for the custom picker
   useEffect(() => {
     api.get('/users').then(({ data }) => setAllUsers(data.users || [])).catch(() => {});
   }, []);
 
-  // Close dropdown on outside click
   useEffect(() => {
     const handler = (e) => {
       if (dropRef.current && !dropRef.current.contains(e.target)) setUserDropOpen(false);
@@ -987,27 +1162,144 @@ function EditorModal({ initial, onSave, onClose, saving }) {
     };
   }, [onClose]);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!form.title.trim() || !form.content.trim()) return;
-    // Send only IDs for allowedUsers
-    onSave({
-      ...form,
-      allowedUsers: form.allowedUsers.map(u => u._id || u),
+  // ── File CRUD ─────────────────────────────────────────────────────────────
+  const addFile = (filePath = null, code = '') => {
+    const id = (++nextId.current) * 10000 + (Date.now() % 10000);
+    setFiles(prev => [...prev, { id, filePath, code }]);
+    setSelectedId(id);
+    setTimeout(() => textareaRef.current?.focus(), 40);
+  };
+
+  const deleteFile = (id) => {
+    setFiles(prev => {
+      if (prev.length <= 1) return prev;
+      const next = prev.filter(f => f.id !== id);
+      if (selectedId === id) setSelectedId(next[0]?.id);
+      return next;
     });
   };
 
+  const startRename = (file) => {
+    setRenaming(file.id);
+    setRenameVal(file.filePath || '');
+  };
+
+  const commitRename = () => {
+    if (!renaming) return;
+    const val = renameVal.trim();
+    setFiles(prev => prev.map(f => f.id === renaming ? { ...f, filePath: val || null } : f));
+    setRenaming(null);
+  };
+
+  const updateCode = (id, code) => {
+    setFiles(prev => prev.map(f => f.id === id ? { ...f, code } : f));
+  };
+
+  // ── Drag-drop ─────────────────────────────────────────────────────────────
+  const handleDrop = async (e) => {
+    e.preventDefault();
+    setDragging(false);
+    const items = Array.from(e.dataTransfer.files);
+    if (!items.length) return;
+    setUploading(true);
+    try {
+      const allAdded = [];
+      for (const f of items) {
+        if (f.name.toLowerCase().endsWith('.zip')) {
+          const extracted = await extractZip(f);
+          for (const b of extracted) {
+            const id = (++nextId.current) * 10000 + (Date.now() % 10000);
+            allAdded.push({ id, filePath: b.filePath, code: b.code });
+          }
+          // Auto-title from zip name if title is empty
+          if (!meta.title) {
+            setMeta(m => ({ ...m, title: f.name.replace(/\.zip$/i, '') }));
+          }
+        } else {
+          const code = await f.text();
+          const id = (++nextId.current) * 10000 + (Date.now() % 10000);
+          allAdded.push({ id, filePath: f.name, code });
+        }
+      }
+      if (allAdded.length) {
+        setFiles(prev => [...prev, ...allAdded]);
+        setSelectedId(allAdded[allAdded.length - 1].id);
+      }
+    } finally { setUploading(false); }
+  };
+
+  // ── File input upload ─────────────────────────────────────────────────────
+  const readAndAdd = async (rawFiles, getName) => {
+    if (!rawFiles.length) return;
+    setUploading(true);
+    try {
+      const allAdded = [];
+      for (const f of rawFiles) {
+        if (f.name.toLowerCase().endsWith('.zip')) {
+          const extracted = await extractZip(f);
+          for (const b of extracted) {
+            const id = (++nextId.current) * 10000 + (Date.now() % 10000);
+            allAdded.push({ id, filePath: b.filePath, code: b.code });
+          }
+          if (!meta.title) {
+            setMeta(m => ({ ...m, title: f.name.replace(/\.zip$/i, '') }));
+          }
+        } else {
+          const code = await f.text();
+          const id = (++nextId.current) * 10000 + (Date.now() % 10000);
+          allAdded.push({ id, filePath: getName(f), code });
+        }
+      }
+      if (allAdded.length) {
+        setFiles(prev => [...prev, ...allAdded]);
+        setSelectedId(allAdded[allAdded.length - 1].id);
+      }
+    } finally { setUploading(false); }
+  };
+
+  const handleFileInput = (e) => {
+    readAndAdd(Array.from(e.target.files), (f) => f.name);
+    e.target.value = '';
+  };
+
+  const handleFolderInput = (e) => {
+    const sorted = Array.from(e.target.files).sort((a, b) =>
+      a.webkitRelativePath.localeCompare(b.webkitRelativePath));
+    if (sorted.length) {
+      const folderName = sorted[0].webkitRelativePath.split('/')[0];
+      if (!meta.title) setMeta(m => ({ ...m, title: folderName }));
+    }
+    readAndAdd(sorted, (f) => {
+      const parts = f.webkitRelativePath.split('/');
+      return parts.slice(1).join('/') || parts[0];
+    });
+    e.target.value = '';
+  };
+
+  // ── Build content for save ────────────────────────────────────────────────
+  const buildContent = () =>
+    files
+      .filter(f => f.code.trim() || f.filePath)
+      .map(f => f.filePath ? `// ${f.filePath}\n${f.code}` : f.code)
+      .join('\n\n');
+
+  const handleSubmit = (e) => {
+    e?.preventDefault();
+    const content = buildContent();
+    if (!meta.title.trim() || !content.trim()) return;
+    onSave({ ...meta, content, allowedUsers: meta.allowedUsers.map(u => u._id || u) });
+  };
+
+  // ── User picker helpers ───────────────────────────────────────────────────
   const addUser = (user) => {
-    if (form.allowedUsers.find(u => (u._id || u) === user._id)) return;
-    setForm(f => ({ ...f, allowedUsers: [...f.allowedUsers, user] }));
+    if (meta.allowedUsers.find(u => (u._id || u) === user._id)) return;
+    setMeta(m => ({ ...m, allowedUsers: [...m.allowedUsers, user] }));
     setUserSearch('');
   };
-
   const removeUser = (userId) => {
-    setForm(f => ({ ...f, allowedUsers: f.allowedUsers.filter(u => (u._id || u) !== userId) }));
+    setMeta(m => ({ ...m, allowedUsers: m.allowedUsers.filter(u => (u._id || u) !== userId) }));
   };
-
-  const selectedIds = new Set(form.allowedUsers.map(u => u._id || u));
+  const selectedIds = new Set(meta.allowedUsers.map(u => u._id || u));
   const filteredUsers = allUsers.filter(u =>
     !selectedIds.has(u._id) &&
     (u.name?.toLowerCase().includes(userSearch.toLowerCase()) ||
@@ -1017,130 +1309,117 @@ function EditorModal({ initial, onSave, onClose, saving }) {
 
   const ROLE_COLORS = { admin: '#ef4444', agent: '#f59e0b', user: '#3b82f6' };
   const inputClass = "w-full bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.08)] rounded-xl px-3.5 py-2.5 text-[13px] text-white placeholder-[rgba(255,255,255,0.25)] focus:outline-none focus:border-[#FF634A]/50 focus:bg-[rgba(255,99,74,0.04)] transition-all";
+  const canSave = meta.title.trim() && buildContent().trim();
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)' }}
+      style={{ backgroundColor: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(8px)' }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
-        className="w-full max-w-2xl max-h-[92vh] flex flex-col rounded-2xl border overflow-hidden shadow-2xl"
-        style={{ backgroundColor: 'var(--bg)', borderColor: 'rgba(255,255,255,0.1)' }}
+        className="w-full max-w-5xl flex flex-col rounded-2xl border overflow-hidden shadow-2xl"
+        style={{ backgroundColor: 'var(--bg)', borderColor: 'rgba(255,255,255,0.1)', height: '90vh', maxHeight: '90vh' }}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
-          <h2 className="text-[15px] font-bold text-white">{isEdit ? 'Edit Snippet' : 'New Snippet'}</h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-[rgba(255,255,255,0.4)] hover:text-white hover:bg-white/8 transition-all">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+        {/* ── Modal header ── */}
+        <div className="flex items-center justify-between px-5 py-3 border-b flex-shrink-0"
+          style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
+          <div className="flex items-center gap-3">
+            <h2 className="text-[14px] font-bold text-white">{isEdit ? 'Edit Snippet' : 'New Snippet'}</h2>
+            <button
+              type="button"
+              onClick={() => setShowMeta(v => !v)}
+              className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-lg border transition-all"
+              style={{
+                borderColor: showMeta ? 'rgba(255,99,74,0.4)' : 'rgba(255,255,255,0.1)',
+                backgroundColor: showMeta ? 'rgba(255,99,74,0.1)' : 'rgba(255,255,255,0.04)',
+                color: showMeta ? '#FF634A' : 'rgba(255,255,255,0.5)',
+              }}
+            >
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+              </svg>
+              {showMeta ? 'Hide details' : 'Details'}
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={onClose}
+              className="px-3 py-1.5 text-[12px] font-medium text-[rgba(255,255,255,0.5)] hover:text-white transition-colors">
+              Cancel
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={saving || !canSave}
+              className="px-4 py-1.5 text-[12px] font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: 'linear-gradient(135deg,#FF634A,#e0532d)', color: '#fff' }}
+            >
+              {saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Snippet'}
+            </button>
+            <button onClick={onClose}
+              className="p-1.5 rounded-lg text-[rgba(255,255,255,0.4)] hover:text-white hover:bg-white/8 transition-all ml-1">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
-          <div className="p-6 space-y-5">
-
-            {/* Title */}
-            <div>
-              <label className="block text-[11px] font-semibold uppercase tracking-wider text-[rgba(255,255,255,0.4)] mb-1.5">Title *</label>
-              <input
-                className={inputClass}
-                placeholder="e.g. Database connection script"
-                value={form.title}
-                onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))}
-                maxLength={200}
-                required
-              />
+        {/* ── Collapsible metadata panel ── */}
+        {showMeta && (
+          <div className="px-5 py-4 border-b flex-shrink-0 overflow-y-auto"
+            style={{ borderColor: 'rgba(255,255,255,0.07)', maxHeight: '52vh' }}>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="sm:col-span-2">
+                <label className="block text-[10px] font-semibold uppercase tracking-wider text-[rgba(255,255,255,0.4)] mb-1">Title *</label>
+                <input className={inputClass} placeholder="e.g. Database connection script"
+                  value={meta.title} onChange={(e) => setMeta(m => ({ ...m, title: e.target.value }))} maxLength={200} />
+              </div>
+              <div>
+                <label className="block text-[10px] font-semibold uppercase tracking-wider text-[rgba(255,255,255,0.4)] mb-1">Language</label>
+                <select className={inputClass} value={meta.language}
+                  onChange={(e) => setMeta(m => ({ ...m, language: e.target.value }))} style={{ appearance: 'none' }}>
+                  {LANGUAGES.map(l => <option key={l} value={l} style={{ background: '#1a1a1f' }}>{l}</option>)}
+                </select>
+              </div>
+              <div className="sm:col-span-3">
+                <label className="block text-[10px] font-semibold uppercase tracking-wider text-[rgba(255,255,255,0.4)] mb-1">Description</label>
+                <input className={inputClass} placeholder="Brief description"
+                  value={meta.description} onChange={(e) => setMeta(m => ({ ...m, description: e.target.value }))} maxLength={500} />
+              </div>
             </div>
-
-            {/* Description */}
-            <div>
-              <label className="block text-[11px] font-semibold uppercase tracking-wider text-[rgba(255,255,255,0.4)] mb-1.5">Description</label>
-              <input
-                className={inputClass}
-                placeholder="Brief description of what this snippet does"
-                value={form.description}
-                onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))}
-                maxLength={500}
-              />
-            </div>
-
-            {/* Language */}
-            <div>
-              <label className="block text-[11px] font-semibold uppercase tracking-wider text-[rgba(255,255,255,0.4)] mb-1.5">Language</label>
-              <select
-                className={inputClass}
-                value={form.language}
-                onChange={(e) => setForm(f => ({ ...f, language: e.target.value }))}
-                style={{ appearance: 'none' }}
-              >
-                {LANGUAGES.map(l => (
-                  <option key={l} value={l} style={{ background: '#1a1a1f' }}>{l}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* ── Visibility picker ── */}
-            <div>
-              <label className="block text-[11px] font-semibold uppercase tracking-wider text-[rgba(255,255,255,0.4)] mb-2">Who can view this snippet</label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="mt-4">
+              <label className="block text-[10px] font-semibold uppercase tracking-wider text-[rgba(255,255,255,0.4)] mb-2">Visibility</label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                 {VISIBILITY_OPTIONS.map(opt => {
-                  const active = form.visibility === opt.key;
+                  const active = meta.visibility === opt.key;
                   return (
-                    <button
-                      key={opt.key}
-                      type="button"
-                      onClick={() => setForm(f => ({ ...f, visibility: opt.key, allowedUsers: opt.key !== 'custom' ? [] : f.allowedUsers }))}
-                      className="flex flex-col items-start gap-1.5 p-3 rounded-xl border transition-all text-left"
-                      style={{
-                        borderColor: active ? `${opt.color}50` : 'rgba(255,255,255,0.07)',
-                        backgroundColor: active ? `${opt.color}12` : 'rgba(255,255,255,0.03)',
-                      }}
-                    >
+                    <button key={opt.key} type="button"
+                      onClick={() => setMeta(m => ({ ...m, visibility: opt.key, allowedUsers: opt.key !== 'custom' ? [] : m.allowedUsers }))}
+                      className="flex flex-col items-start gap-1 p-2.5 rounded-xl border transition-all text-left"
+                      style={{ borderColor: active ? `${opt.color}50` : 'rgba(255,255,255,0.07)', backgroundColor: active ? `${opt.color}12` : 'rgba(255,255,255,0.03)' }}>
                       <div className="flex items-center justify-between w-full">
-                        {opt.icon('w-3.5 h-3.5')}
-                        {active && (
-                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: opt.color }} />
-                        )}
+                        {opt.icon('w-3 h-3')}
+                        {active && <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: opt.color }} />}
                       </div>
-                      <span className="text-[12px] font-semibold leading-none" style={{ color: active ? opt.color : 'rgba(255,255,255,0.7)' }}>
+                      <span className="text-[11px] font-semibold" style={{ color: active ? opt.color : 'rgba(255,255,255,0.7)' }}>
                         {opt.label}
-                      </span>
-                      <span className="text-[10px] leading-tight" style={{ color: 'rgba(255,255,255,0.3)' }}>
-                        {opt.desc}
                       </span>
                     </button>
                   );
                 })}
               </div>
             </div>
-
-            {/* ── Custom user picker (only when visibility === 'custom') ── */}
-            {form.visibility === 'custom' && (
-              <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wider text-[rgba(255,255,255,0.4)] mb-2">
-                  Select users
-                  <span className="ml-2 text-[rgba(255,255,255,0.25)] normal-case font-normal">(admins always have access)</span>
-                </label>
-
-                {/* Selected pills */}
-                {form.allowedUsers.length > 0 && (
+            {meta.visibility === 'custom' && (
+              <div className="mt-4">
+                <label className="block text-[10px] font-semibold uppercase tracking-wider text-[rgba(255,255,255,0.4)] mb-2">Select users</label>
+                {meta.allowedUsers.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mb-2">
-                    {form.allowedUsers.map(u => (
-                      <span
-                        key={u._id || u}
-                        className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-lg text-[11px] font-medium border"
-                        style={{ backgroundColor: `${ROLE_COLORS[u.role] || '#3b82f6'}15`, borderColor: `${ROLE_COLORS[u.role] || '#3b82f6'}30`, color: ROLE_COLORS[u.role] || '#3b82f6' }}
-                      >
+                    {meta.allowedUsers.map(u => (
+                      <span key={u._id || u} className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-lg text-[11px] font-medium border"
+                        style={{ backgroundColor: `${ROLE_COLORS[u.role] || '#3b82f6'}15`, borderColor: `${ROLE_COLORS[u.role] || '#3b82f6'}30`, color: ROLE_COLORS[u.role] || '#3b82f6' }}>
                         <span className="text-white/80">{u.name || u.email}</span>
-                        <span className="text-[9px] uppercase tracking-wider opacity-70">{u.role}</span>
-                        <button
-                          type="button"
-                          onClick={() => removeUser(u._id || u)}
-                          className="ml-0.5 w-3.5 h-3.5 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/50 hover:text-white transition-all"
-                        >
+                        <button type="button" onClick={() => removeUser(u._id || u)}
+                          className="ml-0.5 w-3.5 h-3.5 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/50 hover:text-white transition-all">
                           <svg className="w-2 h-2" viewBox="0 0 8 8" fill="currentColor">
                             <path d="M6.5 1.5l-5 5M1.5 1.5l5 5" stroke="currentColor" strokeWidth={1.2} strokeLinecap="round" />
                           </svg>
@@ -1149,51 +1428,28 @@ function EditorModal({ initial, onSave, onClose, saving }) {
                     ))}
                   </div>
                 )}
-
-                {/* Search input + dropdown */}
                 <div className="relative" ref={dropRef}>
-                  <div className="relative">
-                    <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[rgba(255,255,255,0.3)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
-                    </svg>
-                    <input
-                      ref={userSearchRef}
-                      className="w-full pl-8 pr-4 py-2 text-[12px] rounded-xl border bg-[rgba(255,255,255,0.04)] border-[rgba(255,255,255,0.08)] text-white placeholder-[rgba(255,255,255,0.3)] focus:outline-none focus:border-[#a78bfa]/40 transition-all"
-                      placeholder="Search by name, email or role…"
-                      value={userSearch}
-                      onChange={(e) => { setUserSearch(e.target.value); setUserDropOpen(true); }}
-                      onFocus={() => setUserDropOpen(true)}
-                    />
-                  </div>
+                  <input
+                    className="w-full pl-3 pr-4 py-2 text-[12px] rounded-xl border bg-[rgba(255,255,255,0.04)] border-[rgba(255,255,255,0.08)] text-white placeholder-[rgba(255,255,255,0.3)] focus:outline-none focus:border-[#a78bfa]/40 transition-all"
+                    placeholder="Search users…" value={userSearch}
+                    onChange={(e) => { setUserSearch(e.target.value); setUserDropOpen(true); }}
+                    onFocus={() => setUserDropOpen(true)}
+                  />
                   {userDropOpen && filteredUsers.length > 0 && (
-                    <div
-                      className="absolute z-10 top-full mt-1 w-full rounded-xl border shadow-2xl overflow-hidden"
-                      style={{ backgroundColor: '#18181b', borderColor: 'rgba(255,255,255,0.1)' }}
-                    >
-                      <div className="max-h-[200px] overflow-y-auto">
-                        {filteredUsers.slice(0, 30).map(u => (
-                          <button
-                            key={u._id}
-                            type="button"
-                            onClick={() => { addUser(u); setUserDropOpen(false); }}
-                            className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-white/6 transition-colors text-left"
-                          >
-                            <div
-                              className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
-                              style={{ backgroundColor: `${ROLE_COLORS[u.role] || '#3b82f6'}25`, color: ROLE_COLORS[u.role] || '#3b82f6' }}
-                            >
+                    <div className="absolute z-10 top-full mt-1 w-full rounded-xl border shadow-2xl overflow-hidden"
+                      style={{ backgroundColor: '#18181b', borderColor: 'rgba(255,255,255,0.1)' }}>
+                      <div className="max-h-[180px] overflow-y-auto">
+                        {filteredUsers.slice(0, 20).map(u => (
+                          <button key={u._id} type="button" onClick={() => { addUser(u); setUserDropOpen(false); }}
+                            className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/6 transition-colors text-left">
+                            <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
+                              style={{ backgroundColor: `${ROLE_COLORS[u.role] || '#3b82f6'}25`, color: ROLE_COLORS[u.role] || '#3b82f6' }}>
                               {(u.name || u.email || '?').slice(0, 1).toUpperCase()}
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-[12px] font-medium text-white leading-none truncate">{u.name || '—'}</p>
-                              <p className="text-[11px] text-[rgba(255,255,255,0.38)] truncate mt-0.5">{u.email}</p>
+                              <p className="text-[10px] text-[rgba(255,255,255,0.38)] truncate mt-0.5">{u.email}</p>
                             </div>
-                            <span
-                              className="flex-shrink-0 text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded"
-                              style={{ backgroundColor: `${ROLE_COLORS[u.role] || '#3b82f6'}20`, color: ROLE_COLORS[u.role] || '#3b82f6' }}
-                            >
-                              {u.role}
-                            </span>
                           </button>
                         ))}
                       </div>
@@ -1205,89 +1461,242 @@ function EditorModal({ initial, onSave, onClose, saving }) {
                     </div>
                   )}
                 </div>
-
-                {form.allowedUsers.length === 0 && (
+                {meta.allowedUsers.length === 0 && (
                   <p className="text-[11px] text-[rgba(255,255,255,0.3)] mt-1.5">No users selected — nobody except admins will see this snippet.</p>
                 )}
               </div>
             )}
+          </div>
+        )}
 
-            {/* Content */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-[11px] font-semibold uppercase tracking-wider text-[rgba(255,255,255,0.4)]">Content *</label>
-                <div className="flex items-center gap-3">
-                  <span className="text-[11px] text-[rgba(255,255,255,0.25)]">
-                    {form.content.split('\n').length} lines
-                  </span>
-                  {/* Hidden folder input */}
-                  <input
-                    ref={folderInputRef}
-                    type="file"
-                    webkitdirectory="true"
-                    directory="true"
-                    multiple
-                    className="hidden"
-                    onChange={handleFolderUpload}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => folderInputRef.current?.click()}
-                    disabled={uploadingFolder}
-                    className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-lg border transition-all disabled:opacity-50"
-                    style={{ borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.6)' }}
-                    title="Upload a folder — all files will be added as separate blocks"
-                  >
-                    <FolderUploadIcon />
-                    {uploadingFolder ? 'Reading…' : 'Upload Folder'}
-                  </button>
-                </div>
+        {/* ── Inline title bar (when metadata panel is collapsed) ── */}
+        {!showMeta && (
+          <div className="flex items-center gap-3 px-5 py-2 border-b flex-shrink-0"
+            style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+            <input
+              className="flex-1 bg-transparent text-[13px] font-semibold text-white placeholder-[rgba(255,255,255,0.3)] focus:outline-none"
+              placeholder="Snippet title…"
+              value={meta.title}
+              onChange={(e) => setMeta(m => ({ ...m, title: e.target.value }))}
+              maxLength={200}
+            />
+            <span className="text-[11px] px-2 py-0.5 rounded flex-shrink-0"
+              style={{ backgroundColor: `${getLangColor(meta.language)}18`, color: getLangColor(meta.language) }}>
+              {meta.language}
+            </span>
+          </div>
+        )}
+
+        {/* ── Split-pane file editor ── */}
+        <div className="flex flex-1 overflow-hidden min-h-0">
+
+          {/* ── Left: file explorer ── */}
+          <div className="w-52 flex-shrink-0 flex flex-col border-r"
+            style={{ backgroundColor: '#0b0b0d', borderColor: 'rgba(255,255,255,0.06)' }}>
+
+            {/* Explorer toolbar */}
+            <div className="flex items-center justify-between px-3 py-2 border-b flex-shrink-0"
+              style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+              <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-[rgba(255,255,255,0.22)]">
+                Files ({files.length})
+              </span>
+              <div className="flex items-center gap-0.5">
+                <input ref={fileInputRef} type="file" multiple accept="*/*,.zip" className="hidden" onChange={handleFileInput} />
+                <input ref={folderInputRef} type="file" webkitdirectory="true" directory="true" multiple className="hidden" onChange={handleFolderInput} />
+                <button type="button" onClick={() => fileInputRef.current?.click()}
+                  className="p-1 rounded text-[rgba(255,255,255,0.3)] hover:text-white hover:bg-white/8 transition-all" title="Upload files (zip supported)">
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                  </svg>
+                </button>
+                <button type="button" onClick={() => folderInputRef.current?.click()}
+                  className="p-1 rounded text-[rgba(255,255,255,0.3)] hover:text-white hover:bg-white/8 transition-all" title="Upload folder">
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 11v6m-3-3l3-3 3 3" />
+                  </svg>
+                </button>
+                <button type="button" onClick={() => addFile()}
+                  className="p-1 rounded text-[rgba(255,255,255,0.3)] hover:text-[#FF634A] hover:bg-[rgba(255,99,74,0.1)] transition-all" title="New file">
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                  </svg>
+                </button>
               </div>
-              <textarea
-                className="w-full bg-[#080809] border border-[rgba(255,255,255,0.08)] rounded-xl px-4 py-3.5 text-[12.5px] leading-6 font-mono text-[rgba(255,255,255,0.85)] placeholder-[rgba(255,255,255,0.2)] focus:outline-none focus:border-[#FF634A]/40 resize-none transition-all"
-                placeholder="Paste your code or text here…"
-                value={form.content}
-                onChange={(e) => setForm(f => ({ ...f, content: e.target.value }))}
-                rows={12}
-                required
-                spellCheck={false}
-              />
+            </div>
+
+            {/* File list */}
+            <div className="flex-1 overflow-y-auto py-1">
+              {files.map(file => {
+                const isSelected = file.id === selectedId;
+                const color = extColor(file.filePath);
+                return (
+                  <div
+                    key={file.id}
+                    className="group flex items-center gap-1.5 mx-1 px-2 py-1.5 rounded-md cursor-pointer transition-colors hover:bg-white/5"
+                    style={{ backgroundColor: isSelected ? 'rgba(255,99,74,0.13)' : undefined }}
+                    onClick={() => { if (renaming !== file.id) setSelectedId(file.id); }}
+                  >
+                    <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}
+                      style={{ color: color || 'rgba(255,255,255,0.3)' }}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    {renaming === file.id ? (
+                      <input
+                        ref={renameRef}
+                        className="flex-1 bg-[rgba(255,255,255,0.1)] text-white text-[11px] font-mono px-1.5 py-0.5 rounded border border-[#FF634A]/50 focus:outline-none min-w-0"
+                        value={renameVal}
+                        onChange={(e) => setRenameVal(e.target.value)}
+                        onBlur={commitRename}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') { e.preventDefault(); commitRename(); }
+                          if (e.key === 'Escape') setRenaming(null);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        placeholder="file-name.ext"
+                      />
+                    ) : (
+                      <span className="flex-1 text-[11.5px] font-mono truncate select-none"
+                        style={{ color: isSelected ? '#fff' : (color || 'rgba(255,255,255,0.6)') }}>
+                        {file.filePath
+                          ? file.filePath.split('/').pop()
+                          : <span className="italic text-[rgba(255,255,255,0.28)]">untitled</span>
+                        }
+                      </span>
+                    )}
+                    {renaming !== file.id && (
+                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                        <button type="button" onClick={(e) => { e.stopPropagation(); startRename(file); }}
+                          className="p-0.5 rounded text-[rgba(255,255,255,0.3)] hover:text-white transition-colors" title="Rename">
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 13l6.293-6.293a1 1 0 011.414 0l1.586 1.586a1 1 0 010 1.414L12 16H9v-3z" />
+                          </svg>
+                        </button>
+                        {files.length > 1 && (
+                          <button type="button" onClick={(e) => { e.stopPropagation(); deleteFile(file.id); }}
+                            className="p-0.5 rounded text-[rgba(255,255,255,0.3)] hover:text-red-400 transition-colors" title="Delete file">
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="px-3 py-2 border-t flex-shrink-0 text-center"
+              style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
+              <p className="text-[10px] text-[rgba(255,255,255,0.18)]">Drop files to upload</p>
             </div>
           </div>
 
-          {/* Footer */}
-          <div className="px-6 pb-6 flex items-center justify-end gap-3 flex-shrink-0">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-[13px] font-medium text-[rgba(255,255,255,0.5)] hover:text-white transition-colors">
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving || !form.title.trim() || !form.content.trim()}
-              className="px-5 py-2 text-[13px] font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ background: 'linear-gradient(135deg,#FF634A,#e0532d)', color: '#fff' }}
-            >
-              {saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Snippet'}
-            </button>
+          {/* ── Right: code editor ── */}
+          <div
+            className="flex-1 flex flex-col relative overflow-hidden"
+            onDragEnter={() => setDragging(true)}
+            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+            onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragging(false); }}
+            onDrop={handleDrop}
+          >
+            {/* File path bar */}
+            <div className="flex items-center gap-2 px-4 py-2 border-b flex-shrink-0"
+              style={{ backgroundColor: '#0e0e11', borderColor: 'rgba(255,255,255,0.06)' }}>
+              {selectedFile && (
+                <>
+                  <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}
+                    style={{ color: extColor(selectedFile.filePath) || 'rgba(255,255,255,0.3)' }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <input
+                    className="flex-1 bg-transparent text-[12px] font-mono text-[rgba(255,255,255,0.65)] placeholder-[rgba(255,255,255,0.2)] focus:outline-none focus:text-white transition-colors"
+                    placeholder="path/to/file.ext (optional)"
+                    value={selectedFile.filePath || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFiles(prev => prev.map(f => f.id === selectedFile.id ? { ...f, filePath: val || null } : f));
+                    }}
+                  />
+                  <span className="text-[11px] text-[rgba(255,255,255,0.2)] flex-shrink-0">
+                    {selectedFile.code.split('\n').length}L
+                  </span>
+                </>
+              )}
+              {uploading && <span className="text-[11px] text-[rgba(255,255,255,0.4)] animate-pulse ml-auto">Uploading…</span>}
+            </div>
+
+            {/* Textarea editor */}
+            <textarea
+              ref={textareaRef}
+              className="flex-1 w-full px-5 pt-4 pb-4 text-[12.5px] leading-6 font-mono resize-none focus:outline-none"
+              style={{ backgroundColor: '#080809', color: 'rgba(255,255,255,0.85)', caretColor: '#FF634A' }}
+              placeholder="// Start typing, paste code, or drop files here…"
+              value={selectedFile?.code || ''}
+              onChange={(e) => selectedFile && updateCode(selectedFile.id, e.target.value)}
+              spellCheck={false}
+            />
+
+            {/* Drag-drop overlay */}
+            {dragging && (
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 pointer-events-none"
+                style={{ backgroundColor: 'rgba(8,8,9,0.88)', border: '2px dashed rgba(255,99,74,0.5)' }}>
+                <svg className="w-10 h-10 text-[#FF634A]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                <p className="text-[14px] font-semibold text-[#FF634A]">Drop files or a .zip to add them</p>
+              </div>
+            )}
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
 }
 
 // ── Snippet card ─────────────────────────────────────────────────────────────
-function SnippetCard({ snippet, isAdmin, onClick, onEdit, onDelete, relativeTime: relTime }) {
+function SnippetCard({ snippet, isAdmin, onClick, onEdit, onDelete, relativeTime: relTime, isSelected, onToggleSelect }) {
   const langColor = getLangColor(snippet.language);
   const lineCount = snippet.content.split('\n').length;
-  const fileCount = parseFileBlocks(snippet.content).length;
+  const blocks = parseFileBlocks(snippet.content);
+  const fileBlocks = blocks.filter(b => b.filePath);
+  const isMultiFile = fileBlocks.length > 0;
   const preview = snippet.content.slice(0, 300);
 
   return (
     <div
       className="group relative flex flex-col rounded-2xl border overflow-hidden cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/40"
-      style={{ backgroundColor: 'var(--color-canvas-overlay)', borderColor: 'rgba(255,255,255,0.07)' }}
-      onClick={onClick}
+      style={{
+        backgroundColor: 'var(--color-canvas-overlay)',
+        borderColor: isSelected ? `${langColor}60` : 'rgba(255,255,255,0.07)',
+        boxShadow: isSelected ? `0 0 0 2px ${langColor}30` : undefined,
+      }}
+      onClick={(e) => {
+        if (e.ctrlKey || e.metaKey) { e.preventDefault(); onToggleSelect?.(snippet._id); }
+        else onClick(e);
+      }}
     >
+      {/* Select checkbox (shown on ctrl/meta hover or when selected) */}
+      {onToggleSelect && (
+        <div
+          className={`absolute top-2.5 left-2.5 z-10 transition-opacity ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-70'}`}
+          onClick={(e) => { e.stopPropagation(); onToggleSelect(snippet._id); }}
+        >
+          <div className="w-4 h-4 rounded border flex items-center justify-center transition-all"
+            style={{
+              borderColor: isSelected ? langColor : 'rgba(255,255,255,0.3)',
+              backgroundColor: isSelected ? `${langColor}30` : 'rgba(0,0,0,0.5)',
+            }}>
+            {isSelected && (
+              <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}
+                style={{ color: langColor }}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            )}
+          </div>
+        </div>
+      )}
       {/* Top accent */}
       <div className="h-0.5 w-full" style={{ background: `linear-gradient(90deg, ${langColor}60, transparent)` }} />
 
@@ -1331,16 +1740,47 @@ function SnippetCard({ snippet, isAdmin, onClick, onEdit, onDelete, relativeTime
         </div>
       </div>
 
-      {/* Code preview */}
+      {/* Code preview / mini file tree */}
       <div className="mx-4 mb-4 rounded-xl overflow-hidden border" style={{ borderColor: 'rgba(255,255,255,0.05)', backgroundColor: '#080809' }}>
-        <pre className="px-4 py-3 text-[11px] leading-5 font-mono text-[rgba(255,255,255,0.55)] overflow-hidden m-0 line-clamp-4"
-          style={{ maxHeight: '80px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical' }}>
-          {preview}
-        </pre>
-        {snippet.content.length > 300 && (
-          <div className="px-4 py-1.5 border-t text-[10px] text-[rgba(255,255,255,0.25)] font-medium" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
-            + more…
+        {isMultiFile ? (
+          <div className="px-3 py-2.5 space-y-0.5">
+            {fileBlocks.slice(0, 5).map((b, i) => {
+              const color = extColor(b.filePath);
+              const parts = b.filePath.split('/');
+              const fname = parts.pop();
+              const folder = parts.join('/');
+              return (
+                <div key={i} className="flex items-center gap-1.5 py-0.5">
+                  <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}
+                    style={{ color: color || 'rgba(255,255,255,0.3)' }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <span className="text-[11px] font-mono truncate flex-1" style={{ color: color || 'rgba(255,255,255,0.5)' }}>
+                    {folder && <span style={{ color: 'rgba(255,255,255,0.25)' }}>{folder}/</span>}
+                    {fname}
+                  </span>
+                  <span className="text-[10px] flex-shrink-0" style={{ color: 'rgba(255,255,255,0.2)' }}>
+                    {b.code.split('\n').length}L
+                  </span>
+                </div>
+              );
+            })}
+            {fileBlocks.length > 5 && (
+              <div className="text-[10px] text-[rgba(255,255,255,0.25)] pt-0.5 pl-4">+{fileBlocks.length - 5} more files</div>
+            )}
           </div>
+        ) : (
+          <>
+            <pre className="px-4 py-3 text-[11px] leading-5 font-mono text-[rgba(255,255,255,0.55)] overflow-hidden m-0"
+              style={{ maxHeight: '80px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical' }}>
+              {preview}
+            </pre>
+            {snippet.content.length > 300 && (
+              <div className="px-4 py-1.5 border-t text-[10px] text-[rgba(255,255,255,0.25)] font-medium" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
+                + more…
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -1350,10 +1790,10 @@ function SnippetCard({ snippet, isAdmin, onClick, onEdit, onDelete, relativeTime
           <span className="text-[11px] text-[rgba(255,255,255,0.28)]">
             {lineCount} line{lineCount !== 1 ? 's' : ''}
           </span>
-          {fileCount > 0 && (
+          {fileBlocks.length > 0 && (
             <span className="text-[10px] text-[rgba(255,255,255,0.22)] flex items-center gap-1">
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
-              {fileCount}
+              {fileBlocks.length}
             </span>
           )}
           {relTime && snippet.updatedAt && (
@@ -1403,11 +1843,46 @@ export default function ScriptVault() {
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState({ msg: '', type: 'info' });
   const [copiedAll, copyAll] = useCopyState();
+  const [selectedSnippetIds, setSelectedSnippetIds] = useState(new Set());
+
+  const searchInputRef = useRef(null);
 
   const showToast = (msg, type = 'info') => {
     setToast({ msg, type });
     setTimeout(() => setToast({ msg: '', type: 'info' }), 2800);
   };
+
+  // ── Keyboard shortcuts ───────────────────────────────────────────────────
+  useEffect(() => {
+    const handler = (e) => {
+      const inInput = ['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName) ||
+                      document.activeElement?.isContentEditable;
+      // N → new snippet (admin only, no modal open)
+      if (e.key === 'n' && !inInput && !showEditor && !viewSnippet && isAdmin) {
+        e.preventDefault();
+        openCreate();
+        return;
+      }
+      // / → focus search
+      if (e.key === '/' && !inInput && !showEditor && !viewSnippet) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        return;
+      }
+      // Escape → clear search (only when no modal is open)
+      if (e.key === 'Escape' && !showEditor && !viewSnippet && search) {
+        setSearch('');
+        searchInputRef.current?.blur();
+        return;
+      }
+      // Escape → clear selection
+      if (e.key === 'Escape' && !showEditor && !viewSnippet && selectedSnippetIds.size > 0) {
+        setSelectedSnippetIds(new Set());
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [showEditor, viewSnippet, search, isAdmin, selectedSnippetIds]);
 
   useEffect(() => {
     api.get('/script-vault')
@@ -1493,6 +1968,67 @@ export default function ScriptVault() {
   const openCreate = () => { setEditTarget(null); setShowEditor(true); };
   const openEdit = (snippet) => { setEditTarget(snippet); setShowEditor(true); setViewSnippet(null); };
 
+  // ── Quick "Upload Zip → Create Snippet" (main page) ───────────────────────
+  const zipInputRef = useRef(null);
+  const [zipUploading, setZipUploading] = useState(false);
+
+  const handleQuickZip = useCallback(async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    setZipUploading(true);
+    try {
+      // Use multipart upload-zip endpoint — server handles extraction
+      const formData = new FormData();
+      formData.append('file', file);
+      const { data } = await api.post('/script-vault/upload-zip', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setSnippets(prev => [data.snippet, ...prev]);
+      const zipName = data.snippet.title;
+      showToast(`"${zipName}" created (${data.fileCount} files extracted)`, 'success');
+      // Open in editor so user can fine-tune
+      setEditTarget(data.snippet);
+      setShowEditor(true);
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Zip upload failed', 'error');
+    } finally {
+      setZipUploading(false);
+    }
+  }, []);
+
+  const handleSaveInline = async (snippetId, newContent) => {
+    const snippet = snippets.find(s => s._id === snippetId);
+    if (!snippet) return;
+    try {
+      const { data } = await api.put(`/script-vault/${snippetId}`, {
+        ...snippet,
+        content: newContent,
+        allowedUsers: snippet.allowedUsers?.map(u => u._id || u),
+      });
+      setSnippets(prev => prev.map(s => s._id === snippetId ? data.snippet : s));
+      setViewSnippet(data.snippet);
+      showToast('Changes saved', 'success');
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Save failed', 'error');
+      throw err;
+    }
+  };
+
+  const toggleSelect = (id) => {
+    setSelectedSnippetIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const [copiedSelected, copySelected] = useCopyState();
+  const bulkCopyContent = filtered
+    .filter(s => selectedSnippetIds.has(s._id))
+    .map(s => `// ── ${s.title} ──\n${s.content}`)
+    .join('\n\n');
+
   const allContent = filtered.map(s => `// ── ${s.title} ──\n${s.content}`).join('\n\n');
 
   const SORT_OPTIONS = [
@@ -1538,7 +2074,31 @@ export default function ScriptVault() {
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
-                {filtered.length > 0 && (
+                {/* Bulk copy action bar */}
+                {selectedSnippetIds.size > 0 && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border"
+                    style={{ borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,255,255,0.05)' }}>
+                    <span className="text-[11px] text-[rgba(255,255,255,0.5)]">{selectedSnippetIds.size} selected</span>
+                    <button
+                      onClick={() => copySelected(bulkCopyContent)}
+                      className={`flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold rounded-lg border transition-all ${
+                        copiedSelected
+                          ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
+                          : 'border-[#FF634A]/30 bg-[#FF634A]/10 text-[#FF634A] hover:bg-[#FF634A]/20'
+                      }`}
+                    >
+                      {copiedSelected ? <CheckIcon /> : <CopyAllIcon />}
+                      {copiedSelected ? 'Copied!' : 'Copy'}
+                    </button>
+                    <button onClick={() => setSelectedSnippetIds(new Set())}
+                      className="p-1 rounded text-[rgba(255,255,255,0.3)] hover:text-white transition-colors" title="Clear selection">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+                {filtered.length > 0 && selectedSnippetIds.size === 0 && (
                   <button
                     onClick={() => copyAll(allContent)}
                     className={`flex items-center gap-2 px-4 py-2 text-[12px] font-semibold rounded-xl border transition-all ${
@@ -1552,14 +2112,48 @@ export default function ScriptVault() {
                   </button>
                 )}
                 {isAdmin && (
-                  <button
-                    onClick={openCreate}
-                    className="flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold rounded-xl text-white transition-all hover:opacity-90 active:scale-95 shadow-lg"
-                    style={{ background: 'linear-gradient(135deg,#FF634A,#e0532d)', boxShadow: '0 4px 14px rgba(255,99,74,0.4)' }}
-                  >
-                    <PlusIcon />
-                    New Script
-                  </button>
+                  <>
+                    {/* Hidden zip input */}
+                    <input
+                      ref={zipInputRef}
+                      type="file"
+                      accept=".zip,application/zip"
+                      className="hidden"
+                      onChange={handleQuickZip}
+                    />
+                    <button
+                      onClick={() => zipInputRef.current?.click()}
+                      disabled={zipUploading}
+                      className="flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold rounded-xl border transition-all disabled:opacity-60 disabled:cursor-not-allowed hover:bg-white/10 hover:text-white"
+                      style={{ borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.65)' }}
+                      title="Create a snippet by uploading a zip file"
+                    >
+                      {zipUploading ? (
+                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                      ) : (
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M20 7H8a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V9a2 2 0 00-2-2z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M16 7V5a2 2 0 00-2-2h-2a2 2 0 00-2 2v2" />
+                          <line x1="12" y1="11" x2="12" y2="17" strokeLinecap="round" />
+                          <line x1="9" y1="14" x2="15" y2="14" strokeLinecap="round" />
+                        </svg>
+                      )}
+                      {zipUploading ? 'Extracting…' : 'Upload Zip'}
+                    </button>
+                    <button
+                      onClick={openCreate}
+                      className="flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold rounded-xl text-white transition-all hover:opacity-90 active:scale-95 shadow-lg"
+                      style={{ background: 'linear-gradient(135deg,#FF634A,#e0532d)', boxShadow: '0 4px 14px rgba(255,99,74,0.4)' }}
+                      title="New snippet (N)"
+                    >
+                      <PlusIcon />
+                      New Script
+                      <kbd className="ml-1 px-1 py-0.5 text-[9px] rounded font-mono opacity-70"
+                        style={{ backgroundColor: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)' }}>N</kbd>
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -1590,18 +2184,25 @@ export default function ScriptVault() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
             </svg>
             <input
-              className="w-full pl-9 pr-4 py-2.5 text-[13px] rounded-xl border bg-[rgba(255,255,255,0.04)] border-[rgba(255,255,255,0.08)] text-white placeholder-[rgba(255,255,255,0.3)] focus:outline-none focus:border-[#FF634A]/40 transition-all"
-              placeholder="Search by title, description or language…"
+              ref={searchInputRef}
+              className="w-full pl-9 pr-16 py-2.5 text-[13px] rounded-xl border bg-[rgba(255,255,255,0.04)] border-[rgba(255,255,255,0.08)] text-white placeholder-[rgba(255,255,255,0.3)] focus:outline-none focus:border-[#FF634A]/40 transition-all"
+              placeholder="Search snippets… (Esc to clear)"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-            {search && (
+            {search ? (
               <button
                 onClick={() => setSearch('')}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-[rgba(255,255,255,0.3)] hover:text-white"
+                title="Clear (Esc)"
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
               </button>
+            ) : (
+              <kbd className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-mono px-1.5 py-0.5 rounded pointer-events-none"
+                style={{ color: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.1)', backgroundColor: 'rgba(255,255,255,0.03)' }}>
+                /
+              </kbd>
             )}
           </div>
 
@@ -1724,6 +2325,8 @@ export default function ScriptVault() {
                 onEdit={openEdit}
                 onDelete={handleDelete}
                 relativeTime={relativeTime}
+                isSelected={selectedSnippetIds.has(snippet._id)}
+                onToggleSelect={toggleSelect}
               />
             ))}
           </div>
@@ -1749,6 +2352,7 @@ export default function ScriptVault() {
           onEdit={openEdit}
           onDelete={handleDelete}
           onContribute={handleContribute}
+          onSaveInline={isAdmin ? handleSaveInline : undefined}
         />
       )}
 
