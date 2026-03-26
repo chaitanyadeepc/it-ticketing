@@ -245,54 +245,127 @@ function CopyButton({ text, label = 'Copy', size = 'sm' }) {
   );
 }
 
-// ── FileBlocksView ────────────────────────────────────────────────────────────
-// Renders content as one or multiple file blocks depending on detected markers.
-function FileBlocksView({ content }) {
-  const blocks = parseFileBlocks(content);
-  const isMulti = blocks.length > 1 || blocks[0]?.filePath !== null;
+// ── File tree builder ────────────────────────────────────────────────────────
+const buildFileTree = (blocks) => {
+  const root = { path: '__root__', name: 'root', type: 'folder', children: [] };
+  blocks.forEach((block, idx) => {
+    if (!block.filePath) return;
+    const parts = block.filePath.replace(/\\/g, '/').split('/');
+    let node = root;
+    parts.forEach((part, partIdx) => {
+      const isLast = partIdx === parts.length - 1;
+      const curPath = parts.slice(0, partIdx + 1).join('/');
+      let child = node.children.find(c => c.name === part && (isLast ? c.type === 'file' : c.type === 'folder'));
+      if (!child) {
+        child = isLast
+          ? { path: curPath, name: part, type: 'file', blockIdx: idx, filePath: block.filePath }
+          : { path: curPath, name: part, type: 'folder', children: [] };
+        node.children.push(child);
+      }
+      if (!isLast) node = child;
+    });
+  });
+  const sortNode = (n) => {
+    if (n.children) {
+      n.children.sort((a, b) => {
+        if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      });
+      n.children.forEach(sortNode);
+    }
+    return n;
+  };
+  return sortNode(root);
+};
 
-  if (!isMulti) {
-    // Single block — classic line-number view
-    const lines = content.split('\n');
+const collectFolderPaths = (node, acc = new Set()) => {
+  if (node.type === 'folder' && node.path !== '__root__') acc.add(node.path);
+  node.children?.forEach(c => collectFolderPaths(c, acc));
+  return acc;
+};
+
+// ── File tree node (recursive) ───────────────────────────────────────────────
+function FileTreeNode({ node, depth, selectedIdx, onSelect, expanded, onToggle }) {
+  const isOpen = expanded.has(node.path);
+  const isSelected = node.type === 'file' && node.blockIdx === selectedIdx;
+  const color = node.type === 'file' ? extColor(node.filePath) : null;
+
+  if (node.type === 'folder') {
     return (
-      <div className="flex">
-        <div
-          className="select-none flex-shrink-0 text-right px-4 py-5 text-[12px] leading-6 font-mono"
-          style={{ color: 'rgba(255,255,255,0.18)', userSelect: 'none', borderRight: '1px solid rgba(255,255,255,0.05)', minWidth: '52px', backgroundColor: '#0a0a0c' }}
+      <div>
+        <button
+          onClick={() => onToggle(node.path)}
+          className="w-full flex items-center gap-1 py-[3px] rounded-sm text-left hover:bg-white/5 transition-colors"
+          style={{ paddingLeft: `${6 + depth * 12}px`, paddingRight: '8px' }}
         >
-          {lines.map((_, i) => <div key={i}>{i + 1}</div>)}
-        </div>
-        <pre className="flex-1 px-5 py-5 text-[13px] leading-6 font-mono overflow-x-auto m-0"
-          style={{ color: 'rgba(255,255,255,0.88)', background: 'transparent', whiteSpace: 'pre' }}>
-          <code>{content}</code>
-        </pre>
+          <svg
+            className={`w-2.5 h-2.5 flex-shrink-0 transition-transform duration-150 ${isOpen ? 'rotate-90' : ''}`}
+            fill="none" viewBox="0 0 24 24" strokeWidth={2.5}
+            stroke="rgba(255,255,255,0.3)"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+          <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} style={{ color: '#f59e0b' }}>
+            {isOpen
+              ? <path strokeLinecap="round" strokeLinejoin="round" d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" />
+              : <path strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
+            }
+          </svg>
+          <span className="text-[11.5px] font-medium text-[rgba(255,255,255,0.65)] truncate select-none">{node.name}</span>
+        </button>
+        {isOpen && node.children.map(child => (
+          <FileTreeNode
+            key={child.path}
+            node={child}
+            depth={depth + 1}
+            selectedIdx={selectedIdx}
+            onSelect={onSelect}
+            expanded={expanded}
+            onToggle={onToggle}
+          />
+        ))}
       </div>
     );
   }
 
   return (
-    <div className="divide-y" style={{ divideColor: 'rgba(255,255,255,0.05)' }}>
-      {blocks.map((block, idx) => (
-        <FileBlock key={idx} block={block} index={idx} total={blocks.length} />
-      ))}
-    </div>
+    <button
+      onClick={() => onSelect(node.blockIdx)}
+      className="w-full flex items-center gap-1.5 py-[3px] rounded-sm text-left transition-colors hover:bg-white/5"
+      style={{
+        paddingLeft: `${6 + depth * 12 + 14}px`,
+        paddingRight: '8px',
+        backgroundColor: isSelected ? 'rgba(255,99,74,0.13)' : undefined,
+      }}
+    >
+      <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}
+        style={{ color: color || 'rgba(255,255,255,0.3)' }}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+      <span className="text-[11.5px] truncate select-none" style={{ color: isSelected ? '#fff' : (color || 'rgba(255,255,255,0.6)') }}>
+        {node.name}
+      </span>
+    </button>
   );
 }
 
-function FileBlock({ block, index, total }) {
+// ── Right-side code panel ─────────────────────────────────────────────────────
+function CodePanel({ block }) {
   const [copied, copy] = useCopyState();
-  const lines = block.code.split('\n');
-  // Strip trailing empty lines for display
+  if (!block) return (
+    <div className="flex-1 flex items-center justify-center text-[13px] text-[rgba(255,255,255,0.2)]">
+      Select a file from the explorer
+    </div>
+  );
+  const lines = (block.code || '').split('\n');
   const displayLines = lines[lines.length - 1] === '' ? lines.slice(0, -1) : lines;
 
   return (
-    <div className="group/block">
-      {/* File header bar */}
-      {block.filePath ? (
-        <div className="flex items-center justify-between pr-3"
-          style={{ backgroundColor: '#0e0e11', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+    <div className="flex flex-col h-full min-h-0">
+      {block.filePath && (
+        <div className="flex items-center justify-between pl-1 pr-3 flex-shrink-0 border-b"
+          style={{ backgroundColor: '#0e0e11', borderColor: 'rgba(255,255,255,0.06)' }}>
           <FilePathBadge filePath={block.filePath} />
-          {/* Per-file copy button */}
           <button
             onClick={() => copy(block.code)}
             className={`flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all ${
@@ -309,37 +382,13 @@ function FileBlock({ block, index, total }) {
             {copied ? 'Copied' : 'Copy file'}
           </button>
         </div>
-      ) : (
-        // Header block (content before first marker) — minimal bar
-        <div className="flex items-center justify-between px-4 py-1.5 pr-3"
-          style={{ backgroundColor: '#0b0b0d', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-          <span className="text-[10px] font-mono text-[rgba(255,255,255,0.25)]">header</span>
-          <button
-            onClick={() => copy(block.code)}
-            className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] border transition-all ${
-              copied
-                ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
-                : 'border-white/6 text-[rgba(255,255,255,0.3)] hover:text-white'
-            }`}
-          >
-            {copied
-              ? <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-              : <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><rect x="9" y="9" width="13" height="13" rx="2" ry="2" strokeLinejoin="round" /><path strokeLinecap="round" strokeLinejoin="round" d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>
-            }
-            Copy
-          </button>
-        </div>
       )}
-
-      {/* Code + line numbers */}
-      <div className="flex" style={{ backgroundColor: '#080809' }}>
+      <div className="flex flex-1 overflow-auto" style={{ backgroundColor: '#080809' }}>
         <div
           className="select-none flex-shrink-0 text-right px-3 py-4 text-[11.5px] leading-6 font-mono"
           style={{ color: 'rgba(255,255,255,0.15)', userSelect: 'none', borderRight: '1px solid rgba(255,255,255,0.04)', minWidth: '46px', backgroundColor: '#0a0a0c' }}
         >
-          {displayLines.map((_, i) => (
-            <div key={i}>{(block.startLine || 1) + i}</div>
-          ))}
+          {displayLines.map((_, i) => <div key={i}>{i + 1}</div>)}
         </div>
         <pre className="flex-1 px-5 py-4 text-[12.5px] leading-6 font-mono overflow-x-auto m-0"
           style={{ color: 'rgba(255,255,255,0.85)', background: 'transparent', whiteSpace: 'pre' }}>
@@ -354,6 +403,16 @@ function FileBlock({ block, index, total }) {
 function SnippetModal({ snippet, onClose, isAdmin, onEdit, onDelete }) {
   const [copiedAll, copyAll] = useCopyState();
 
+  const blocks = parseFileBlocks(snippet.content);
+  const isMultiFile = blocks.some(b => b.filePath !== null);
+  const tree = buildFileTree(blocks);
+
+  const [expanded, setExpanded] = useState(() => collectFolderPaths(tree));
+  const [selectedIdx, setSelectedIdx] = useState(() => {
+    const first = blocks.findIndex(b => b.filePath !== null);
+    return first >= 0 ? first : 0;
+  });
+
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', handler);
@@ -362,21 +421,29 @@ function SnippetModal({ snippet, onClose, isAdmin, onEdit, onDelete }) {
 
   if (!snippet) return null;
   const langColor = getLangColor(snippet.language);
+  const fileCount = blocks.filter(b => b.filePath).length;
+
+  const toggleFolder = (path) => setExpanded(prev => {
+    const next = new Set(prev);
+    next.has(path) ? next.delete(path) : next.add(path);
+    return next;
+  });
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}
+      style={{ backgroundColor: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(6px)' }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
-        className="w-full max-w-4xl max-h-[90vh] flex flex-col rounded-2xl border overflow-hidden shadow-2xl"
-        style={{ backgroundColor: '#0d0d0f', borderColor: 'rgba(255,255,255,0.08)' }}
+        className={`w-full flex flex-col rounded-2xl border overflow-hidden shadow-2xl ${isMultiFile ? 'max-w-6xl' : 'max-w-4xl'}`}
+        style={{ backgroundColor: '#0d0d0f', borderColor: 'rgba(255,255,255,0.08)', maxHeight: '92vh' }}
       >
-        {/* Header */}
-        <div className="flex items-start justify-between p-5 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+        {/* ── Header ── */}
+        <div className="flex items-start justify-between px-5 py-4 border-b flex-shrink-0"
+          style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
           <div className="flex-1 min-w-0 pr-4">
-            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
               <span
                 className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-widest uppercase"
                 style={{ backgroundColor: `${langColor}18`, color: langColor, border: `1px solid ${langColor}30` }}
@@ -384,12 +451,21 @@ function SnippetModal({ snippet, onClose, isAdmin, onEdit, onDelete }) {
                 {snippet.language || 'text'}
               </span>
               <VisibilityBadge visibility={snippet.visibility} allowedUsers={snippet.allowedUsers} />
+              {isMultiFile && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-white/5 text-[rgba(255,255,255,0.4)] border border-white/8">
+                  <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  {fileCount} file{fileCount !== 1 ? 's' : ''}
+                </span>
+              )}
             </div>
-            <h2 className="text-lg font-bold text-white leading-tight truncate">{snippet.title}</h2>
+            <h2 className="text-[16px] font-bold text-white leading-tight truncate">{snippet.title}</h2>
             {snippet.description && (
-              <p className="text-[13px] text-[rgba(255,255,255,0.45)] mt-1 line-clamp-2">{snippet.description}</p>
+              <p className="text-[12px] text-[rgba(255,255,255,0.4)] mt-0.5 line-clamp-1">{snippet.description}</p>
             )}
           </div>
+
           <div className="flex items-center gap-2 flex-shrink-0">
             {isAdmin && (
               <>
@@ -420,13 +496,54 @@ function SnippetModal({ snippet, onClose, isAdmin, onEdit, onDelete }) {
           </div>
         </div>
 
-        {/* Code area */}
-        <div className="flex-1 overflow-auto relative" style={{ backgroundColor: '#080809' }}>
-          <FileBlocksView content={snippet.content} />
-        </div>
+        {/* ── Body ── */}
+        {isMultiFile ? (
+          /* Explorer layout */
+          <div className="flex flex-1 overflow-hidden" style={{ minHeight: 0 }}>
+            {/* Left: file tree */}
+            <div className="w-52 flex-shrink-0 overflow-y-auto border-r py-2"
+              style={{ backgroundColor: '#0b0b0d', borderColor: 'rgba(255,255,255,0.06)' }}>
+              <p className="px-3 pb-2 text-[9px] font-bold uppercase tracking-[0.12em] text-[rgba(255,255,255,0.22)]">
+                Explorer
+              </p>
+              {tree.children.map(child => (
+                <FileTreeNode
+                  key={child.path}
+                  node={child}
+                  depth={0}
+                  selectedIdx={selectedIdx}
+                  onSelect={setSelectedIdx}
+                  expanded={expanded}
+                  onToggle={toggleFolder}
+                />
+              ))}
+            </div>
+            {/* Right: code panel */}
+            <div className="flex-1 flex flex-col overflow-hidden">
+              <CodePanel block={blocks[selectedIdx]} />
+            </div>
+          </div>
+        ) : (
+          /* Single flat view */
+          <div className="flex-1 overflow-auto" style={{ backgroundColor: '#080809' }}>
+            <div className="flex">
+              <div
+                className="select-none flex-shrink-0 text-right px-4 py-5 text-[12px] leading-6 font-mono"
+                style={{ color: 'rgba(255,255,255,0.18)', userSelect: 'none', borderRight: '1px solid rgba(255,255,255,0.05)', minWidth: '52px', backgroundColor: '#0a0a0c' }}
+              >
+                {snippet.content.split('\n').map((_, i) => <div key={i}>{i + 1}</div>)}
+              </div>
+              <pre className="flex-1 px-5 py-5 text-[13px] leading-6 font-mono overflow-x-auto m-0"
+                style={{ color: 'rgba(255,255,255,0.88)', background: 'transparent', whiteSpace: 'pre' }}>
+                <code>{snippet.content}</code>
+              </pre>
+            </div>
+          </div>
+        )}
 
-        {/* Footer */}
-        <div className="px-5 py-3 border-t flex items-center justify-between flex-wrap gap-2" style={{ borderColor: 'rgba(255,255,255,0.06)', backgroundColor: '#0d0d0f' }}>
+        {/* ── Footer ── */}
+        <div className="px-5 py-2.5 border-t flex items-center justify-between flex-wrap gap-2 flex-shrink-0"
+          style={{ borderColor: 'rgba(255,255,255,0.06)', backgroundColor: '#0d0d0f' }}>
           <span className="text-[11px] text-[rgba(255,255,255,0.28)]">
             {snippet.authorName && `By ${snippet.authorName} · `}
             {snippet.content.split('\n').length} lines · {new Blob([snippet.content]).size} bytes
@@ -449,6 +566,7 @@ function SnippetModal({ snippet, onClose, isAdmin, onEdit, onDelete }) {
     </div>
   );
 }
+
 
 // ── Create / Edit modal ──────────────────────────────────────────────────────
 function EditorModal({ initial, onSave, onClose, saving }) {
@@ -924,7 +1042,7 @@ export default function CodeShare() {
   return (
     <PageWrapper>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
-        <Breadcrumb items={[{ label: 'Home', path: '/' }, { label: 'Code Share' }]} />
+        <Breadcrumb items={[{ label: 'Home', path: '/' }, { label: 'Script Vault' }]} />
 
         {/* ── Page header ── */}
         <div className="flex items-start justify-between gap-4 mt-4 mb-6 flex-wrap">
@@ -937,11 +1055,11 @@ export default function CodeShare() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
               </div>
-              <h1 className="text-[22px] font-bold text-white tracking-tight">Code Share</h1>
+              <h1 className="text-[22px] font-bold text-white tracking-tight">Script Vault</h1>
             </div>
             <p className="text-[13px] text-[rgba(255,255,255,0.4)]">
-              {isAdmin ? 'Manage and share code snippets with your team.' : 'Browse and copy shared code snippets.'}
-              {' '}<span className="text-[rgba(255,255,255,0.25)]">{filtered.length} snippet{filtered.length !== 1 ? 's' : ''}</span>
+              {isAdmin ? 'Manage and distribute scripts, configs & code snippets.' : 'Scripts and code shared with you.'}
+              {' '}<span className="text-[rgba(255,255,255,0.25)]">{filtered.length} script{filtered.length !== 1 ? 's' : ''}</span>
             </p>
           </div>
 
@@ -1028,15 +1146,15 @@ export default function CodeShare() {
               </svg>
             </div>
             <p className="text-[15px] font-semibold text-[rgba(255,255,255,0.6)]">
-              {search || filterLang !== 'All' ? 'No snippets match your search' : 'No snippets yet'}
+              {search || filterLang !== 'All' ? 'No scripts match your search' : 'No scripts yet'}
             </p>
             <p className="text-[12px] text-[rgba(255,255,255,0.3)] max-w-xs">
-              {isAdmin && !search ? 'Create your first snippet to share code with your team.' : 'Try a different search or filter.'}
+              {isAdmin && !search ? 'Create your first script to share with your team.' : 'Try a different search or filter.'}
             </p>
             {isAdmin && !search && (
               <button onClick={openCreate} className="mt-3 flex items-center gap-1.5 px-4 py-2 text-[13px] font-semibold rounded-xl text-white"
                 style={{ background: 'linear-gradient(135deg,#FF634A,#e0532d)' }}>
-                <PlusIcon /> Create Snippet
+                <PlusIcon /> Create Script
               </button>
             )}
           </div>
