@@ -519,7 +519,10 @@ function SnippetModal({ snippet, onClose, isAdmin, onEdit, onDelete, onContribut
     if (downloading) return;
     setDownloading(true);
     try {
-      const response = await api.get(`/script-vault/${snippet._id}/download`, { responseType: 'blob' });
+      const response = await api.get(`/script-vault/${snippet._id}/download`, {
+        responseType: 'blob',
+        timeout: 0, // no timeout for large zip files
+      });
       const url = URL.createObjectURL(response.data);
       const a = document.createElement('a');
       a.href = url;
@@ -1897,14 +1900,13 @@ function SnippetCard({ snippet, isAdmin, onClick, onEdit, onDelete, relativeTime
         <div onClick={(e) => e.stopPropagation()}>
           {isZip
             ? (
-              <a
-                href={`${import.meta.env.VITE_API_BASE_URL || ''}/api/script-vault/${snippet._id}/download`}
-                download={snippet.zipName || snippet.title + '.zip'}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium rounded-lg border transition-all border-amber-500/30 bg-amber-500/8 text-amber-400 hover:bg-amber-500/18"
-                onClick={(e) => e.stopPropagation()}
+              <button
+                onClick={handleCardDownload}
+                disabled={cardDownloading}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium rounded-lg border transition-all border-amber-500/30 bg-amber-500/8 text-amber-400 hover:bg-amber-500/18 disabled:opacity-50"
               >
-                <DownloadIcon /> Download
-              </a>
+                <DownloadIcon /> {cardDownloading ? 'Downloading…' : 'Download'}
+              </button>
             )
             : <CopyButton text={snippet.content} />
           }
