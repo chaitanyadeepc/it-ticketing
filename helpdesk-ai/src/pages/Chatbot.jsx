@@ -308,8 +308,106 @@ const detectPriority = (text, category, subType) => {
     return 'Critical';
   const cfg = category ? CATEGORIES[category] : null;
   if (cfg && subType && cfg.priorityBoost[subType]) return cfg.priorityBoost[subType];
-  if (/slow|delay|issue|problem|error|crash|fail|not working|broken/.test(t)) return 'High';
+  if (/slow|delay|issue|problem|error|crash|fail|not working|broken|can.?t|won.?t|doesn.?t work/.test(t)) return 'High';
   return 'Medium';
+};
+
+// ── NLP: normalise filler phrases before keyword detection ────────────────────
+const normalizeForNLP = (text) =>
+  text
+    .replace(/\b(i am|i'm|im|i have|i've|i need help with|help me with|please|can you help|can you|could you please|could you|my|is having|are having|having|it is|it's|its|getting|keep(?:s)? getting|issue with|problem with|trouble with|dealing with|experiencing|reporting|there is a|there's a|we have a|we've got)\b/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+// ── NLP: per-category subtype keyword hints ───────────────────────────────────
+const SUBTYPE_HINT_KEYWORDS = {
+  'Hardware': {
+    'Laptop / Desktop':          /laptop|desktop|notebook|workstation|tower|macbook|computer\b/,
+    'Monitor / Display':         /monitor|display\b|screen\b|hdmi|vga|dp\b|displayport/,
+    'Keyboard or Mouse':         /\bkeyboard|mouse\b|trackpad|trackball/,
+    'Printer':                   /\bprinter\b/,
+    'Headset / Webcam':          /headset|webcam|earphone|earbuds/,
+    'Docking Station / Charger': /dock(?:ing)?|charger|charging|power supply/,
+  },
+  'Software & Apps': {
+    'Microsoft Office / 365':   /\boffice\b|\bword\b|\bexcel\b|\bpowerpoint\b|\boutlook\b|onenote|365\b/,
+    'Web Browser':               /\bbrowser\b|\bchrome\b|\bfirefox\b|\bedge\b|\bsafari\b/,
+    'Company / Internal App':    /internal app|company app|portal\b|crm\b|erp\b|intranet|business app/,
+    'Operating System':          /\bwindows\b|\bmacos\b|\bos\b|bsod|blue screen|operating system|kernel/,
+    'Software Installation':     /\binstall\b|installation|setup\.exe|\.msi\b/,
+    'License / Activation':      /licen[sc]e|activation|product key|not activated/,
+  },
+  'Network & Connectivity': {
+    'No Internet / WiFi':      /no internet|no wifi|wifi.*not|internet.*not|can.t connect to internet/,
+    'VPN Not Working':         /\bvpn\b/,
+    'Slow Connection':         /slow.*(?:internet|connection|network)|bandwidth|speed test|lagg?/,
+    'Wired / Ethernet':        /ethernet|wired|rj.?45|lan\b/,
+    'Remote Access':           /\brdp\b|remote desktop|citrix|vmware horizon/,
+    'Firewall / Proxy Block':  /firewall|proxy|blocked.*site|access denied\b/,
+  },
+  'Access & Identity': {
+    'Password Reset':          /password reset|reset.*password|forgot.*password|change.*password/,
+    'Account Locked Out':      /locked out|account locked|lock(?:ed)?.out/,
+    'MFA / 2FA Problem':       /\bmfa\b|\b2fa\b|two.factor|authenticator app/,
+    'Permission Request':      /permission|need access|grant access|access request/,
+    'New User Onboarding':     /new user|new employee|new hire|onboard/,
+    'SSO / Single Sign-On':    /\bsso\b|single sign.on|saml\b|okta\b/,
+  },
+  'Email & Collaboration': {
+    'Outlook / Email Problem': /\boutlook\b|owa\b|webmail|email.*not.*working|cannot.*send.*email|email.*issue/,
+    'Microsoft Teams':         /\bteams\b|microsoft teams/,
+    'Zoom / Video Calls':      /\bzoom\b|video call|video meeting|webex\b|google meet/,
+    'Calendar & Scheduling':   /calendar\b|meeting\b|schedule|invite\b/,
+    'SharePoint / OneDrive':   /sharepoint|onedrive|one drive/,
+    'Distribution List':       /distribution list|mailing list|group email/,
+  },
+  'Data & Storage': {
+    'File / Folder Access Denied': /access denied.*file|cannot access.*file|folder.*permission/,
+    'Data Lost or Deleted':        /lost.*file|missing.*file|deleted.*file|data.*gone|data.*lost/,
+    'Drive or Disk Full':          /disk full|storage full|out of space|low disk space|c: drive full/,
+    'Backup & Restore':            /\bbackup\b|\brestore\b|data recovery/,
+    'USB / External Drive':        /usb\b|external.*drive|thumb drive|flash drive/,
+    'Cloud Storage Issue':         /onedrive.*sync|google drive|dropbox|cloud.*storage/,
+  },
+  'Audio & Video': {
+    'Microphone / Audio Input':    /\bmic\b|microphone/,
+    'Speaker / Audio Output':      /\bspeaker\b|no sound|audio out|sound.*not working/,
+    'Webcam / Camera':             /\bwebcam\b|\bcamera\b/,
+    'Screen Sharing':              /screen shar/,
+    'Bluetooth Audio Device':      /bluetooth.*(?:headset|speaker|audio)/,
+    'Meeting Room AV':             /meeting room|conference room|projector\b/,
+  },
+  'Mobile & Devices': {
+    'Work Phone Issue':            /work phone|company phone|corporate phone/,
+    'MDM / Intune Enrolment':     /\bmdm\b|\bintune\b|company portal|device enroll/,
+    'Lost / Stolen Device':        /lost.*(?:phone|device|laptop)|stolen.*(?:phone|device)|remote wipe/,
+    'Mobile App Problem':          /mobile app|phone app|tablet app/,
+  },
+  'Printing & Scanning': {
+    'Print Job Stuck in Queue':    /print queue|job stuck|stuck.*print/,
+    'Printer Shows Offline':       /printer.*offline|offline.*printer/,
+    'Paper Jam':                   /paper jam/,
+    'Scanner Not Working':         /\bscann?(?:er|ing)\b/,
+    'Toner / Ink Request':         /toner|ink cartridge/,
+  },
+  'Security & Compliance': {
+    'Phishing / Suspicious Email': /phish|suspicious.*email|suspicious link/,
+    'Malware or Virus Alert':      /malware|virus\b|ransomware/,
+    'Unauthorised Account Access': /hacked|unauthorized|account.*compromis/,
+    'Possible Data Breach':        /data breach|data.*leak/,
+    'Antivirus / EDR Alert':       /antivirus|crowdstrike|defender alert|edr\b|sentinelone/,
+  },
+};
+
+// ── NLP: detect subtype from free text for a given category ──────────────────
+const detectSubTypeFromHints = (text, category) => {
+  const hints = SUBTYPE_HINT_KEYWORDS[category];
+  if (!hints) return null;
+  const t = text.toLowerCase();
+  for (const [sub, pattern] of Object.entries(hints)) {
+    if (pattern.test(t)) return sub;
+  }
+  return null;
 };
 
 const PRIORITY_BG = {
@@ -605,7 +703,7 @@ const WelcomeScreen = ({ firstName }) => (
       {firstName ? `Hi ${firstName} 👋` : 'Hi there 👋'}
     </h1>
     <p className="text-[#3f3f46] text-[13px] text-center">
-      Describe your IT issue or pick a category below
+      Describe your IT issue — I'll auto-detect category, sub-type & priority
     </p>
   </div>
 );
@@ -618,7 +716,7 @@ const Chatbot = () => {
 
   const _initMsg = [{
     sender: 'bot',
-    message: `👋 Hi${_firstName ? ` ${_firstName}` : ''}! I'm HiTicket AI.\n\nDescribe your IT issue and I'll classify it automatically — or browse the categories below.\n\nYou can also:\n• Type a ticket ID (e.g. TKT-0012) to check its status\n• Type "check status" to see your recent tickets\n• Type "talk to agent" to reach a human agent`,
+    message: `👋 Hi${_firstName ? ` ${_firstName}` : ''}! I'm HiTicket AI.\n\nDescribe your IT issue in plain English — I'll automatically detect the category, sub-type, and priority for you.\n\nYou can also:\n• Type a ticket ID (e.g. TKT-0012) to check its status\n• Type "check status" to see your recent tickets\n• Type "talk to agent" to reach a human agent\n• Use **/template** to pick from pre-built request templates`,
     timestamp: ts(),
     msgTime: now(),
   }];
@@ -1125,10 +1223,48 @@ const Chatbot = () => {
       }
     }
 
-    const detected = pickedCat || detectCategory(text);
+    // Try direct match, then fallback to normalised text for NLP
+    const detected = pickedCat || detectCategory(text) || detectCategory(normalizeForNLP(text));
 
     if (detected) {
       const priority = detectPriority(text, detected, null);
+
+      // ── NLP smart-skip: if subtype is detectable from the initial message,
+      //    bypass step 2 and jump straight to step 3 (details) ──────────────
+      const autoSubType = !pickedCat && text.length > 30
+        ? detectSubTypeFromHints(text, detected) || detectSubTypeFromHints(normalizeForNLP(text), detected)
+        : null;
+
+      if (autoSubType) {
+        const refinedPriority = detectPriority(text, detected, autoSubType);
+        setTicketData((prev) => ({ ...prev, category: detected, subType: autoSubType, priority: refinedPriority, description: text }));
+        setFlowStep(3);
+
+        // Background duplicate check
+        setDupeChecking(true);
+        clearTimeout(dupeTimerRef.current);
+        dupeTimerRef.current = setTimeout(() => {
+          const words = text.split(/\s+/).filter(w => w.length > 4).slice(0, 6).join(' ');
+          api.get(`/tickets?q=${encodeURIComponent(words)}`)
+            .then(({ data }) => {
+              const similar = (data.tickets || []).filter(t => ['Open', 'In Progress'].includes(t.status));
+              setSimilarTickets(similar.slice(0, 3));
+            })
+            .catch(() => {})
+            .finally(() => setDupeChecking(false));
+        }, 600);
+
+        const cfg = CATEGORIES[detected];
+        const detailQ = cfg.detailQuestions[autoSubType] || cfg.detailQuestions[cfg.subTypes[0]];
+        botReply(
+          `I've analysed your message:\n\n🏷 **${detected}** → **${autoSubType}**\n⚡ Priority detected: **${refinedPriority}**\n\n${detailQ}`,
+          900,
+          () => { setChipType('detail'); setQuickReplies(cfg.detailChips || []); }
+        );
+        return;
+      }
+
+      // Standard step-2 path
       setTicketData((prev) => ({ ...prev, category: detected, priority, description: text }));
       setFlowStep(2);
 
@@ -1178,7 +1314,7 @@ const Chatbot = () => {
         });
     } else {
       botReply(
-        "I couldn't automatically classify that. Please pick a category below or try rephrasing with the device or app name:",
+        "I couldn't automatically classify your issue. Try including the **device name**, **app name**, or **error message** in your description — or pick a category below:",
         800,
         () => setChipType('category')
       );
@@ -1505,9 +1641,11 @@ const Chatbot = () => {
   // Intent detection badge while typing
   useEffect(() => {
     if (!input || input.length < 6 || flowStep !== 1) { setIntentBadge(null); return; }
-    const detected = detectCategory(input);
+    const detected = detectCategory(input) || detectCategory(normalizeForNLP(input));
     if (detected) {
-      setIntentBadge({ label: detected, color: CATEGORIES[detected].color });
+      const subType = detectSubTypeFromHints(input, detected) || detectSubTypeFromHints(normalizeForNLP(input), detected);
+      const label = subType ? `${detected} › ${subType}` : detected;
+      setIntentBadge({ label, color: CATEGORIES[detected].color });
     } else {
       setIntentBadge(null);
     }

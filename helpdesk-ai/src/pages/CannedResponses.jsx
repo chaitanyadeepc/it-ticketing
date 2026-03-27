@@ -25,7 +25,7 @@ export default function CannedResponses() {
 
   const load = async () => {
     setLoading(true);
-    try { const { data } = await api.get('/canned-responses'); setItems(data.cannedResponses || []); }
+    try { const { data } = await api.get('/canned-responses'); setItems(data.responses || data.cannedResponses || []); }
     catch { /* ignore */ } finally { setLoading(false); }
   };
 

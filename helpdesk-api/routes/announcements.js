@@ -31,11 +31,14 @@ router.get('/', protect, adminOnly, async (req, res) => {
 // POST /api/announcements — create (admin only)
 router.post('/', protect, adminOnly, async (req, res) => {
   try {
-    const { message, type, expiresAt } = req.body;
-    if (!message?.trim()) return res.status(400).json({ error: 'Message is required' });
+    const { title, body, message, type, expiresAt, isActive } = req.body;
+    const content = (body || message || '').trim();
+    if (!content) return res.status(400).json({ error: 'Message is required' });
     const ann = await Announcement.create({
-      message: message.trim(),
+      title: (title || '').trim(),
+      message: content,
       type: type || 'info',
+      isActive: isActive !== undefined ? !!isActive : true,
       expiresAt: expiresAt ? new Date(expiresAt) : null,
       createdBy: req.user._id,
       createdByName: req.user.name,
@@ -49,9 +52,11 @@ router.post('/', protect, adminOnly, async (req, res) => {
 // PATCH /api/announcements/:id — update (admin only)
 router.patch('/:id', protect, adminOnly, async (req, res) => {
   try {
-    const { message, type, isActive, expiresAt } = req.body;
+    const { title, body, message, type, isActive, expiresAt } = req.body;
     const update = {};
-    if (message !== undefined)   update.message   = message.trim();
+    if (title !== undefined)     update.title     = (title || '').trim();
+    const content = body ?? message;
+    if (content !== undefined)   update.message   = (content || '').trim();
     if (type !== undefined)      update.type      = type;
     if (isActive !== undefined)  update.isActive  = !!isActive;
     if (expiresAt !== undefined) update.expiresAt = expiresAt ? new Date(expiresAt) : null;

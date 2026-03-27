@@ -39,7 +39,7 @@ export default function Announcements() {
   const resetForm = () => { setForm(EMPTY); setEditId(null); };
 
   const startEdit = (item) => {
-    setForm({ title: item.title, body: item.body, type: item.type || 'info', isActive: item.isActive });
+    setForm({ title: item.title || '', body: item.message || item.body || '', type: item.type || 'info', isActive: item.isActive });
     setEditId(item._id);
   };
 
@@ -181,7 +181,7 @@ export default function Announcements() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-2 mb-1">
-                            <span className="text-[13px] font-semibold text-[#fafafa]">{item.title}</span>
+                            <span className="text-[13px] font-semibold text-[#fafafa]">{item.title || item.type?.charAt(0).toUpperCase() + item.type?.slice(1) + ' Announcement'}</span>
                             <span className={`text-[10px] px-2 py-0.5 rounded-full border capitalize ${cfg.badge}`}>
                               {item.type}
                             </span>
@@ -189,7 +189,7 @@ export default function Announcements() {
                               <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#27272a] border border-[#3f3f46] text-[#52525b]">Inactive</span>
                             )}
                           </div>
-                          <p className="text-[12px] text-[#a1a1aa] leading-relaxed line-clamp-2">{item.body}</p>
+                          <p className="text-[12px] text-[#a1a1aa] leading-relaxed line-clamp-2">{item.message || item.body}</p>
                           <p className="text-[11px] text-[#52525b] mt-1.5">
                             {new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                           </p>

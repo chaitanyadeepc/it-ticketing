@@ -228,25 +228,47 @@
 .bg-\[\#0e1f0e\]  { background-color: var(--color-success-subtle) !important; }
 .bg-\[\#0e131f\]  { background-color: var(--color-accent-subtle) !important; }
 
+/* Extra dark / inset backgrounds — often used for inputs, sidebars, code areas */
+.bg-\[\#111113\]  { background-color: var(--color-canvas-inset) !important; }
+.bg-\[\#0a0a0b\]  { background-color: var(--color-canvas-default) !important; }
+.bg-\[\#0d0d0f\]  { background-color: var(--color-canvas-default) !important; }
+.bg-\[\#0f0f11\]  { background-color: var(--color-canvas-default) !important; }
+.bg-\[\#1a1a1d\]  { background-color: var(--color-neutral-subtle) !important; }
+.bg-\[\#1f1f22\]  { background-color: var(--color-border-muted) !important; }
+
 /* Hover backgrounds */
 .hover\:bg-\[\#09090b\]:hover { background-color: var(--color-canvas-default) !important; }
 .hover\:bg-\[\#18181b\]:hover { background-color: var(--color-neutral-subtle) !important; }
 .hover\:bg-\[\#27272a\]:hover { background-color: var(--color-neutral-subtle) !important; }
 .hover\:bg-\[\#3f3f46\]:hover { background-color: var(--color-btn-hover-bg) !important; }
 .hover\:bg-\[\#2a1010\]:hover { background-color: var(--color-danger-subtle) !important; }
+.hover\:bg-\[\#1a1a1d\]:hover { background-color: var(--color-neutral-subtle) !important; }
+.hover\:bg-\[\#1c1c1f\]:hover { background-color: var(--color-neutral-subtle) !important; }
+.hover\:bg-\[\#222226\]:hover { background-color: var(--color-neutral-subtle) !important; }
+.active\:bg-\[\#222226\]:active { background-color: var(--color-neutral-muted) !important; }
+.active\:bg-\[\#1a1a1d\]:active { background-color: var(--color-neutral-muted) !important; }
 
 /* Borders */
 .border-\[\#27272a\]  { border-color: var(--color-border-default) !important; }
 .border-\[\#3f3f46\]  { border-color: var(--color-border-strong, #484f58) !important; }
 .border-\[\#52525b\]  { border-color: var(--color-border-default) !important; }
+.border-\[\#1f1f22\]  { border-color: var(--color-border-muted) !important; }
+.divide-\[\#1a1a1c\] > * + * { border-color: var(--color-border-muted) !important; }
 
 /* Text */
 .text-\[\#fafafa\]  { color: var(--color-fg-default)   !important; }
 .text-\[\#e4e4e7\]  { color: var(--color-fg-default)   !important; }
+.text-\[\#d4d4d8\]  { color: var(--color-fg-default)   !important; }
 .text-\[\#a1a1aa\]  { color: var(--color-fg-muted)     !important; }
 .text-\[\#71717a\]  { color: var(--color-fg-muted)     !important; }
 .text-\[\#52525b\]  { color: var(--color-fg-subtle)    !important; }
+.text-\[\#3f3f46\]  { color: var(--color-fg-subtle)    !important; }
 .hover\:text-\[\#fafafa\]:hover { color: var(--color-fg-default) !important; }
+.hover\:text-\[\#d4d4d8\]:hover { color: var(--color-fg-default) !important; }
+.hover\:text-\[\#e4e4e7\]:hover { color: var(--color-fg-default) !important; }
+
+/* Placeholders for chatbot sidebar search and dark inputs */
+.placeholder-\[\#3f3f46\]::placeholder { color: var(--color-fg-subtle) !important; }
 
 /* Accent colours */
 .text-\[\#3b82f6\]  { color: var(--color-accent-fg)       !important; }
