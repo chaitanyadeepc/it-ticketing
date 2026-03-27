@@ -1746,6 +1746,29 @@ function SnippetCard({ snippet, isAdmin, onClick, onEdit, onDelete, relativeTime
   const isMultiFile = fileBlocks.length > 0;
   const preview = isZip ? '' : snippet.content.slice(0, 300);
 
+  const [cardDownloading, setCardDownloading] = useState(false);
+  const handleCardDownload = async (e) => {
+    e.stopPropagation();
+    if (cardDownloading) return;
+    setCardDownloading(true);
+    try {
+      const res = await api.get(`/script-vault/${snippet._id}/download`, {
+        responseType: 'blob',
+        timeout: 0,
+      });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = snippet.zipName || `${snippet.title.replace(/[^a-zA-Z0-9_\-]/g, '_')}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch { /* ignore */ } finally {
+      setCardDownloading(false);
+    }
+  };
+
   return (
     <div
       className="group relative flex flex-col rounded-2xl border overflow-hidden cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/40"
