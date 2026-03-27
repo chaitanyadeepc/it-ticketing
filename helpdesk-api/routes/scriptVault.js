@@ -1,16 +1,18 @@
-const express = require('express');
-const zlib    = require('zlib');
+const express  = require('express');
+const zlib     = require('zlib');
 const archiver = require('archiver');
-const multer  = require('multer');
+const multer   = require('multer');
+const mongoose = require('mongoose');
+const { GridFSBucket } = require('mongodb');
 const ScriptVault = require('../models/ScriptVault');
 const { protect, adminOnly } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Multer: accept zip files into memory (max 12 MB — stays under MongoDB 16 MB doc limit)
+// Multer: accept zip files into memory (50 MB limit — large files go to GridFS, not the document)
 const zipUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 12 * 1024 * 1024 },
+  limits: { fileSize: 50 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const ok = file.mimetype === 'application/zip' ||
                file.mimetype === 'application/x-zip-compressed' ||
@@ -19,6 +21,31 @@ const zipUpload = multer({
     cb(ok ? null : new Error('Only .zip files are accepted'), ok);
   },
 });
+
+// ── GridFS bucket (lazy — only created after mongoose connects) ───────────────
+let _zipBucket = null;
+const getZipBucket = () => {
+  if (!_zipBucket) {
+    _zipBucket = new GridFSBucket(mongoose.connection.db, { bucketName: 'scriptvault_zips' });
+  }
+  return _zipBucket;
+};
+
+// Store a Buffer in GridFS and return the GridFS file ObjectId
+const storeInGridFS = (buffer, filename, metadata = {}) =>
+  new Promise((resolve, reject) => {
+    const bucket = getZipBucket();
+    const uploadStream = bucket.openUploadStream(filename, { metadata });
+    uploadStream.on('finish', () => resolve(uploadStream.id));
+    uploadStream.on('error', reject);
+    uploadStream.end(buffer);
+  });
+
+// Delete a GridFS file by its ObjectId (no-op if not found)
+const deleteFromGridFS = async (id) => {
+  if (!id) return;
+  try { await getZipBucket().delete(id); } catch { /* already gone */ }
+};
 
 // All routes require authentication
 router.use(protect);
@@ -70,11 +97,9 @@ const parseFileBlocks = (content) => {
 };
 
 // ── Serialize a snippet doc to a plain JSON-friendly object ──────────────────
-// zipBuffer is never sent over the API — it's binary and can be large.
 const serializeSnippet = async (doc) => {
   const plain = typeof doc.toObject === 'function' ? doc.toObject() : { ...doc };
   plain.content = await getContent(doc);
-  delete plain.zipBuffer;
   return plain;
 };
 
@@ -122,7 +147,6 @@ router.get('/has-access', async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     const docs = await ScriptVault.find(buildFilter(req.user))
-      .select('-zipBuffer')   // never send binary data in list
       .populate('allowedUsers', 'name email role')
       .sort({ updatedAt: -1 });
     const snippets = await Promise.all(docs.map(serializeSnippet));
@@ -136,7 +160,6 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const doc = await ScriptVault.findById(req.params.id)
-      .select('-zipBuffer')   // never send binary data
       .populate('allowedUsers', 'name email role');
     if (!doc) return res.status(404).json({ error: 'Snippet not found' });
     if (!canView(doc, req.user)) {
@@ -162,16 +185,17 @@ router.get('/:id/download', async (req, res) => {
       return res.status(403).json({ error: 'You do not have access to this snippet' });
     }
 
-    // ── Raw zip: serve the original file unchanged ──────────────────────────
-    if (doc.isZip && doc.zipBuffer) {
-      const buf = Buffer.isBuffer(doc.zipBuffer)
-        ? doc.zipBuffer
-        : Buffer.from(doc.zipBuffer.buffer || doc.zipBuffer);
+    // ── Raw zip: stream directly from GridFS ───────────────────────────────
+    if (doc.isZip && doc.gridfsId) {
       const filename = doc.zipName || `${doc.title.replace(/[^a-zA-Z0-9_\-]/g, '_')}.zip`;
       res.setHeader('Content-Type', 'application/zip');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-      res.setHeader('Content-Length', buf.length);
-      return res.send(buf);
+      if (doc.zipSize) res.setHeader('Content-Length', doc.zipSize);
+      const downloadStream = getZipBucket().openDownloadStream(doc.gridfsId);
+      downloadStream.on('error', (err) => {
+        if (!res.headersSent) res.status(500).json({ error: 'File not found in storage' });
+      });
+      return downloadStream.pipe(res);
     }
 
     // ── Text/multi-file snippet: build zip on the fly ────────────────────────
@@ -286,6 +310,8 @@ router.delete('/:id', adminOnly, async (req, res) => {
   try {
     const snippet = await ScriptVault.findByIdAndDelete(req.params.id);
     if (!snippet) return res.status(404).json({ error: 'Snippet not found' });
+    // Also remove the GridFS file if this was a zip snippet
+    if (snippet.gridfsId) await deleteFromGridFS(snippet.gridfsId);
     res.json({ message: 'Snippet deleted' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -308,6 +334,12 @@ router.post('/upload-zip', adminOnly, zipUpload.single('file'), async (req, res)
     const placeholder = `// zip: ${originalName}`;
     const compressed  = await compress(placeholder);
 
+    // Store the zip bytes in GridFS (no MongoDB document size limit)
+    const gridfsId = await storeInGridFS(req.file.buffer, originalName, {
+      uploadedBy: req.user._id,
+      snippetTitle: title,
+    });
+
     const doc = await ScriptVault.create({
       title,
       content: compressed,
@@ -321,7 +353,7 @@ router.post('/upload-zip', adminOnly, zipUpload.single('file'), async (req, res)
       isZip:       true,
       zipName:     originalName,
       zipSize:     req.file.size,
-      zipBuffer:   req.file.buffer,
+      gridfsId,
     });
     await doc.populate('allowedUsers', 'name email role');
     const snippet = await serializeSnippet(doc);
