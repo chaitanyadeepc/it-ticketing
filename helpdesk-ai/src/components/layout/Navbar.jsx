@@ -133,31 +133,15 @@ const Navbar = () => {
     setIsMobileMenuOpen(false);
   }, [location.pathname]);
 
-  // Fetch recent ticket updates for notifications
+  // Fetch real notifications from the DB
   useEffect(() => {
     const isAuth = !!localStorage.getItem('token') && localStorage.getItem('isAuthenticated') === 'true';
     if (!isAuth) return;
     const fetchNotifications = async () => {
       try {
-        const [ticketRes, overdueRes] = await Promise.all([
-          api.get('/tickets?limit=5'),
-          api.get('/tickets?overdue=true'),
-        ]);
-        const tickets = ticketRes.data.tickets || [];
-        const recent = tickets
-          .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
-          .slice(0, 5)
-          .map(t => ({
-            id: t._id,
-            title: t.title,
-            status: t.status,
-            ticketId: t.ticketId || t._id.slice(-6).toUpperCase(),
-            updatedAt: t.updatedAt,
-          }));
-        const stored = JSON.parse(sessionStorage.getItem('hd_read_notifs') || '[]');
-        setNotifications(recent);
-        setUnreadCount(recent.filter(n => !stored.includes(n.id)).length);
-        setOverdueCount((overdueRes.data.tickets || []).length);
+        const { data } = await api.get('/notifications');
+        setNotifications(data.notifications || []);
+        setUnreadCount(data.unreadCount || 0);
       } catch { /* silent */ }
     };
     fetchNotifications();
@@ -174,10 +158,21 @@ const Navbar = () => {
       .catch(() => setHasSharedSnippets(false));
   }, [location.pathname]);
 
-  const markAllRead = () => {
-    const ids = notifications.map(n => n.id);
-    sessionStorage.setItem('hd_read_notifs', JSON.stringify(ids));
-    setUnreadCount(0);
+  // Check overdue tickets separately
+  useEffect(() => {
+    const isAuth = !!localStorage.getItem('token') && localStorage.getItem('isAuthenticated') === 'true';
+    if (!isAuth) return;
+    api.get('/tickets?overdue=true')
+      .then(({ data }) => setOverdueCount((data.tickets || []).length))
+      .catch(() => {});
+  }, [location.pathname]);
+
+  const markAllRead = async () => {
+    try {
+      await api.patch('/notifications/read-all');
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+      setUnreadCount(0);
+    } catch { /* silent */ }
   };
 
   const timeAgo = (date) => {
@@ -391,7 +386,7 @@ const Navbar = () => {
             {/* Bell */}
             <div className="relative" ref={bellRef}>
               <button
-                onClick={() => { setIsBellOpen(v => !v); if (!isBellOpen) markAllRead(); }}
+                onClick={() => { setIsBellOpen(v => !v); }}
                 className="relative p-2 rounded-md text-[rgba(255,255,255,0.7)] hover:text-white hover:bg-[rgba(255,255,255,0.1)] transition-colors"
               >
                 <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
@@ -402,35 +397,72 @@ const Navbar = () => {
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
-                {unreadCount === 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--color-danger-fg)' }} />
-                )}
               </button>
 
               {isBellOpen && (
-                <div className="absolute right-0 top-10 w-64 sm:w-72 rounded-xl shadow-2xl shadow-black/50 border notif-enter z-50 overflow-hidden"
+                <div className="absolute right-0 top-10 w-72 sm:w-80 rounded-xl shadow-2xl shadow-black/50 border notif-enter z-50 overflow-hidden"
                   style={{ backgroundColor: 'var(--color-canvas-overlay)', borderColor: 'var(--color-border-default)' }}>
+                  {/* Dropdown header */}
                   <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--color-border-muted)' }}>
-                    <span className="text-[13px] font-semibold" style={{ color: 'var(--color-fg-default)' }}>Recent Updates</span>
-                    <span className="text-[11px]" style={{ color: 'var(--color-fg-subtle)' }}>Last 5 tickets</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[13px] font-semibold" style={{ color: 'var(--color-fg-default)' }}>Notifications</span>
+                      {unreadCount > 0 && (
+                        <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white" style={{ backgroundColor: '#ef4444' }}>
+                          {unreadCount}
+                        </span>
+                      )}
+                    </div>
+                    {unreadCount > 0 && (
+                      <button onClick={() => { markAllRead(); }}
+                        className="text-[11px] transition-colors hover:underline"
+                        style={{ color: 'var(--color-accent-fg)' }}>
+                        Mark all read
+                      </button>
+                    )}
                   </div>
+
+                  {/* Notification items */}
                   {notifications.length === 0 ? (
-                    <div className="px-4 py-6 text-center text-[12px]" style={{ color: 'var(--color-fg-subtle)' }}>No recent activity</div>
+                    <div className="px-4 py-8 text-center">
+                      <p className="text-2xl mb-2">🔕</p>
+                      <p className="text-[12px]" style={{ color: 'var(--color-fg-subtle)' }}>No notifications yet</p>
+                    </div>
                   ) : (
-                    <div className="divide-y" style={{ borderColor: 'var(--color-border-muted)' }}>
-                      {notifications.map(n => {
-                        const STATUS_COLOR = { 'Open': '#22c55e', 'In Progress': '#f59e0b', 'Resolved': '#06b6d4', 'Closed': '#71717a' };
-                        const col = STATUS_COLOR[n.status] || '#a1a1aa';
+                    <div className="divide-y max-h-[360px] overflow-y-auto" style={{ borderColor: 'var(--color-border-muted)' }}>
+                      {notifications.slice(0, 8).map(n => {
+                        const TYPE_ICON_BELL = { ticket_update: '🎫', comment: '💬', assignment: '👤', sla_breach: '🚨', due_date: '⏰', auto_close: '🔒', mention: '@', system: '⚙️' };
+                        const TYPE_COLOR_BELL = { ticket_update: '#3b82f6', comment: '#a78bfa', assignment: '#34d399', sla_breach: '#ef4444', due_date: '#f59e0b', auto_close: '#6b7280', mention: '#f472b6', system: '#94a3b8' };
+                        const color = TYPE_COLOR_BELL[n.type] || '#94a3b8';
                         return (
-                          <button key={n.id}
-                            onClick={() => { navigate(`/tickets/${n.id}`); setIsBellOpen(false); }}
-                            className="w-full text-left px-4 py-3 hover:bg-[rgba(255,255,255,0.04)] transition-colors">
-                            <div className="flex items-start gap-2">
-                              <span className="w-2 h-2 rounded-full flex-shrink-0 mt-1.5" style={{ backgroundColor: col }} />
+                          <button key={n._id}
+                            onClick={async () => {
+                              if (!n.isRead) {
+                                await api.patch(`/notifications/${n._id}/read`).catch(() => {});
+                                setNotifications(prev => prev.map(x => x._id === n._id ? { ...x, isRead: true } : x));
+                                setUnreadCount(prev => Math.max(0, prev - 1));
+                              }
+                              if (n.link) navigate(n.link);
+                              setIsBellOpen(false);
+                            }}
+                            className="w-full text-left px-4 py-3 transition-colors hover:bg-[rgba(255,255,255,0.04)] relative">
+                            {!n.isRead && (
+                              <span className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#FF634A' }} />
+                            )}
+                            <div className="flex items-start gap-2.5">
+                              <div className="shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-sm"
+                                style={{ backgroundColor: `${color}18`, border: `1px solid ${color}25` }}>
+                                {TYPE_ICON_BELL[n.type] || '🔔'}
+                              </div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-[12px] font-medium truncate" style={{ color: 'var(--color-fg-default)' }}>{n.title}</p>
-                                <p className="text-[11px] mt-0.5" style={{ color: 'var(--color-fg-subtle)' }}>
-                                  <span style={{ color: col }}>{n.status}</span> · #{n.ticketId} · {timeAgo(n.updatedAt)}
+                                <p className="text-[12px] font-medium leading-snug truncate"
+                                  style={{ color: n.isRead ? 'var(--color-fg-muted)' : 'var(--color-fg-default)' }}>
+                                  {n.title}
+                                </p>
+                                <p className="text-[11px] mt-0.5 truncate" style={{ color: 'var(--color-fg-subtle)' }}>
+                                  {n.message}
+                                </p>
+                                <p className="text-[10px] mt-0.5" style={{ color: 'var(--color-fg-subtle)' }}>
+                                  {timeAgo(n.createdAt)}
                                 </p>
                               </div>
                             </div>
@@ -439,10 +471,13 @@ const Navbar = () => {
                       })}
                     </div>
                   )}
+
+                  {/* Footer link */}
                   <div className="px-4 py-2.5 border-t" style={{ borderColor: 'var(--color-border-muted)' }}>
                     <button onClick={() => { navigate('/notifications'); setIsBellOpen(false); }}
-                      className="text-[12px] w-full text-center" style={{ color: 'var(--color-accent-fg)' }}>
-                      View notification center →
+                      className="text-[12px] w-full text-center transition-colors hover:underline"
+                      style={{ color: 'var(--color-accent-fg)' }}>
+                      View all notifications →
                     </button>
                   </div>
                 </div>
