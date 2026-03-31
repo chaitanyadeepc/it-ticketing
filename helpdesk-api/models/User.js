@@ -26,6 +26,9 @@ const userSchema = new mongoose.Schema(
       pendingOtp:       { type: String, select: false },
       pendingOtpExpiry: { type: Date,   select: false },
     },
+    // Password-reset OTP (separate from 2FA OTP)
+    resetOtp:       { type: String, select: false },
+    resetOtpExpiry: { type: Date,   select: false },
   },
   { timestamps: true }
 );

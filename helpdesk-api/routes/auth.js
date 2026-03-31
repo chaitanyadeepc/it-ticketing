@@ -5,7 +5,7 @@ const QRCode = require('qrcode');
 const rateLimit = require('express-rate-limit');
 const User = require('../models/User');
 const { protect } = require('../middleware/auth');
-const { sendOTPEmail } = require('../utils/email');
+const { sendOTPEmail, sendPasswordResetEmail } = require('../utils/email');
 
 const router = express.Router();
 
@@ -311,6 +311,68 @@ router.post('/2fa/disable', protect, async (req, res) => {
 // ─── GET /api/auth/me ─────────────────────────────────────────────────────────
 router.get('/me', protect, (req, res) => {
   res.json({ user: req.user });
+});
+
+// ─── POST /api/auth/forgot-password ──────────────────────────────────────────
+// Send a 6-digit OTP to the user's email for password reset
+router.post('/forgot-password', otpLimiter, async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    // Always respond with success to prevent user enumeration
+    if (!user || !user.isActive) {
+      return res.json({ sent: true });
+    }
+
+    const otp = generateOTP();
+    user.resetOtp = otp;
+    user.resetOtpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+    await user.save({ validateBeforeSave: false });
+
+    sendPasswordResetEmail(user.email, user.name, otp).catch((e) =>
+      console.error('[reset] OTP email error:', e.message)
+    );
+    res.json({ sent: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── POST /api/auth/reset-password ───────────────────────────────────────────
+// Verify OTP and set new password
+router.post('/reset-password', authLimiter, async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+    if (!email || !otp || !newPassword)
+      return res.status(400).json({ error: 'Email, OTP and new password are required' });
+    if (newPassword.length < 6)
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() })
+      .select('+resetOtp +resetOtpExpiry +password +tokenVersion');
+    if (!user)
+      return res.status(400).json({ error: 'Invalid or expired reset code' });
+    if (!user.resetOtp || !user.resetOtpExpiry)
+      return res.status(400).json({ error: 'No reset code found. Please request a new one.' });
+    if (new Date() > new Date(user.resetOtpExpiry))
+      return res.status(400).json({ error: 'Reset code has expired. Please request a new one.' });
+    if (otp !== user.resetOtp)
+      return res.status(400).json({ error: 'Incorrect reset code. Try again.' });
+
+    // Set new password (pre-save hook hashes it automatically)
+    user.password = newPassword;
+    user.resetOtp = undefined;
+    user.resetOtpExpiry = undefined;
+    // Invalidate all existing sessions
+    user.tokenVersion = (Number.isFinite(user.tokenVersion) ? user.tokenVersion : 0) + 1;
+    await user.save();
+
+    res.json({ success: true, message: 'Password updated successfully. Please sign in.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;

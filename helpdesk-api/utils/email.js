@@ -303,8 +303,25 @@ const sendWeeklyDigest = async (user, stats) => {
   );
 };
 
+const sendPasswordResetEmail = async (to, name, otp) => {
+  await send(
+    to,
+    '[HiTicket] Password Reset Code',
+    wrap(
+      'Reset your password',
+      `<p>Hi ${name},</p>
+       <p>You requested a password reset. Use the code below — it expires in <strong>10 minutes</strong>.</p>
+       <div style="text-align:center;margin:28px 0">
+         <span style="font-size:40px;font-weight:800;letter-spacing:16px;font-family:'Courier New',monospace;color:#fafafa;background:#27272a;padding:18px 28px;border-radius:12px;border:1px solid #3f3f46;display:inline-block">${otp}</span>
+       </div>
+       <p style="color:#52525b;font-size:13px">If you didn't request this, you can safely ignore this email — your password has not changed.</p>`
+    )
+  );
+};
+
 module.exports = {
   sendTicketCreated, sendStatusChanged, sendCommentAdded, sendOTPEmail,
+  sendPasswordResetEmail,
   sendWeeklyDigest, sendTicketAssigned, sendAutoClosedNotification,
   sendSLAEscalated, sendDueDateReminder,
 };
