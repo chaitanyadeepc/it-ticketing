@@ -4,6 +4,46 @@ import PageWrapper from '../components/layout/PageWrapper';
 import Breadcrumb from '../components/layout/Breadcrumb';
 import api from '../api/api';
 
+// ── Word / PDF extraction helpers ─────────────────────────────────────────────
+// Extracts raw text from a .docx file using mammoth (browser bundle)
+const extractDocx = async (file) => {
+  const mammoth = (await import('mammoth/mammoth.browser')).default;
+  const arrayBuffer = await file.arrayBuffer();
+  const result = await mammoth.extractRawText({ arrayBuffer });
+  return result.value || '';
+};
+
+// Extracts text from a .pdf file using pdfjs-dist (lazy loaded)
+const extractPdf = async (file) => {
+  const pdfjsLib = await import('pdfjs-dist');
+  // Use CDN worker to avoid bundling the large worker file
+  if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+  }
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  let text = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    text += content.items.map(item => item.str).join(' ') + '\n';
+  }
+  return text.trim();
+};
+
+// Returns true if a file is a binary type we can handle (Word/PDF)
+const isBinaryDoc = (filename) =>
+  /\.(docx|pdf)$/i.test(filename);
+
+// Extract content from any supported file type
+const extractFileContent = async (file) => {
+  const name = file.name || '';
+  if (/\.docx$/i.test(name)) return extractDocx(file);
+  if (/\.pdf$/i.test(name)) return extractPdf(file);
+  return file.text();
+};
+
 // ── Zip extraction helper (browser-side) ─────────────────────────────────────
 // Returns array of { filePath, code } blocks from a zip File/Blob.
 // Skips __MACOSX, .DS_Store and binary files (non-UTF-8).
@@ -880,7 +920,7 @@ function ContributeModal({ snippet, onSave, onClose, saving }) {
     try {
       const sorted = [...files].sort((a, b) => getPath(a).localeCompare(getPath(b)));
       const blocks = await Promise.all(sorted.map(async (f) => {
-        const text = await f.text();
+        const text = await extractFileContent(f);
         return { filePath: getPath(f), code: text };
       }));
       setPendingBlocks(blocks);
@@ -1073,9 +1113,9 @@ function ContributeModal({ snippet, onSave, onClose, saving }) {
           {/* Upload Files mode */}
           {mode === 'files' && (
             <>
-              <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFiles} />
+              <input ref={fileInputRef} type="file" multiple accept="*/*,.docx,.pdf" className="hidden" onChange={handleFiles} />
               {pendingBlocks.length === 0
-                ? <DropZone onClick={() => fileInputRef.current?.click()} label="Click to select files" sublabel="Multiple files supported" />
+                ? <DropZone onClick={() => fileInputRef.current?.click()} label="Click to select files" sublabel="Code, .docx, .pdf or any text file" />
                 : <PendingList onChangeClick={() => fileInputRef.current?.click()} />
               }
             </>
@@ -1267,7 +1307,8 @@ function EditorModal({ initial, onSave, onClose, saving }) {
             setMeta(m => ({ ...m, title: f.name.replace(/\.zip$/i, '') }));
           }
         } else {
-          const code = await f.text();
+          // Handles .docx, .pdf, and plain text files
+          const code = await extractFileContent(f);
           const id = (++nextId.current) * 10000 + (Date.now() % 10000);
           allAdded.push({ id, filePath: f.name, code });
         }
@@ -1286,7 +1327,8 @@ function EditorModal({ initial, onSave, onClose, saving }) {
     try {
       const allAdded = [];
       for (const f of rawFiles) {
-        if (f.name.toLowerCase().endsWith('.zip')) {
+        const lname = f.name.toLowerCase();
+        if (lname.endsWith('.zip')) {
           const extracted = await extractZip(f);
           for (const b of extracted) {
             const id = (++nextId.current) * 10000 + (Date.now() % 10000);
@@ -1296,7 +1338,8 @@ function EditorModal({ initial, onSave, onClose, saving }) {
             setMeta(m => ({ ...m, title: f.name.replace(/\.zip$/i, '') }));
           }
         } else {
-          const code = await f.text();
+          // Handles .docx, .pdf, and plain text files
+          const code = await extractFileContent(f);
           const id = (++nextId.current) * 10000 + (Date.now() % 10000);
           allAdded.push({ id, filePath: getName(f), code });
         }
@@ -1552,7 +1595,7 @@ function EditorModal({ initial, onSave, onClose, saving }) {
                 Files ({files.length})
               </span>
               <div className="flex items-center gap-0.5">
-                <input ref={fileInputRef} type="file" multiple accept="*/*,.zip" className="hidden" onChange={handleFileInput} />
+                <input ref={fileInputRef} type="file" multiple accept="*/*,.zip,.docx,.pdf" className="hidden" onChange={handleFileInput} />
                 <input ref={folderInputRef} type="file" webkitdirectory="true" directory="true" multiple className="hidden" onChange={handleFolderInput} />
                 <button type="button" onClick={() => fileInputRef.current?.click()}
                   className="p-1 rounded text-[rgba(255,255,255,0.3)] hover:text-white hover:bg-white/8 transition-all" title="Upload files (zip supported)">
@@ -1696,7 +1739,7 @@ function EditorModal({ initial, onSave, onClose, saving }) {
                 <svg className="w-10 h-10 text-[#FF634A]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                 </svg>
-                <p className="text-[14px] font-semibold text-[#FF634A]">Drop files or a .zip to add them</p>
+                <p className="text-[14px] font-semibold text-[#FF634A]">Drop files, .zip, .docx or .pdf to add them</p>
               </div>
             )}
           </div>
@@ -1953,6 +1996,344 @@ const relativeTime = (dateStr) => {
   return new Date(dateStr).toLocaleDateString();
 };
 
+// ── Sidebar script list item ─────────────────────────────────────────────────
+function ScriptSidebarItem({ snippet, isSelected, isAdmin, onClick, onEdit, onDelete }) {
+  const isZip = !!snippet.isZip;
+  const color = isZip ? '#f59e0b' : getLangColor(snippet.language);
+  const blocks = isZip ? [] : parseFileBlocks(snippet.content || '');
+  const fileCount = blocks.filter(b => b.filePath).length;
+
+  return (
+    <div
+      className="group relative flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors select-none"
+      style={{
+        backgroundColor: isSelected ? 'rgba(255,99,74,0.12)' : undefined,
+        borderLeft: `2px solid ${isSelected ? '#FF634A' : 'transparent'}`,
+      }}
+      onClick={onClick}
+    >
+      {/* Language / type dot */}
+      <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+
+      {/* Title + meta */}
+      <div className="flex-1 min-w-0">
+        <p className="text-[12.5px] truncate leading-snug"
+          style={{ color: isSelected ? '#fff' : 'rgba(255,255,255,0.72)' }}>
+          {snippet.title}
+        </p>
+        <p className="text-[10.5px] text-[rgba(255,255,255,0.3)] leading-none mt-0.5 truncate">
+          {isZip ? 'zip' : snippet.language}
+          {fileCount > 0 && ` · ${fileCount} files`}
+          {snippet.updatedAt && ` · ${relativeTime(snippet.updatedAt)}`}
+        </p>
+      </div>
+
+      {/* Hover admin actions */}
+      {isAdmin && (
+        <div
+          className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 flex-shrink-0 transition-opacity"
+          onClick={e => e.stopPropagation()}
+        >
+          {!isZip && (
+            <button
+              onClick={() => onEdit(snippet)}
+              className="p-1 rounded text-[rgba(255,255,255,0.3)] hover:text-white hover:bg-white/10 transition-colors"
+              title="Edit"
+            >
+              <EditIcon />
+            </button>
+          )}
+          <button
+            onClick={() => onDelete(snippet)}
+            className="p-1 rounded text-[rgba(255,255,255,0.3)] hover:text-red-400 hover:bg-red-500/10 transition-colors"
+            title="Delete"
+          >
+            <TrashIcon />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Inline script view (VS Code right panel) ─────────────────────────────────
+// Same content as SnippetModal but rendered inline (no modal overlay)
+function InlineScriptView({ snippet, isAdmin, onEdit, onDelete, onContribute, onSaveInline }) {
+  const [copiedAll, copyAll] = useCopyState();
+  const [downloading, setDownloading] = useState(false);
+  const [showContribute, setShowContribute] = useState(false);
+  const [contribSaving, setContribSaving] = useState(false);
+
+  const [editingIdx, setEditingIdx] = useState(null);
+  const [editValue, setEditValue] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+
+  const startInlineEdit = (idx) => { setEditingIdx(idx); setEditValue(blocks[idx]?.code || ''); };
+  const discardEdit = () => { setEditingIdx(null); setEditValue(''); };
+
+  const saveEdit = async () => {
+    if (editingIdx === null) return;
+    setEditSaving(true);
+    try {
+      const newContent = blocks.map((b, i) => {
+        const code = i === editingIdx ? editValue : b.code;
+        return b.filePath ? `// ${b.filePath}\n${code}` : code;
+      }).join('\n\n');
+      await onSaveInline?.(snippet._id, newContent);
+      setEditingIdx(null);
+    } catch { /* toast shown by parent */ } finally { setEditSaving(false); }
+  };
+
+  const handleContribSave = async (newContent) => {
+    setContribSaving(true);
+    try {
+      await onContribute(snippet._id, newContent);
+      setShowContribute(false);
+    } catch { /* toast shown by parent */ } finally { setContribSaving(false); }
+  };
+
+  const handleDownload = async () => {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      const res = await api.get(`/script-vault/${snippet._id}/download`, { responseType: 'blob', timeout: 0 });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = snippet.zipName || `${snippet.title.replace(/[^a-zA-Z0-9_\-]/g, '_')}.zip`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    } catch { /* ignore */ } finally { setDownloading(false); }
+  };
+
+  const blocks = parseFileBlocks(snippet.content || '');
+  const isMultiFile = blocks.some(b => b.filePath !== null);
+  const isZipSnippet = !!snippet.isZip;
+  const langColor = isZipSnippet ? '#f59e0b' : getLangColor(snippet.language);
+  const fileCount = blocks.filter(b => b.filePath).length;
+  const tree = buildFileTree(blocks);
+
+  const [expanded, setExpanded] = useState(() => collectFolderPaths(tree));
+  const [selectedIdx, setSelectedIdx] = useState(() => {
+    const first = blocks.findIndex(b => b.filePath !== null);
+    return first >= 0 ? first : 0;
+  });
+
+  // Reset view when snippet changes
+  useEffect(() => {
+    const t = buildFileTree(parseFileBlocks(snippet.content || ''));
+    setExpanded(collectFolderPaths(t));
+    const blks = parseFileBlocks(snippet.content || '');
+    const first = blks.findIndex(b => b.filePath !== null);
+    setSelectedIdx(first >= 0 ? first : 0);
+    setEditingIdx(null);
+    setEditValue('');
+  }, [snippet._id]);
+
+  const toggleFolder = (path) => setExpanded(prev => {
+    const next = new Set(prev); next.has(path) ? next.delete(path) : next.add(path); return next;
+  });
+
+  return (
+    <div className="flex flex-col h-full min-h-0">
+      {/* ── Toolbar ── */}
+      <div className="flex items-center justify-between px-4 py-2.5 border-b flex-shrink-0"
+        style={{ backgroundColor: '#0d0d0f', borderColor: 'rgba(255,255,255,0.07)' }}>
+        <div className="flex items-center gap-2 flex-wrap min-w-0">
+          {isZipSnippet ? (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-widest uppercase flex-shrink-0"
+              style={{ backgroundColor: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.3)' }}>
+              ZIP
+            </span>
+          ) : (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold tracking-widest uppercase flex-shrink-0"
+              style={{ backgroundColor: `${langColor}18`, color: langColor, border: `1px solid ${langColor}30` }}>
+              {snippet.language || 'text'}
+            </span>
+          )}
+          <VisibilityBadge visibility={snippet.visibility} allowedUsers={snippet.allowedUsers} />
+          {!isZipSnippet && isMultiFile && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-white/5 text-[rgba(255,255,255,0.4)] border border-white/8 flex-shrink-0">
+              {fileCount} file{fileCount !== 1 ? 's' : ''}
+            </span>
+          )}
+          <h2 className="text-[13px] font-semibold text-white leading-tight truncate">{snippet.title}</h2>
+          {snippet.description && (
+            <span className="text-[11.5px] text-[rgba(255,255,255,0.35)] truncate hidden sm:block">{snippet.description}</span>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+          {isAdmin && (
+            <>
+              <button onClick={() => onEdit(snippet)}
+                className="p-1.5 rounded-lg border border-white/10 bg-white/5 text-[rgba(255,255,255,0.5)] hover:text-white hover:bg-white/10 transition-all" title="Edit">
+                <EditIcon />
+              </button>
+              <button onClick={() => onDelete(snippet)}
+                className="p-1.5 rounded-lg border border-red-500/20 bg-red-500/8 text-red-400/70 hover:text-red-400 hover:bg-red-500/15 transition-all" title="Delete">
+                <TrashIcon />
+              </button>
+            </>
+          )}
+          {!isZipSnippet && (
+            <>
+              <button onClick={() => copyAll(snippet.content)}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold transition-all ${copiedAll ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400' : 'border-[#FF634A]/30 bg-[#FF634A]/10 text-[#FF634A] hover:bg-[#FF634A]/20'}`}>
+                {copiedAll ? <CheckIcon /> : <CopyAllIcon />}
+                {copiedAll ? 'Copied!' : 'Copy All'}
+              </button>
+              <button onClick={() => setShowContribute(true)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold transition-all border-emerald-500/30 bg-emerald-500/8 text-emerald-400 hover:bg-emerald-500/18"
+                title="Add files or content">
+                <AddFileIcon />
+                <span className="hidden sm:inline">Add Files</span>
+              </button>
+            </>
+          )}
+          <button onClick={handleDownload} disabled={downloading}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold transition-all disabled:opacity-50 ${isZipSnippet ? 'border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20' : 'border-white/10 bg-white/5 text-[rgba(255,255,255,0.6)] hover:bg-white/10 hover:text-white'}`}
+            title="Download">
+            <DownloadIcon />
+            <span className="hidden sm:inline">{downloading ? 'Downloading…' : 'Download'}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* ── Body ── */}
+      <div className="flex flex-1 overflow-hidden min-h-0">
+        {isZipSnippet ? (
+          <div className="flex-1 flex flex-col items-center justify-center gap-5 py-12">
+            <div className="p-5 rounded-2xl border" style={{ borderColor: 'rgba(245,158,11,0.2)', backgroundColor: 'rgba(245,158,11,0.06)' }}>
+              <svg className="w-14 h-14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.2} style={{ color: '#f59e0b' }}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M20 7H8a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V9a2 2 0 00-2-2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16 7V5a2 2 0 00-2-2h-2a2 2 0 00-2 2v2" />
+                <line x1="12" y1="11" x2="12" y2="17" strokeLinecap="round" />
+                <line x1="9" y1="14" x2="15" y2="14" strokeLinecap="round" />
+              </svg>
+            </div>
+            <div className="text-center">
+              <p className="text-[16px] font-bold text-white">{snippet.zipName || snippet.title + '.zip'}</p>
+              <p className="text-[12px] text-[rgba(255,255,255,0.4)] mt-1">{fmtBytes(snippet.zipSize)}
+                {snippet.authorName && ` · by ${snippet.authorName}`}</p>
+            </div>
+            <button onClick={handleDownload} disabled={downloading}
+              className="flex items-center gap-2 px-6 py-3 rounded-xl border text-[13px] font-semibold transition-all disabled:opacity-50 border-amber-500/40 bg-amber-500/12 text-amber-400 hover:bg-amber-500/22">
+              <DownloadIcon />
+              {downloading ? 'Downloading…' : `Download ${snippet.zipName || snippet.title + '.zip'}`}
+            </button>
+          </div>
+        ) : isMultiFile ? (
+          /* Multi-file: explorer + code panel */
+          <div className="flex flex-1 overflow-hidden min-h-0">
+            {/* Left file tree */}
+            <div className="w-44 flex-shrink-0 overflow-y-auto border-r py-2"
+              style={{ backgroundColor: '#0b0b0d', borderColor: 'rgba(255,255,255,0.06)' }}>
+              <p className="px-3 pb-2 text-[9px] font-bold uppercase tracking-[0.12em] text-[rgba(255,255,255,0.22)]">Explorer</p>
+              {tree.children.map(child => (
+                <FileTreeNode key={child.path} node={child} depth={0} selectedIdx={selectedIdx}
+                  onSelect={setSelectedIdx} expanded={expanded} onToggle={toggleFolder} />
+              ))}
+            </div>
+            {/* Code panel */}
+            <div className="flex-1 flex flex-col overflow-hidden">
+              {editingIdx === selectedIdx ? (
+                <div className="flex flex-col h-full">
+                  <div className="flex items-center justify-between px-4 py-2.5 border-b flex-shrink-0"
+                    style={{ backgroundColor: '#0e0e11', borderColor: 'rgba(255,255,255,0.06)' }}>
+                    {blocks[selectedIdx]?.filePath
+                      ? <FilePathBadge filePath={blocks[selectedIdx].filePath} />
+                      : <span className="text-[12px] font-mono text-[rgba(255,255,255,0.4)]">Editing content</span>}
+                    <div className="flex gap-2">
+                      <button onClick={discardEdit}
+                        className="px-3 py-1 text-[11px] font-medium rounded-lg border border-white/10 text-[rgba(255,255,255,0.5)] hover:text-white transition-all">Discard</button>
+                      <button onClick={saveEdit} disabled={editSaving}
+                        className="px-3 py-1 text-[11px] font-semibold rounded-lg disabled:opacity-50 transition-all"
+                        style={{ background: 'linear-gradient(135deg,#FF634A,#e0532d)', color: '#fff' }}>
+                        {editSaving ? 'Saving…' : 'Save'}
+                      </button>
+                    </div>
+                  </div>
+                  <textarea className="flex-1 w-full px-5 py-4 text-[12.5px] leading-6 font-mono resize-none focus:outline-none"
+                    style={{ backgroundColor: '#080809', color: 'rgba(255,255,255,0.85)', caretColor: '#FF634A' }}
+                    value={editValue} onChange={e => setEditValue(e.target.value)} spellCheck={false} autoFocus />
+                </div>
+              ) : (
+                <CodePanel block={blocks[selectedIdx]} isAdmin={isAdmin} onEdit={startInlineEdit} editIdx={selectedIdx} />
+              )}
+            </div>
+          </div>
+        ) : (
+          /* Single file */
+          <div className="flex-1 overflow-auto" style={{ backgroundColor: '#080809' }}>
+            {editingIdx === 0 ? (
+              <div className="flex flex-col h-full">
+                <div className="flex items-center justify-between px-5 py-2.5 border-b flex-shrink-0"
+                  style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                  <span className="text-[12px] font-mono text-[rgba(255,255,255,0.4)]">Editing content</span>
+                  <div className="flex gap-2">
+                    <button onClick={discardEdit}
+                      className="px-3 py-1 text-[11px] font-medium rounded-lg border border-white/10 text-[rgba(255,255,255,0.5)] hover:text-white transition-all">Discard</button>
+                    <button onClick={saveEdit} disabled={editSaving}
+                      className="px-3 py-1 text-[11px] font-semibold rounded-lg disabled:opacity-50 transition-all"
+                      style={{ background: 'linear-gradient(135deg,#FF634A,#e0532d)', color: '#fff' }}>
+                      {editSaving ? 'Saving…' : 'Save'}
+                    </button>
+                  </div>
+                </div>
+                <textarea className="flex-1 w-full px-5 py-5 text-[13px] leading-6 font-mono resize-none focus:outline-none"
+                  style={{ backgroundColor: '#080809', color: 'rgba(255,255,255,0.88)', caretColor: '#FF634A' }}
+                  value={editValue} onChange={e => setEditValue(e.target.value)} spellCheck={false} autoFocus />
+              </div>
+            ) : (
+              <>
+                {isAdmin && onSaveInline && (
+                  <div className="flex justify-end px-5 pt-3">
+                    <button onClick={() => startInlineEdit(0)}
+                      className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-lg border border-white/10 bg-white/4 text-[rgba(255,255,255,0.4)] hover:text-white hover:bg-white/8 transition-all">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 13l6.293-6.293a1 1 0 011.414 0l1.586 1.586a1 1 0 010 1.414L12 16H9v-3z" />
+                      </svg>
+                      Edit
+                    </button>
+                  </div>
+                )}
+                <div className="flex">
+                  <div className="select-none flex-shrink-0 text-right px-4 py-5 text-[12px] leading-6 font-mono"
+                    style={{ color: 'rgba(255,255,255,0.18)', userSelect: 'none', borderRight: '1px solid rgba(255,255,255,0.05)', minWidth: '52px', backgroundColor: '#0a0a0c' }}>
+                    {snippet.content.split('\n').map((_, i) => <div key={i}>{i + 1}</div>)}
+                  </div>
+                  <pre className="flex-1 px-5 py-5 text-[13px] leading-6 font-mono overflow-x-auto m-0"
+                    style={{ color: 'rgba(255,255,255,0.88)', background: 'transparent', whiteSpace: 'pre' }}>
+                    <code>{snippet.content}</code>
+                  </pre>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ── Status bar ── */}
+      <div className="px-4 py-1.5 border-t flex items-center justify-between flex-wrap gap-2 flex-shrink-0"
+        style={{ borderColor: 'rgba(255,255,255,0.06)', backgroundColor: '#0d0d0f' }}>
+        <span className="text-[10.5px] text-[rgba(255,255,255,0.28)]">
+          {isZipSnippet
+            ? `${snippet.zipName || snippet.title + '.zip'} · ${fmtBytes(snippet.zipSize)}${snippet.authorName ? ` · by ${snippet.authorName}` : ''}`
+            : `${snippet.authorName ? `By ${snippet.authorName} · ` : ''}${snippet.content.split('\n').length} lines · ${new Blob([snippet.content]).size} bytes`}
+        </span>
+        <span className="text-[10.5px] text-[rgba(255,255,255,0.28)]">
+          Updated {new Date(snippet.updatedAt).toLocaleDateString()}
+        </span>
+      </div>
+
+      {showContribute && (
+        <ContributeModal snippet={snippet} onSave={handleContribSave}
+          onClose={() => setShowContribute(false)} saving={contribSaving} />
+      )}
+    </div>
+  );
+}
+
 // ── Main page ────────────────────────────────────────────────────────────────
 export default function ScriptVault() {
   const userRole = localStorage.getItem('userRole');
@@ -1967,6 +2348,8 @@ export default function ScriptVault() {
   const [sortBy, setSortBy] = useState('updated'); // 'updated' | 'created' | 'title' | 'size'
 
   const [viewSnippet, setViewSnippet] = useState(null);
+  const [panelScript, setPanelScript] = useState(null);   // selected script in split-pane
+  const [sidebarOpen, setSidebarOpen] = useState(true);   // desktop sidebar toggle
   const [showEditor, setShowEditor] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -1975,6 +2358,28 @@ export default function ScriptVault() {
   const [selectedSnippetIds, setSelectedSnippetIds] = useState(new Set());
 
   const searchInputRef = useRef(null);
+
+  // ── Data fetching ─────────────────────────────────────────────────────────
+  const fetchSnippets = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    try {
+      const { data } = await api.get('/script-vault');
+      setSnippets(data.snippets || []);
+      setError('');
+    } catch (err) {
+      if (!silent) setError(err.response?.data?.error || 'Failed to load scripts');
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  }, []);
+
+  // Initial load + re-sync when tab becomes visible
+  useEffect(() => { fetchSnippets(); }, [fetchSnippets]);
+  useEffect(() => {
+    const onVisible = () => { if (!document.hidden) fetchSnippets(true); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [fetchSnippets]);
 
   const showToast = (msg, type = 'info') => {
     setToast({ msg, type });
@@ -1987,13 +2392,13 @@ export default function ScriptVault() {
       const inInput = ['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName) ||
                       document.activeElement?.isContentEditable;
       // N → new snippet (admin only, no modal open)
-      if (e.key === 'n' && !inInput && !showEditor && !viewSnippet && isAdmin) {
+      if (e.key === 'n' && !inInput && !showEditor && isAdmin) {
         e.preventDefault();
         openCreate();
         return;
       }
       // / → focus search
-      if (e.key === '/' && !inInput && !showEditor && !viewSnippet) {
+      if (e.key === '/' && !inInput && !showEditor) {
         e.preventDefault();
         searchInputRef.current?.focus();
         return;
@@ -2012,13 +2417,6 @@ export default function ScriptVault() {
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, [showEditor, viewSnippet, search, isAdmin, selectedSnippetIds]);
-
-  useEffect(() => {
-    api.get('/script-vault')
-      .then(({ data }) => setSnippets(data.snippets || []))
-      .catch((err) => setError(err.response?.data?.error || 'Failed to load scripts'))
-      .finally(() => setLoading(false));
-  }, []);
 
   const availableLangs = ['All', ...new Set(snippets.map(s => s.language).filter(Boolean))];
 
@@ -2055,14 +2453,18 @@ export default function ScriptVault() {
         const { data } = await api.put(`/script-vault/${editTarget._id}`, form);
         setSnippets(prev => prev.map(s => s._id === editTarget._id ? data.snippet : s));
         if (viewSnippet?._id === editTarget._id) setViewSnippet(data.snippet);
+        if (panelScript?._id === editTarget._id) setPanelScript(data.snippet);
         showToast('Script updated', 'success');
       } else {
         const { data } = await api.post('/script-vault', form);
         setSnippets(prev => [data.snippet, ...prev]);
+        setPanelScript(data.snippet);          // auto-select newly created
         showToast('Script created', 'success');
       }
       setShowEditor(false);
       setEditTarget(null);
+      // Background sync to guarantee freshness
+      fetchSnippets(true);
     } catch (err) {
       showToast(err.response?.data?.error || 'Save failed', 'error');
     } finally {
@@ -2076,7 +2478,9 @@ export default function ScriptVault() {
       await api.delete(`/script-vault/${snippet._id}`);
       setSnippets(prev => prev.filter(s => s._id !== snippet._id));
       if (viewSnippet?._id === snippet._id) setViewSnippet(null);
+      if (panelScript?._id === snippet._id) setPanelScript(null);
       showToast('Script deleted', 'success');
+      fetchSnippets(true);
     } catch (err) {
       showToast(err.response?.data?.error || 'Delete failed', 'error');
     }
@@ -2087,7 +2491,9 @@ export default function ScriptVault() {
       const { data } = await api.patch(`/script-vault/${snippetId}/contribute`, { newContent });
       setSnippets(prev => prev.map(s => s._id === snippetId ? data.snippet : s));
       setViewSnippet(data.snippet);
+      if (panelScript?._id === snippetId) setPanelScript(data.snippet);
       showToast('Content added successfully', 'success');
+      fetchSnippets(true);
     } catch (err) {
       showToast(err.response?.data?.error || 'Failed to add content', 'error');
       throw err;
@@ -2096,7 +2502,6 @@ export default function ScriptVault() {
 
   const openCreate = () => { setEditTarget(null); setShowEditor(true); };
   const openEdit = (snippet) => { setEditTarget(snippet); setShowEditor(true); setViewSnippet(null); };
-
   // ── Quick "Upload Zip → Create Snippet" (main page) ───────────────────────
   const zipInputRef = useRef(null);
   const [zipUploading, setZipUploading] = useState(false);
@@ -2114,17 +2519,19 @@ export default function ScriptVault() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       setSnippets(prev => [data.snippet, ...prev]);
+      setPanelScript(data.snippet);          // auto-select in split pane
       const zipName = data.snippet.title;
-      showToast(`"${zipName}" created (${data.fileCount} files extracted)`, 'success');
+      showToast(`"${zipName}" uploaded`, 'success');
       // Open in editor so user can fine-tune
       setEditTarget(data.snippet);
       setShowEditor(true);
+      fetchSnippets(true);
     } catch (err) {
       showToast(err.response?.data?.error || 'Zip upload failed', 'error');
     } finally {
       setZipUploading(false);
     }
-  }, []);
+  }, [fetchSnippets]);
 
   const handleSaveInline = async (snippetId, newContent) => {
     const snippet = snippets.find(s => s._id === snippetId);
@@ -2137,7 +2544,9 @@ export default function ScriptVault() {
       });
       setSnippets(prev => prev.map(s => s._id === snippetId ? data.snippet : s));
       setViewSnippet(data.snippet);
+      if (panelScript?._id === snippetId) setPanelScript(data.snippet);
       showToast('Changes saved', 'success');
+      fetchSnippets(true);
     } catch (err) {
       showToast(err.response?.data?.error || 'Save failed', 'error');
       throw err;
@@ -2167,304 +2576,318 @@ export default function ScriptVault() {
     { val: 'size',    label: 'Largest' },
   ];
 
+  // When the panelScript changes (e.g. due to external update), keep it in sync
+  const syncedPanel = panelScript ? (snippets.find(s => s._id === panelScript._id) || panelScript) : null;
+
   return (
     <PageWrapper>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-        <Breadcrumb items={[{ label: 'Home', path: '/' }, { label: 'Script Vault' }]} />
+      {/* ─────────────────────────────────────────────────────────────────────
+          VS Code-style full-height layout
+          ─────────────────────────────────────────────────────────────────── */}
+      <div className="flex flex-col" style={{ height: 'calc(100dvh - 64px)' }}>
 
-        {/* ── Page header ── */}
-        <div className="mt-4 mb-6 rounded-2xl overflow-hidden relative"
-          style={{ background: 'linear-gradient(135deg, rgba(255,99,74,0.1) 0%, rgba(255,99,74,0.04) 50%, rgba(255,255,255,0.02) 100%)', border: '1px solid rgba(255,99,74,0.15)' }}>
-          {/* subtle grid bg */}
-          <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.3) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.3) 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
-          <div className="relative px-6 py-5">
-            <div className="flex items-start justify-between gap-4 flex-wrap">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg"
-                  style={{ background: 'linear-gradient(135deg,#FF634A,#c94230)', boxShadow: '0 4px 20px rgba(255,99,74,0.35)' }}>
-                  <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+        {/* ── Top title bar ── */}
+        <div className="flex items-center gap-3 px-4 py-2.5 border-b flex-shrink-0"
+          style={{ backgroundColor: '#0d0d0f', borderColor: 'rgba(255,255,255,0.07)' }}>
+          {/* Breadcrumb + title */}
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <button
+              onClick={() => setSidebarOpen(v => !v)}
+              className="p-1.5 rounded text-[rgba(255,255,255,0.35)] hover:text-white hover:bg-white/8 transition-all flex-shrink-0"
+              title={sidebarOpen ? 'Collapse explorer' : 'Expand explorer'}
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: 'linear-gradient(135deg,#FF634A,#c94230)' }}>
+              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <div className="flex items-center gap-2 min-w-0">
+              <h1 className="text-[14px] font-bold text-white">Script Vault</h1>
+              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest flex-shrink-0"
+                style={{ background: 'rgba(255,99,74,0.15)', color: '#FF634A', border: '1px solid rgba(255,99,74,0.3)' }}>
+                {isAdmin ? 'Admin' : 'Viewer'}
+              </span>
+              {!loading && snippets.length > 0 && (
+                <div className="hidden sm:flex items-center gap-3 ml-2">
+                  {[
+                    { label: 'Scripts', value: snippets.length },
+                    { label: 'Lines', value: totalLines.toLocaleString() },
+                    { label: 'Top', value: topLang || '—', color: topLang ? getLangColor(topLang) : undefined },
+                  ].map(stat => (
+                    <span key={stat.label} className="text-[11px] text-[rgba(255,255,255,0.35)]">
+                      <span className="font-semibold" style={{ color: stat.color || 'rgba(255,255,255,0.7)' }}>{stat.value}</span>
+                      {' '}{stat.label}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <button
+              onClick={() => fetchSnippets()}
+              disabled={loading}
+              className="p-1.5 rounded text-[rgba(255,255,255,0.4)] hover:text-white hover:bg-white/8 transition-all disabled:opacity-40"
+              title="Refresh"
+            >
+              <svg className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
+            {isAdmin && (
+              <>
+                <input ref={zipInputRef} type="file" accept=".zip,application/zip" className="hidden" onChange={handleQuickZip} />
+                <button
+                  onClick={() => zipInputRef.current?.click()}
+                  disabled={zipUploading}
+                  className="flex items-center gap-1 px-3 py-1.5 text-[11px] font-semibold rounded-lg border transition-all disabled:opacity-60 hover:bg-white/10 hover:text-white"
+                  style={{ borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.65)' }}
+                  title="Upload a .zip file"
+                >
+                  {zipUploading ? (
+                    <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  ) : (
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M20 7H8a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V9a2 2 0 00-2-2z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16 7V5a2 2 0 00-2-2h-2a2 2 0 00-2 2v2" />
+                    </svg>
+                  )}
+                  <span className="hidden md:inline">{zipUploading ? 'Uploading…' : 'Upload ZIP'}</span>
+                </button>
+                <button
+                  onClick={openCreate}
+                  className="flex items-center gap-1 px-3 py-1.5 text-[11px] font-semibold rounded-lg text-white transition-all hover:opacity-90 active:scale-95"
+                  style={{ background: 'linear-gradient(135deg,#FF634A,#e0532d)', boxShadow: '0 2px 8px rgba(255,99,74,0.35)' }}
+                  title="New snippet (N)"
+                >
+                  <PlusIcon />
+                  <span className="hidden md:inline">New Script</span>
+                  <kbd className="ml-0.5 px-1 py-0.5 text-[8px] rounded font-mono opacity-70 hidden md:inline"
+                    style={{ backgroundColor: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)' }}>N</kbd>
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* ── Main split pane ── */}
+        <div className="flex flex-1 overflow-hidden min-h-0">
+
+          {/* ── Left: Explorer sidebar ── */}
+          {sidebarOpen && (
+            <div className="flex flex-col border-r flex-shrink-0 overflow-hidden"
+              style={{ width: '260px', backgroundColor: '#0b0b0d', borderColor: 'rgba(255,255,255,0.06)' }}>
+
+              {/* Sidebar header */}
+              <div className="flex items-center justify-between px-3 py-2 border-b flex-shrink-0"
+                style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+                <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-[rgba(255,255,255,0.25)]">
+                  Scripts ({filtered.length})
+                </span>
+                <div className="flex items-center gap-1">
+                  {/* Sort select */}
+                  <select
+                    value={sortBy} onChange={e => setSortBy(e.target.value)}
+                    className="text-[10px] rounded px-1 py-0.5 border bg-[rgba(255,255,255,0.04)] border-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.4)] focus:outline-none appearance-none cursor-pointer"
+                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' fill='none' viewBox='0 0 24 24' stroke='rgba(255,255,255,0.3)' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 4px center', paddingRight: '16px' }}
+                    title="Sort order"
+                  >
+                    {SORT_OPTIONS.map(o => <option key={o.val} value={o.val} style={{ background: '#18181b' }}>{o.label}</option>)}
+                  </select>
+                  {isAdmin && (
+                    <select
+                      value={filterVis} onChange={e => setFilterVis(e.target.value)}
+                      className="text-[10px] rounded px-1 py-0.5 border bg-[rgba(255,255,255,0.04)] border-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.4)] focus:outline-none appearance-none cursor-pointer ml-0.5"
+                      style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' fill='none' viewBox='0 0 24 24' stroke='rgba(255,255,255,0.3)' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 4px center', paddingRight: '16px' }}
+                      title="Visibility filter"
+                    >
+                      <option value="All" style={{ background: '#18181b' }}>All</option>
+                      <option value="all" style={{ background: '#18181b' }}>Everyone</option>
+                      <option value="staff" style={{ background: '#18181b' }}>Staff</option>
+                      <option value="admins" style={{ background: '#18181b' }}>Admins</option>
+                      <option value="custom" style={{ background: '#18181b' }}>Custom</option>
+                    </select>
+                  )}
+                </div>
+              </div>
+
+              {/* Search */}
+              <div className="px-2 py-2 flex-shrink-0">
+                <div className="relative">
+                  <svg className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[rgba(255,255,255,0.25)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
+                  </svg>
+                  <input
+                    ref={searchInputRef}
+                    className="w-full pl-6 pr-6 py-1.5 text-[12px] rounded-lg border bg-[rgba(255,255,255,0.04)] border-[rgba(255,255,255,0.07)] text-white placeholder-[rgba(255,255,255,0.25)] focus:outline-none focus:border-[#FF634A]/40 transition-all"
+                    placeholder="Filter scripts…"
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                  />
+                  {search && (
+                    <button onClick={() => setSearch('')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-[rgba(255,255,255,0.3)] hover:text-white">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Language filter pills */}
+              {availableLangs.length > 1 && (
+                <div className="flex gap-1 px-2 pb-2 flex-wrap flex-shrink-0">
+                  {availableLangs.map(lang => {
+                    const color = lang !== 'All' ? getLangColor(lang) : null;
+                    const active = filterLang === lang;
+                    return (
+                      <button key={lang} onClick={() => setFilterLang(lang)}
+                        className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded border transition-all flex-shrink-0"
+                        style={active
+                          ? { borderColor: color || '#FF634A', backgroundColor: `${color || '#FF634A'}18`, color: color || '#FF634A' }
+                          : { borderColor: 'rgba(255,255,255,0.07)', backgroundColor: 'rgba(255,255,255,0.02)', color: 'rgba(255,255,255,0.35)' }
+                        }>
+                        {lang !== 'All' && color && <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color }} />}
+                        {lang}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Script list */}
+              <div className="flex-1 overflow-y-auto">
+                {loading && (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="w-5 h-5 border-2 border-[#FF634A]/30 border-t-[#FF634A] rounded-full animate-spin" />
+                  </div>
+                )}
+                {!loading && error && (
+                  <p className="text-[11px] text-red-400 px-3 py-4">{error}</p>
+                )}
+                {!loading && !error && filtered.length === 0 && (
+                  <div className="px-3 py-8 text-center">
+                    <p className="text-[12px] text-[rgba(255,255,255,0.3)]">
+                      {search || filterLang !== 'All' || filterVis !== 'All'
+                        ? 'No scripts match filters' : 'No scripts yet'}
+                    </p>
+                    {isAdmin && !search && filterLang === 'All' && filterVis === 'All' && (
+                      <button onClick={openCreate} className="mt-3 text-[11px] text-[#FF634A] hover:underline">
+                        Create the first script
+                      </button>
+                    )}
+                  </div>
+                )}
+                {!loading && !error && filtered.map(snippet => (
+                  <ScriptSidebarItem
+                    key={snippet._id}
+                    snippet={snippet}
+                    isSelected={syncedPanel?._id === snippet._id}
+                    isAdmin={isAdmin}
+                    onClick={() => setPanelScript(snippet)}
+                    onEdit={openEdit}
+                    onDelete={handleDelete}
+                  />
+                ))}
+              </div>
+
+              {/* Footer */}
+              <div className="flex-shrink-0 px-3 py-2 border-t"
+                style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
+                <p className="text-[10px] text-[rgba(255,255,255,0.2)]">
+                  {snippets.length} script{snippets.length !== 1 ? 's' : ''}
+                  {totalLines > 0 && ` · ${totalLines.toLocaleString()} lines`}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* ── Right: Content pane ── */}
+          <div className="flex-1 flex flex-col overflow-hidden min-h-0"
+            style={{ backgroundColor: '#080809' }}>
+            {syncedPanel ? (
+              <InlineScriptView
+                key={syncedPanel._id}
+                snippet={syncedPanel}
+                isAdmin={isAdmin}
+                onEdit={openEdit}
+                onDelete={handleDelete}
+                onContribute={handleContribute}
+                onSaveInline={isAdmin ? handleSaveInline : undefined}
+              />
+            ) : (
+              /* Welcome state */
+              <div className="flex-1 flex flex-col items-center justify-center gap-5 px-8 text-center">
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
+                  style={{ background: 'rgba(255,99,74,0.06)', border: '1px solid rgba(255,99,74,0.12)' }}>
+                  <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.4}
+                    style={{ color: 'rgba(255,99,74,0.4)' }}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                 </div>
                 <div>
-                  <div className="flex items-center gap-2.5 mb-0.5">
-                    <h1 className="text-[22px] font-bold text-white tracking-tight">Script Vault</h1>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest"
-                      style={{ background: 'rgba(255,99,74,0.15)', color: '#FF634A', border: '1px solid rgba(255,99,74,0.3)' }}>
-                      {isAdmin ? 'Admin' : 'Viewer'}
-                    </span>
-                  </div>
-                  <p className="text-[13px] text-[rgba(255,255,255,0.45)]">
-                    {isAdmin
-                      ? 'Manage, share and distribute scripts, configs & multi-file code to your team.'
-                      : 'Browse, copy and contribute to scripts shared with you.'}
+                  <p className="text-[15px] font-semibold text-[rgba(255,255,255,0.5)]">
+                    {loading ? 'Loading Script Vault…' : snippets.length === 0 ? 'Vault is empty' : 'Select a script'}
+                  </p>
+                  <p className="text-[12px] text-[rgba(255,255,255,0.25)] mt-1.5 max-w-xs">
+                    {loading
+                      ? 'Fetching your scripts from the server…'
+                      : snippets.length === 0 && isAdmin
+                        ? 'Create and share your first script with the team.'
+                        : 'Choose a script from the explorer on the left to view it here.'}
                   </p>
                 </div>
-              </div>
-
-              <div className="flex items-center gap-2 flex-wrap">
-                {/* Bulk copy action bar */}
-                {selectedSnippetIds.size > 0 && (
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border"
-                    style={{ borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,255,255,0.05)' }}>
-                    <span className="text-[11px] text-[rgba(255,255,255,0.5)]">{selectedSnippetIds.size} selected</span>
-                    <button
-                      onClick={() => copySelected(bulkCopyContent)}
-                      className={`flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold rounded-lg border transition-all ${
-                        copiedSelected
-                          ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
-                          : 'border-[#FF634A]/30 bg-[#FF634A]/10 text-[#FF634A] hover:bg-[#FF634A]/20'
-                      }`}
-                    >
-                      {copiedSelected ? <CheckIcon /> : <CopyAllIcon />}
-                      {copiedSelected ? 'Copied!' : 'Copy'}
-                    </button>
-                    <button onClick={() => setSelectedSnippetIds(new Set())}
-                      className="p-1 rounded text-[rgba(255,255,255,0.3)] hover:text-white transition-colors" title="Clear selection">
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                )}
-                {filtered.length > 0 && selectedSnippetIds.size === 0 && (
-                  <button
-                    onClick={() => copyAll(allContent)}
-                    className={`flex items-center gap-2 px-4 py-2 text-[12px] font-semibold rounded-xl border transition-all ${
-                      copiedAll
-                        ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
-                        : 'border-white/10 bg-white/5 text-[rgba(255,255,255,0.65)] hover:bg-white/10 hover:text-white hover:border-white/20'
-                    }`}
-                  >
-                    {copiedAll ? <CheckIcon /> : <CopyAllIcon />}
-                    {copiedAll ? 'Copied!' : 'Copy All'}
+                {isAdmin && !loading && snippets.length === 0 && (
+                  <button onClick={openCreate}
+                    className="flex items-center gap-1.5 px-5 py-2.5 text-[13px] font-semibold rounded-xl text-white shadow-lg"
+                    style={{ background: 'linear-gradient(135deg,#FF634A,#e0532d)', boxShadow: '0 4px 14px rgba(255,99,74,0.4)' }}>
+                    <PlusIcon /> Create First Script
                   </button>
                 )}
-                {isAdmin && (
-                  <>
-                    {/* Hidden zip input */}
-                    <input
-                      ref={zipInputRef}
-                      type="file"
-                      accept=".zip,application/zip"
-                      className="hidden"
-                      onChange={handleQuickZip}
-                    />
-                    <button
-                      onClick={() => zipInputRef.current?.click()}
-                      disabled={zipUploading}
-                      className="flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold rounded-xl border transition-all disabled:opacity-60 disabled:cursor-not-allowed hover:bg-white/10 hover:text-white"
-                      style={{ borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.65)' }}
-                      title="Create a snippet by uploading a zip file"
-                    >
-                      {zipUploading ? (
-                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                      ) : (
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M20 7H8a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V9a2 2 0 00-2-2z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M16 7V5a2 2 0 00-2-2h-2a2 2 0 00-2 2v2" />
-                          <line x1="12" y1="11" x2="12" y2="17" strokeLinecap="round" />
-                          <line x1="9" y1="14" x2="15" y2="14" strokeLinecap="round" />
-                        </svg>
-                      )}
-                      {zipUploading ? 'Extracting…' : 'Upload Zip'}
-                    </button>
-                    <button
-                      onClick={openCreate}
-                      className="flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold rounded-xl text-white transition-all hover:opacity-90 active:scale-95 shadow-lg"
-                      style={{ background: 'linear-gradient(135deg,#FF634A,#e0532d)', boxShadow: '0 4px 14px rgba(255,99,74,0.4)' }}
-                      title="New snippet (N)"
-                    >
-                      <PlusIcon />
-                      New Script
-                      <kbd className="ml-1 px-1 py-0.5 text-[9px] rounded font-mono opacity-70"
-                        style={{ backgroundColor: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)' }}>N</kbd>
-                    </button>
-                  </>
+                {loading && (
+                  <div className="w-6 h-6 border-2 border-[#FF634A]/30 border-t-[#FF634A] rounded-full animate-spin" />
                 )}
               </div>
-            </div>
-
-            {/* ── Stats bar ── */}
-            {!loading && snippets.length > 0 && (
-              <div className="flex items-center gap-5 mt-4 pt-4 border-t flex-wrap" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
-                {[
-                  { label: 'Scripts', value: snippets.length },
-                  { label: 'Total Lines', value: totalLines.toLocaleString() },
-                  { label: 'Files', value: totalFiles > 0 ? totalFiles : '—' },
-                  { label: 'Top Language', value: topLang ? topLang.charAt(0).toUpperCase() + topLang.slice(1) : '—', color: topLang ? getLangColor(topLang) : undefined },
-                ].map(stat => (
-                  <div key={stat.label} className="flex items-center gap-2">
-                    <span className="text-[20px] font-bold leading-none" style={{ color: stat.color || 'rgba(255,255,255,0.85)' }}>{stat.value}</span>
-                    <span className="text-[11px] text-[rgba(255,255,255,0.3)] leading-tight">{stat.label}</span>
-                  </div>
-                ))}
-              </div>
             )}
           </div>
         </div>
 
-        {/* ── Search + filter + sort bar ── */}
-        <div className="flex items-center gap-3 mb-5 flex-wrap">
-          <div className="relative flex-1 min-w-[200px]">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[rgba(255,255,255,0.3)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
-            </svg>
-            <input
-              ref={searchInputRef}
-              className="w-full pl-9 pr-16 py-2.5 text-[13px] rounded-xl border bg-[rgba(255,255,255,0.04)] border-[rgba(255,255,255,0.08)] text-white placeholder-[rgba(255,255,255,0.3)] focus:outline-none focus:border-[#FF634A]/40 transition-all"
-              placeholder="Search snippets… (Esc to clear)"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            {search ? (
-              <button
-                onClick={() => setSearch('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[rgba(255,255,255,0.3)] hover:text-white"
-                title="Clear (Esc)"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-              </button>
-            ) : (
-              <kbd className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-mono px-1.5 py-0.5 rounded pointer-events-none"
-                style={{ color: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.1)', backgroundColor: 'rgba(255,255,255,0.03)' }}>
-                /
-              </kbd>
-            )}
-          </div>
-
-          {/* Sort */}
-          <select
-            value={sortBy}
-            onChange={e => setSortBy(e.target.value)}
-            className="px-3 py-2.5 text-[12px] rounded-xl border bg-[rgba(255,255,255,0.04)] border-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.6)] focus:outline-none appearance-none cursor-pointer hover:border-white/20 transition-all"
-            style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' viewBox='0 0 24 24' stroke='rgba(255,255,255,0.3)' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center', paddingRight: '30px' }}
-          >
-            {SORT_OPTIONS.map(o => <option key={o.val} value={o.val} style={{ background: '#18181b' }}>{o.label}</option>)}
-          </select>
-
-          {/* Visibility filter — admin only */}
-          {isAdmin && (
-            <select
-              value={filterVis}
-              onChange={e => setFilterVis(e.target.value)}
-              className="px-3 py-2.5 text-[12px] rounded-xl border bg-[rgba(255,255,255,0.04)] border-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.6)] focus:outline-none appearance-none cursor-pointer hover:border-white/20 transition-all"
-              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' viewBox='0 0 24 24' stroke='rgba(255,255,255,0.3)' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center', paddingRight: '30px' }}
-            >
-              <option value="All" style={{ background: '#18181b' }}>All visibility</option>
-              <option value="all" style={{ background: '#18181b' }}>Everyone</option>
-              <option value="staff" style={{ background: '#18181b' }}>Staff</option>
-              <option value="admins" style={{ background: '#18181b' }}>Admins only</option>
-              <option value="custom" style={{ background: '#18181b' }}>Custom</option>
-            </select>
-          )}
-        </div>
-
-        {/* Language filter pills */}
-        {availableLangs.length > 1 && (
-          <div className="flex items-center gap-1.5 mb-5 overflow-x-auto pb-1">
-            {availableLangs.map(lang => {
-              const color = lang !== 'All' ? getLangColor(lang) : null;
-              const active = filterLang === lang;
-              return (
-                <button
-                  key={lang}
-                  onClick={() => setFilterLang(lang)}
-                  className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1 text-[11.5px] font-medium rounded-full border transition-all"
-                  style={active
-                    ? { borderColor: color || '#FF634A', backgroundColor: `${color || '#FF634A'}18`, color: color || '#FF634A' }
-                    : { borderColor: 'rgba(255,255,255,0.08)', backgroundColor: 'rgba(255,255,255,0.03)', color: 'rgba(255,255,255,0.45)' }
-                  }
-                >
-                  {lang !== 'All' && color && (
-                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-                  )}
-                  {lang}
-                  {lang !== 'All' && (
-                    <span className="text-[10px] opacity-60 ml-0.5">{snippets.filter(s => s.language === lang).length}</span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {/* ── Active filter summary ── */}
-        {(search || filterLang !== 'All' || filterVis !== 'All') && !loading && (
-          <div className="flex items-center gap-2 mb-4 text-[12px] text-[rgba(255,255,255,0.4)]">
-            <span>{filtered.length} result{filtered.length !== 1 ? 's' : ''}</span>
-            <button onClick={() => { setSearch(''); setFilterLang('All'); setFilterVis('All'); }}
-              className="ml-1 px-2.5 py-0.5 rounded-md text-[11px] border border-white/10 bg-white/5 hover:bg-white/10 text-[rgba(255,255,255,0.5)] hover:text-white transition-all">
-              Clear filters
-            </button>
-          </div>
-        )}
-
-        {/* ── States ── */}
-        {loading && (
-          <div className="flex flex-col items-center justify-center py-28 gap-4">
-            <div className="w-8 h-8 border-2 border-[#FF634A]/30 border-t-[#FF634A] rounded-full animate-spin" />
-            <p className="text-[13px] text-[rgba(255,255,255,0.3)]">Loading Script Vault…</p>
-          </div>
-        )}
-        {!loading && error && (
-          <div className="flex flex-col items-center py-16 gap-3">
-            <svg className="w-10 h-10 text-red-400/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-            </svg>
-            <p className="text-[13px] text-red-400">{error}</p>
-          </div>
-        )}
-        {!loading && !error && filtered.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-28 gap-4 text-center">
-            <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-1 relative"
-              style={{ background: 'rgba(255,99,74,0.06)', border: '1px solid rgba(255,99,74,0.12)' }}>
-              <svg className="w-8 h-8 text-[rgba(255,99,74,0.4)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.4}>
+        {/* ── VS Code-style status bar ── */}
+        <div className="flex items-center justify-between px-4 py-1 flex-shrink-0"
+          style={{ backgroundColor: '#FF634A', color: 'rgba(255,255,255,0.9)' }}>
+          <div className="flex items-center gap-4 text-[10.5px] font-medium">
+            <span className="flex items-center gap-1">
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-            </div>
-            <div>
-              <p className="text-[16px] font-semibold text-[rgba(255,255,255,0.55)]">
-                {search || filterLang !== 'All' || filterVis !== 'All' ? 'No scripts match your filters' : 'Vault is empty'}
-              </p>
-              <p className="text-[12px] text-[rgba(255,255,255,0.25)] mt-1 max-w-xs mx-auto">
-                {isAdmin && !search ? 'Create and share your first script with the team.' : 'Try adjusting your search or filters.'}
-              </p>
-            </div>
-            {isAdmin && !search && filterLang === 'All' && filterVis === 'All' && (
-              <button onClick={openCreate} className="mt-2 flex items-center gap-1.5 px-5 py-2.5 text-[13px] font-semibold rounded-xl text-white shadow-lg"
-                style={{ background: 'linear-gradient(135deg,#FF634A,#e0532d)', boxShadow: '0 4px 14px rgba(255,99,74,0.4)' }}>
-                <PlusIcon /> Create First Script
-              </button>
+              Script Vault
+            </span>
+            {topLang && <span>{topLang.charAt(0).toUpperCase() + topLang.slice(1)}</span>}
+            {syncedPanel && !syncedPanel.isZip && (
+              <span>{syncedPanel.language}</span>
             )}
           </div>
-        )}
-
-        {/* ── Grid ── */}
-        {!loading && !error && filtered.length > 0 && (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
-            {filtered.map(snippet => (
-              <SnippetCard
-                key={snippet._id}
-                snippet={snippet}
-                isAdmin={isAdmin}
-                onClick={() => setViewSnippet(snippet)}
-                onEdit={openEdit}
-                onDelete={handleDelete}
-                relativeTime={relativeTime}
-                isSelected={selectedSnippetIds.has(snippet._id)}
-                onToggleSelect={toggleSelect}
-              />
-            ))}
+          <div className="flex items-center gap-4 text-[10.5px]">
+            {syncedPanel && !syncedPanel.isZip && (
+              <span>{syncedPanel.content?.split('\n').length || 0} lines</span>
+            )}
+            <span>{snippets.length} scripts</span>
+            {isAdmin && <span className="opacity-70">Admin</span>}
           </div>
-        )}
+        </div>
       </div>
 
       {/* ── Toast ── */}
       {toast.msg && (
-        <div className={`fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2.5 px-5 py-2.5 rounded-xl text-[13px] font-medium text-white shadow-xl`}
+        <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2.5 px-5 py-2.5 rounded-xl text-[13px] font-medium text-white shadow-xl"
           style={{ background: 'rgba(24,24,27,0.97)', border: `1px solid ${toast.type === 'error' ? 'rgba(239,68,68,0.3)' : toast.type === 'success' ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.12)'}`, backdropFilter: 'blur(12px)' }}>
           {toast.type === 'success' && <svg className="w-4 h-4 text-emerald-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>}
           {toast.type === 'error' && <svg className="w-4 h-4 text-red-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>}
@@ -2472,7 +2895,7 @@ export default function ScriptVault() {
         </div>
       )}
 
-      {/* ── View modal ── */}
+      {/* ── View modal (for mobile / full-screen view) ── */}
       {viewSnippet && (
         <SnippetModal
           snippet={viewSnippet}
@@ -2497,4 +2920,3 @@ export default function ScriptVault() {
     </PageWrapper>
   );
 }
-
