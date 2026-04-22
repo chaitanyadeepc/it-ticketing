@@ -156,7 +156,7 @@ const MyTickets = () => {
                 }`}
                 style={isActive ? { backgroundColor: col, borderColor: col } : {}}
               >
-                {tab.id !== 'all' && <span className="w-2 h-2 rounded-full" style={{ backgroundColor: isActive ? 'rgba(255,255,255,0.7)' : col }} />}
+                {tab.id !== 'all' && <span className="w-2 h-2 rounded-full" style={{ backgroundColor: isActive ? 'rgba(255,255,255,0.85)' : col }} />}
                 {tab.label}
                 <span className={`px-1.5 py-0.5 rounded-full text-[11px] font-['JetBrains_Mono'] ${
                   isActive ? 'bg-black/20 text-white' : 'bg-[#27272a] text-[#a1a1aa]'

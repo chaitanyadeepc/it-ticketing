@@ -32,7 +32,7 @@ export default function SharedTicket() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#09090b' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--color-canvas-default)' }}>
         <div className="w-6 h-6 border-2 border-[#3b82f6] border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -40,7 +40,7 @@ export default function SharedTicket() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-6" style={{ backgroundColor: '#09090b' }}>
+      <div className="min-h-screen flex items-center justify-center px-6" style={{ backgroundColor: 'var(--color-canvas-default)' }}>
         <div className="text-center max-w-sm">
           <div className="w-16 h-16 rounded-full bg-[#ef4444]/10 flex items-center justify-center mx-auto mb-5">
             <svg className="w-8 h-8 text-[#ef4444]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -61,7 +61,7 @@ export default function SharedTicket() {
   const priorityColor = PRIORITY_COLOR[ticket.priority] || '#3b82f6';
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#09090b' }}>
+    <div className="min-h-screen" style={{ backgroundColor: 'var(--color-canvas-default)' }}>
       {/* Minimal header */}
       <div className="bg-[#18181b] border-b border-[#27272a] px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-2.5">

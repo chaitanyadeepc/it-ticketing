@@ -721,7 +721,7 @@ const AdminDashboard = () => {
                     <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#71717a' }} axisLine={false} tickLine={false}
                       interval={Math.floor(thirtyDayData.length / 6)} />
                     <YAxis tick={{ fontSize: 10, fill: '#71717a' }} axisLine={false} tickLine={false} allowDecimals={false} />
-                    <Tooltip contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: 8, fontSize: 12 }} />
+                    <Tooltip contentStyle={{ backgroundColor: 'var(--color-canvas-subtle)', border: '1px solid var(--color-border-default)', borderRadius: 8, fontSize: 12, color: 'var(--color-fg-default)' }} />
                     <Line type="monotone" dataKey="count" stroke="#22c55e" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: '#22c55e' }} />
                   </LineChart>
                 </ResponsiveContainer>

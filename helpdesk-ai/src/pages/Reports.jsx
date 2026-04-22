@@ -12,7 +12,7 @@ const P_COLORS = { Critical: '#ef4444', High: '#f97316', Medium: '#3b82f6', Low:
 const PRESETS = [{ label: '7d', days: 7 }, { label: '30d', days: 30 }, { label: '90d', days: 90 }, { label: 'All', days: 0 }];
 
 const TOOLTIP_STYLE = {
-  contentStyle: { backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: 8, color: '#fafafa', fontSize: 12 },
+  contentStyle: { backgroundColor: 'var(--color-canvas-subtle)', border: '1px solid var(--color-border-default)', borderRadius: 8, color: 'var(--color-fg-default)', fontSize: 12 },
   cursor: { fill: 'rgba(255,255,255,0.04)' },
 };
 

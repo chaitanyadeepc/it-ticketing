@@ -71,21 +71,22 @@ const NavDropdown = ({ items, onNavigate, currentPath }) => {
           <button
             key={item.path}
             onClick={() => onNavigate(item.path)}
-            className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-lg text-left transition-all group ${
-              isActive
-                ? 'bg-[#FF634A]/10'
-                : 'hover:bg-[rgba(255,255,255,0.06)]'
+            className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-lg text-left transition-all ${
+              isActive ? 'bg-[#FF634A]/10' : 'hover:bg-[rgba(0,0,0,0.05)]'
             }`}
           >
-            <span className={`mt-0.5 flex-shrink-0 ${isActive ? 'text-[#FF634A]' : 'text-[rgba(255,255,255,0.45)] group-hover:text-[rgba(255,255,255,0.8)]'} transition-colors`}>
+            <span className="mt-0.5 flex-shrink-0 transition-colors"
+              style={{ color: isActive ? '#FF634A' : 'var(--color-fg-muted)' }}>
               <NavIcon id={item.icon} className="w-4 h-4" />
             </span>
             <div>
-              <p className={`text-[13px] font-medium leading-none mb-0.5 ${isActive ? 'text-[#FF634A]' : 'text-[rgba(255,255,255,0.85)] group-hover:text-white'} transition-colors`}>
+              <p className="text-[13px] font-medium leading-none mb-0.5 transition-colors"
+                style={{ color: isActive ? '#FF634A' : 'var(--color-fg-default)' }}>
                 {item.name}
               </p>
               {item.desc && (
-                <p className="text-[11px] text-[rgba(255,255,255,0.38)] group-hover:text-[rgba(255,255,255,0.55)] transition-colors leading-snug">
+                <p className="text-[11px] transition-colors leading-snug"
+                  style={{ color: 'var(--color-fg-subtle)' }}>
                   {item.desc}
                 </p>
               )}
@@ -444,7 +445,7 @@ const Navbar = () => {
                               if (n.link) navigate(n.link);
                               setIsBellOpen(false);
                             }}
-                            className="w-full text-left px-4 py-3 transition-colors hover:bg-[rgba(255,255,255,0.04)] relative">
+                            className="w-full text-left px-4 py-3 transition-colors hover:bg-[rgba(0,0,0,0.05)] relative">
                             {!n.isRead && (
                               <span className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#FF634A' }} />
                             )}
@@ -505,7 +506,7 @@ const Navbar = () => {
                     { to: '/settings', label: 'Settings', d: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
                   ].map(({ to, label, d }) => (
                     <Link key={to} to={to} onClick={() => setIsAvatarOpen(false)}
-                      className="flex items-center gap-2.5 px-3 py-2 text-[13px] rounded-md transition-colors hover:bg-[rgba(0,0,0,0.04)] dark:hover:bg-[rgba(255,255,255,0.07)]" style={{ color: 'var(--color-fg-muted)' }}>
+                      className="flex items-center gap-2.5 px-3 py-2 text-[13px] rounded-md transition-colors hover:bg-[rgba(128,128,128,0.08)]" style={{ color: 'var(--color-fg-muted)' }}>
                       <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d={d} />
                       </svg>

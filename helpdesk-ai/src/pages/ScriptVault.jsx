@@ -2581,6 +2581,9 @@ export default function ScriptVault() {
 
   return (
     <PageWrapper>
+      {/* data-color-mode="dark" forces the code-editor tool to always render
+          in dark mode — intentional, matching VS Code / code editor convention */}
+      <div data-color-mode="dark">
       {/* ─────────────────────────────────────────────────────────────────────
           VS Code-style full-height layout
           ─────────────────────────────────────────────────────────────────── */}
@@ -2917,6 +2920,7 @@ export default function ScriptVault() {
           saving={saving}
         />
       )}
+      </div>{/* end data-color-mode="dark" wrapper */}
     </PageWrapper>
   );
 }
