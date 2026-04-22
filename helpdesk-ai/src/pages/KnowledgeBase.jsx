@@ -53,6 +53,24 @@ export default function KnowledgeBase() {
     try { return JSON.parse(localStorage.getItem('hd_kb_rated') || '[]'); } catch { return []; }
   });
 
+  // Auto-KB: check for pre-filled draft from TicketDetail "Convert to KB Article"
+  useEffect(() => {
+    const draftRaw = sessionStorage.getItem('hd_kb_draft');
+    if (draftRaw) {
+      try {
+        const draft = JSON.parse(draftRaw);
+        setForm(f => ({
+          ...f,
+          title:    draft.prefillTitle    || f.title,
+          content:  draft.prefillContent  || f.content,
+          category: draft.prefillCategory || f.category,
+        }));
+        setShowCreate(true);
+        sessionStorage.removeItem('hd_kb_draft');
+      } catch {}
+    }
+  }, []);
+
   // Edit state for staff
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({ title: '', content: '', category: 'General', tags: '', isPublished: true });

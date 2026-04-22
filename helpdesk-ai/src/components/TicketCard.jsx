@@ -17,10 +17,20 @@ const getSLA = (ticket) => {
   return { breached: false, urgent: pct < 0.25, label: h > 0 ? `${h}h ${m}m left` : `${m}m left` };
 };
 
-/**
- * TicketCard Component
- * Card displaying ticket summary
- */
+// Deterministic DNA fingerprint — generates 8 colours from a ticket _id string
+const DNA_PALETTE = ['#ef4444','#f97316','#f59e0b','#eab308','#22c55e','#3b82f6','#8b5cf6','#ec4899','#06b6d4','#a855f7','#14b8a6','#6366f1'];
+const ticketDNA = (id = '') => {
+  const out = [];
+  for (let i = 0; i < 8; i++) {
+    let h = 0;
+    for (let j = 0; j < id.length; j++) {
+      h = ((h << 5) - h + id.charCodeAt((j + i * 3) % id.length)) | 0;
+    }
+    out.push(DNA_PALETTE[Math.abs(h) % DNA_PALETTE.length]);
+  }
+  return out;
+};
+
 const TicketCard = ({ ticket, onClick, onReopen }) => {
   const priorityVariant = ticket.priority.toLowerCase();
   const statusVariant = ticket.status.toLowerCase().replace(' ', '-');
@@ -86,6 +96,12 @@ const TicketCard = ({ ticket, onClick, onReopen }) => {
       className="card cursor-pointer relative overflow-hidden"
       style={{ borderLeft: `3px solid ${priorityStrip}` }}
     >
+      {/* DNA fingerprint strip — unique colour pattern per ticket */}
+      <div className="absolute top-0 left-3 right-0 h-[3px] flex overflow-hidden rounded-br-sm opacity-60">
+        {ticketDNA(ticket._id || ticket.id || ticket.ticketId || '').map((color, i) => (
+          <div key={i} className="flex-1" style={{ backgroundColor: color }} />
+        ))}
+      </div>
       {/* Header */}
       <div className="flex justify-between items-start mb-3">
         <div className="flex-1">

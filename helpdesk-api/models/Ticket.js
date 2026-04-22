@@ -53,7 +53,7 @@ const ticketSchema = new mongoose.Schema(
     subType:     { type: String, default: '' },
     priority:    { type: String, enum: ['Low', 'Medium', 'High', 'Critical'], default: 'Medium' },
     status:      { type: String, enum: ['Open', 'In Progress', 'Resolved', 'Closed'], default: 'Open' },
-    createdBy:   { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    createdBy:   { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     assignedTo:  { type: String, default: '' },
     comments:    [commentSchema],
     internalNotes: [internalNoteSchema],
@@ -67,6 +67,17 @@ const ticketSchema = new mongoose.Schema(
     resolvedAt:  { type: Date },
     dueDate:     { type: Date, default: null },
     watchers:    [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    // Kiosk walk-in submissions
+    submittedVia: { type: String, enum: ['web', 'chatbot', 'kiosk', 'api', 'csv'], default: 'web' },
+    kioskName:    { type: String, default: '' },
+    kioskEmail:   { type: String, default: '' },
+    // Read-only share token (Batch 2)
+    shareToken:   { type: String, default: null, select: false },
+    shareTokenExpiry: { type: Date, default: null, select: false },
+    // Agent handoff note (Batch 4)
+    handoffNote:  { type: String, default: '' },
+    // Complexity score 1-5 (Batch 5)
+    complexity:   { type: Number, min: 1, max: 5, default: null },
   },
   { timestamps: true }
 );
@@ -96,8 +107,8 @@ ticketSchema.pre('save', async function (next) {
       action: 'Ticket created',
       field: 'created',
       to: 'Open',
-      by: this.createdBy,
-      byName: 'System',
+      by: this.createdBy || null,
+      byName: this.kioskName || 'System',
     });
   }
   if (this.isModified('status') && this.status === 'Resolved' && !this.resolvedAt) {

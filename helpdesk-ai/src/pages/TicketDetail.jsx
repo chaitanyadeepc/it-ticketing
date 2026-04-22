@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { QRCodeSVG } from 'qrcode.react';
 import api from '../api/api';
 import { useToast } from '../context/ToastContext';
 import { logActivity } from '../utils/activityLog';
@@ -130,6 +131,14 @@ export default function TicketDetail() {
   const [watchLoading, setWatchLoading] = useState(false);
   const [dueDateInput, setDueDateInput] = useState('');
   const [dueDateSaving, setDueDateSaving] = useState(false);
+  // QR code modal
+  const [showQR, setShowQR] = useState(false);
+  // Share link state
+  const [shareLoading, setShareLoading] = useState(false);
+  const [shareUrl, setShareUrl] = useState('');
+  // Handoff note
+  const [handoffNote, setHandoffNote] = useState('');
+  const [handoffSaving, setHandoffSaving] = useState(false);
 
   // Canned responses stored in localStorage
   const DEFAULT_CANNED = [
@@ -173,6 +182,7 @@ export default function TicketDetail() {
       .then(({ data }) => {
         setTicket(data.ticket);
         setAssignValue(data.ticket.assignedTo || '');
+        setHandoffNote(data.ticket.handoffNote || '');
         // Sync watch state — check if current user is in watchers array
         const myId = localStorage.getItem('userId');
         if (myId && Array.isArray(data.ticket.watchers)) {
@@ -228,6 +238,35 @@ export default function TicketDetail() {
       addToast('Failed to save due date', 'error');
     } finally {
       setDueDateSaving(false);
+    }
+  };
+
+  const handleGenerateShareLink = async () => {
+    setShareLoading(true);
+    try {
+      const { data } = await api.post(`/tickets/${id}/share-token`);
+      const url = `${window.location.origin}/share/${data.token}`;
+      setShareUrl(url);
+      await navigator.clipboard.writeText(url).catch(() => {});
+      addToast('Share link copied to clipboard! (expires in 7 days)');
+    } catch {
+      addToast('Failed to generate share link', 'error');
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
+  const handleSaveHandoffNote = async () => {
+    if (!handoffNote.trim()) return;
+    setHandoffSaving(true);
+    try {
+      await api.patch(`/tickets/${id}/handoff-note`, { note: handoffNote.trim() });
+      setTicket(prev => ({ ...prev, handoffNote: handoffNote.trim() }));
+      addToast('Handoff note saved');
+    } catch {
+      addToast('Failed to save handoff note', 'error');
+    } finally {
+      setHandoffSaving(false);
     }
   };
 
@@ -288,6 +327,22 @@ export default function TicketDetail() {
   };
 
   const handleStatusChange = async (newStatus) => {
+    // Resolution confidence nudge — warn if resolving with short/missing notes
+    if (newStatus === 'Resolved') {
+      const allEntries = [
+        ...(ticket.internalNotes || []).map(n => ({ text: n.text, createdAt: n.createdAt })),
+        ...(ticket.comments   || []).map(c => ({ text: c.text, createdAt: c.createdAt })),
+      ];
+      if (allEntries.length === 0) {
+        if (!window.confirm('⚠️ No comments or internal notes on this ticket.\n\nConsider documenting the resolution before marking resolved.\n\nContinue anyway?')) return;
+      } else {
+        const latest = allEntries.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+        const words = (latest.text || '').trim().split(/\s+/).filter(Boolean).length;
+        if (words < 15) {
+          if (!window.confirm(`⚠️ The most recent note is only ${words} word(s).\n\nAdding more resolution detail helps future troubleshooting.\n\nContinue marking as Resolved?`)) return;
+        }
+      }
+    }
     setStatusUpdating(true);
     try {
       const { data } = await api.patch(`/tickets/${id}`, { status: newStatus });
@@ -459,6 +514,22 @@ export default function TicketDetail() {
   const sla = getSLA(ticket);
   const firstResponseTime = getFirstResponseTime(ticket);
 
+  // Complexity score 1-5 (auto-calculated from ticket data)
+  const computeComplexity = (t) => {
+    if (!t) return null;
+    let score = 1;
+    const comments = (t.comments || []).length;
+    const notes    = (t.internalNotes || []).length;
+    const ageHours = (Date.now() - new Date(t.createdAt)) / 3600000;
+    const agentsTouched = new Set([t.assignedTo, ...(t.history || []).filter(h => h.field === 'assignedTo').map(h => h.to)].filter(Boolean)).size;
+    if (comments + notes > 10) score += 2;
+    else if (comments + notes > 5) score += 1;
+    if (ageHours > 72) score += 1;
+    if (agentsTouched > 2) score += 1;
+    return Math.min(5, score);
+  };
+  const complexity = ticket.complexity || computeComplexity(ticket);
+
   return (
     <>
     <div className="w-full px-4 sm:px-6 lg:px-8 py-5">
@@ -472,6 +543,29 @@ export default function TicketDetail() {
         </button>
         <div className="flex items-center gap-2">
           <CopyLinkButton ticketId={ticket?.ticketId} />
+          {isStaff && (
+            <button
+              onClick={handleGenerateShareLink}
+              disabled={shareLoading}
+              title="Generate read-only share link (7 days)"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] text-[#a1a1aa] hover:text-[#fafafa] transition-colors border border-[#27272a] hover:border-[#3f3f46] disabled:opacity-50"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+              </svg>
+              {shareLoading ? '…' : 'Share'}
+            </button>
+          )}
+          <button
+            onClick={() => setShowQR(true)}
+            title="Show QR code for this ticket"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] text-[#a1a1aa] hover:text-[#fafafa] transition-colors border border-[#27272a] hover:border-[#3f3f46]"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+            </svg>
+            QR
+          </button>
           <button
             onClick={() => navigate(`/tickets/${id}/print`)}
             title="Open print-friendly view"
@@ -868,6 +962,25 @@ export default function TicketDetail() {
                 </button>
               </form>
 
+              {/* Agent Handoff Note */}
+              <div className="mb-4">
+                <p className="text-[11px] uppercase font-semibold text-[#52525b] tracking-wider mb-2">Handoff Note</p>
+                <textarea
+                  value={handoffNote}
+                  onChange={e => setHandoffNote(e.target.value)}
+                  placeholder="Summarise context for the next agent…"
+                  rows={3}
+                  className="w-full bg-[#27272a] border border-[#3f3f46] text-[#fafafa] text-[12px] rounded-lg px-3 py-2 focus:outline-none focus:border-[#f59e0b] placeholder-[#52525b] resize-none mb-2"
+                />
+                <button
+                  onClick={handleSaveHandoffNote}
+                  disabled={handoffSaving || !handoffNote.trim()}
+                  className="w-full px-3 py-1.5 bg-[#f59e0b]/15 hover:bg-[#f59e0b]/25 border border-[#f59e0b]/30 text-[#f59e0b] text-[12px] rounded-lg transition-colors font-medium disabled:opacity-40"
+                >
+                  {handoffSaving ? 'Saving…' : 'Save Handoff Note'}
+                </button>
+              </div>
+
               <div className="pt-3 border-t border-[#27272a]">
                 {isAdmin && (
                 <button onClick={handleDelete}
@@ -901,8 +1014,51 @@ export default function TicketDetail() {
                   <span className="text-[12px] font-medium" style={{ color: color || '#a1a1aa' }}>{value}</span>
                 </div>
               ))}
+              {/* Complexity score */}
+              {complexity && (
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] uppercase font-semibold tracking-wider text-[#52525b]">Complexity</span>
+                  <div className="flex items-center gap-0.5">
+                    {[1,2,3,4,5].map(n => (
+                      <svg key={n} className="w-3.5 h-3.5" viewBox="0 0 20 20" fill={n <= complexity ? '#f59e0b' : '#27272a'}>
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                      </svg>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
+
+          {/* Handoff Note display (staff only) */}
+          {isStaff && ticket.handoffNote && (
+            <div className="bg-[#18181b] border border-[#f59e0b]/25 border-l-[3px] rounded-xl p-4" style={{ borderLeftColor: '#f59e0b' }}>
+              <p className="text-[11px] uppercase font-semibold text-[#f59e0b] tracking-wider mb-2">Handoff Note</p>
+              <p className="text-[13px] text-[#a1a1aa] leading-relaxed">{ticket.handoffNote}</p>
+            </div>
+          )}
+
+          {/* Auto-KB — convert resolved ticket to KB article */}
+          {isStaff && (ticket.status === 'Resolved' || ticket.status === 'Closed') && (
+            <button
+              onClick={() => {
+                const resolutionText = (ticket.internalNotes || []).map(n => n.text).join('\n\n') || ticket.description || '';
+                const kbDraft = {
+                  prefillTitle:   `[Solution] ${ticket.title}`,
+                  prefillContent: `**Problem:**\n${ticket.description}\n\n**Resolution:**\n${resolutionText}`,
+                  prefillCategory: ticket.category,
+                };
+                sessionStorage.setItem('hd_kb_draft', JSON.stringify(kbDraft));
+                navigate('/knowledge-base');
+              }}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-[#8b5cf6]/10 hover:bg-[#8b5cf6]/20 border border-[#8b5cf6]/25 text-[#8b5cf6] text-[12px] rounded-xl transition-colors font-medium"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+              Convert to KB Article
+            </button>
+          )}
 
           {/* CSAT widget */}
           {(ticket.status === 'Resolved' || ticket.status === 'Closed') && (
@@ -955,6 +1111,45 @@ export default function TicketDetail() {
       </div>
     </div>
     {showConfetti && <Confetti />}
+
+    {/* QR Code Modal */}
+    {showQR && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+        onClick={() => setShowQR(false)}
+      >
+        <div
+          className="bg-[#18181b] border border-[#27272a] rounded-2xl p-8 max-w-xs w-full mx-4 shadow-2xl"
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h2 className="text-[15px] font-semibold text-[#fafafa]">Ticket QR Code</h2>
+              <p className="text-[11px] text-[#52525b] mt-0.5">{ticket?.ticketId}</p>
+            </div>
+            <button onClick={() => setShowQR(false)} className="w-7 h-7 rounded-lg bg-[#27272a] hover:bg-[#3f3f46] flex items-center justify-center text-[#71717a] hover:text-[#fafafa] transition-colors text-lg leading-none">×</button>
+          </div>
+          <div className="bg-white p-5 rounded-xl mb-4 flex items-center justify-center">
+            <QRCodeSVG
+              value={`${window.location.origin}/status?id=${ticket?.ticketId}`}
+              size={190}
+              level="M"
+              includeMargin={false}
+            />
+          </div>
+          <p className="text-[11px] text-[#71717a] text-center mb-4">Scan to check ticket status on any device</p>
+          <button
+            onClick={() => window.print()}
+            className="w-full px-4 py-2 bg-[#27272a] hover:bg-[#3f3f46] text-[#fafafa] text-[13px] rounded-lg transition-colors flex items-center justify-center gap-2"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+            </svg>
+            Print QR Code
+          </button>
+        </div>
+      </div>
+    )}
     </>
   );
 }

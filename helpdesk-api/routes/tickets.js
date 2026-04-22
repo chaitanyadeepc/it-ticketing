@@ -20,6 +20,64 @@ router.get('/public/:ticketId', async (req, res) => {
   }
 });
 
+// ── PUBLIC: Kiosk walk-in ticket submission (no auth required) ─────────────
+router.post('/kiosk', async (req, res) => {
+  try {
+    const { name, email, category, description } = req.body;
+
+    // Basic validation
+    if (!name || !email || !category || !description) {
+      return res.status(400).json({ error: 'name, email, category, and description are required' });
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ error: 'Invalid email address' });
+    }
+    if (description.trim().length < 10) {
+      return res.status(400).json({ error: 'Description must be at least 10 characters' });
+    }
+
+    // Auto-assign via round-robin
+    const nextAgent = await getNextAgent();
+
+    const ticket = await Ticket.create({
+      title:       `[Walk-in] ${description.trim().slice(0, 80)}`,
+      description: description.trim(),
+      category,
+      priority:    'Medium',
+      status:      'Open',
+      assignedTo:  nextAgent?.name || '',
+      submittedVia: 'kiosk',
+      kioskName:   name.trim(),
+      kioskEmail:  email.trim().toLowerCase(),
+    });
+
+    res.status(201).json({
+      ticket: {
+        ticketId: ticket.ticketId,
+        category: ticket.category,
+        status:   ticket.status,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/tickets/share/:token  — public read-only view via share token
+router.get('/share/:token', async (req, res) => {
+  try {
+    const ticket = await Ticket.findOne({
+      shareToken: req.params.token,
+      shareTokenExpiry: { $gt: new Date() },
+    }).select('ticketId title status priority category createdAt updatedAt resolvedAt description');
+
+    if (!ticket) return res.status(404).json({ error: 'Share link is invalid or has expired' });
+    res.json({ ticket });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // All routes below require authentication
 router.use(protect);
 
@@ -131,9 +189,30 @@ router.get('/:id', async (req, res) => {
 // POST /api/tickets — create
 router.post('/', async (req, res) => {
   try {
-    const { title, description, category, subType, priority } = req.body;
+    let { title, description, category, subType, priority } = req.body;
     if (!title || !description || !category)
       return res.status(400).json({ error: 'Title, description and category are required' });
+
+    // ── Sensitive data redaction ────────────────────────────────────────────
+    const REDACT_PATTERNS = [
+      { re: /password\s*[:=]\s*\S+/gi,           label: 'password' },
+      { re: /\b\d{4}[\s\-]?\d{4}[\s\-]?\d{4}[\s\-]?\d{4}\b/g, label: 'credit card' },
+      { re: /\b(?:api[_\-]?key|apikey|secret)[:\s=]+[A-Za-z0-9+/=_\-]{16,}/gi, label: 'API key' },
+      { re: /\b\d{3}-?\d{2}-?\d{4}\b/g,          label: 'SSN' },
+      { re: /Bearer\s+[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+/gi, label: 'JWT token' },
+    ];
+    const redactedFields = [];
+    const redact = (text) => {
+      let out = text;
+      for (const { re, label } of REDACT_PATTERNS) {
+        const before = out;
+        out = out.replace(re, `[REDACTED:${label}]`);
+        if (out !== before && !redactedFields.includes(label)) redactedFields.push(label);
+      }
+      return out;
+    };
+    title       = redact(title);
+    description = redact(description);
 
     // Round-robin auto-assign to least-loaded agent
     const autoAgent = await getNextAgent();
@@ -162,7 +241,11 @@ router.post('/', async (req, res) => {
     }
 
     await ticket.populate('createdBy', 'name email');
-    res.status(201).json({ ticket });
+    const resp = { ticket };
+    if (redactedFields.length > 0) {
+      resp.warning = `Potentially sensitive data was redacted from your ticket: ${redactedFields.join(', ')}. Please avoid including passwords, card numbers, or secrets in support requests.`;
+    }
+    res.status(201).json(resp);
     User.findById(req.user._id).then((user) => sendTicketCreated(ticket, user)).catch(() => {});
   } catch (err) {
     console.error('Ticket create error:', err.message);
@@ -371,8 +454,23 @@ router.delete('/:id/attachments/:attachmentId', async (req, res) => {
 // DELETE /api/tickets/:id (admin only)
 router.delete('/:id', adminOnly, async (req, res) => {
   try {
-    const ticket = await Ticket.findByIdAndDelete(req.params.id);
+    const ticket = await Ticket.findById(req.params.id);
     if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
+
+    // Time-Lock: resolved tickets cannot be deleted for 30 days
+    if (ticket.resolvedAt) {
+      const daysSince = (Date.now() - new Date(ticket.resolvedAt)) / 86400000;
+      if (daysSince < 30) {
+        const unlocksAt = new Date(ticket.resolvedAt);
+        unlocksAt.setDate(unlocksAt.getDate() + 30);
+        return res.status(403).json({
+          error: `This ticket was resolved recently and is locked from deletion for 30 days. Deletion available after ${unlocksAt.toLocaleDateString()}.`,
+          lockedUntil: unlocksAt.toISOString(),
+        });
+      }
+    }
+
+    await Ticket.findByIdAndDelete(req.params.id);
     res.json({ message: 'Ticket deleted' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -419,6 +517,74 @@ router.patch('/:id/due-date', agentOrAdmin, async (req, res) => {
     );
     if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
     res.json({ dueDate: ticket.dueDate });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/tickets/:id/share-token  — generate a 7-day read-only share link (staff only)
+router.post('/:id/share-token', agentOrAdmin, async (req, res) => {
+  try {
+    const ticket = await Ticket.findById(req.params.id).select('+shareToken +shareTokenExpiry');
+    if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
+
+    const token = require('crypto').randomBytes(24).toString('hex');
+    const expiry = new Date(Date.now() + 7 * 24 * 3600 * 1000); // 7 days
+    ticket.shareToken = token;
+    ticket.shareTokenExpiry = expiry;
+    await ticket.save();
+    res.json({ token, expiresAt: expiry });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PATCH /api/tickets/:id/handoff-note  — set agent handoff note (staff only)
+router.patch('/:id/handoff-note', agentOrAdmin, async (req, res) => {
+  try {
+    const { note } = req.body;
+    if (!note || !note.trim()) return res.status(400).json({ error: 'Note text is required' });
+    const ticket = await Ticket.findByIdAndUpdate(
+      req.params.id,
+      { handoffNote: note.trim() },
+      { new: true }
+    );
+    if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
+    res.json({ handoffNote: ticket.handoffNote });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/tickets/bulk-import — admin only
+router.post('/bulk-import', adminOnly, async (req, res) => {
+  try {
+    const { tickets } = req.body;
+    if (!Array.isArray(tickets) || tickets.length === 0) {
+      return res.status(400).json({ error: 'No tickets provided' });
+    }
+    if (tickets.length > 500) {
+      return res.status(400).json({ error: 'Maximum 500 tickets per import' });
+    }
+    const VALID_PRIORITIES = ['Low', 'Medium', 'High', 'Critical'];
+    const VALID_CATEGORIES = ['Hardware', 'Software', 'Network', 'Account Access', 'Email', 'Printer', 'Phone/Mobile', 'Security', 'Other'];
+    let created = 0;
+    let skipped = 0;
+    for (const t of tickets) {
+      if (!t.title?.trim() || !t.description?.trim()) { skipped++; continue; }
+      await Ticket.create({
+        title: t.title.trim().slice(0, 200),
+        description: t.description.trim().slice(0, 5000),
+        category: VALID_CATEGORIES.includes(t.category) ? t.category : 'Other',
+        priority: VALID_PRIORITIES.includes(t.priority) ? t.priority : 'Medium',
+        status: 'Open',
+        submittedVia: 'csv',
+        kioskEmail: (t.email || '').trim().slice(0, 200),
+        createdBy: req.user._id,
+      });
+      created++;
+    }
+    res.status(201).json({ created, skipped });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

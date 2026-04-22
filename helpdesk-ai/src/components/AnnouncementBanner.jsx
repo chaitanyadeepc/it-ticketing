@@ -16,6 +16,7 @@ const getDismissed = () => {
 
 export default function AnnouncementBanner() {
   const [announcements, setAnnouncements] = useState([]);
+  const [maintenance, setMaintenance] = useState(null);
   const location = useLocation();
 
   // All hooks must be called unconditionally — early return is AFTER this
@@ -37,6 +38,12 @@ export default function AnnouncementBanner() {
         setAnnouncements(data.announcements.filter(a => !dismissed.includes(a._id)));
       })
       .catch(() => {});
+    // Check maintenance mode (public endpoint, no auth needed)
+    const BASE = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/api$/, '');
+    fetch(`${BASE}/api/maintenance/current`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.maintenance) setMaintenance(data.maintenance); })
+      .catch(() => {});
   }, [location.pathname]);
 
   const hiddenPaths = ['/', '/login', '/register'];
@@ -48,10 +55,16 @@ export default function AnnouncementBanner() {
     setAnnouncements(prev => prev.filter(a => a._id !== id));
   };
 
-  if (!announcements.length) return null;
+  if (!announcements.length && !maintenance) return null;
 
   return (
     <div className="flex flex-col gap-1">
+      {maintenance && (
+        <div className="flex items-center gap-3 px-4 py-2 border-b bg-orange-950/80 border-orange-500/50 text-orange-200 text-sm">
+          <span>🔧</span>
+          <p className="flex-1"><strong>{maintenance.title}</strong>{maintenance.message ? ` — ${maintenance.message}` : ''}</p>
+        </div>
+      )}
       {announcements.map(ann => (
         <div key={ann._id} className={`flex items-center gap-3 px-4 py-2 border-b text-sm ${TYPE_STYLES[ann.type] || TYPE_STYLES.info}`}>
           <span>{TYPE_ICONS[ann.type]}</span>

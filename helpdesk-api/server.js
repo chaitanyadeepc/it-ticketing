@@ -17,11 +17,13 @@ const notificationRoutes  = require('./routes/notifications');
 const cannedResponseRoutes = require('./routes/cannedResponses');
 const configRoutes        = require('./routes/config');
 const scriptVaultRoutes     = require('./routes/scriptVault');
+const maintenanceRoutes     = require('./routes/maintenance');
 
 const cron = require('node-cron');
 const User         = require('./models/User');
 const Ticket       = require('./models/Ticket');
 const Notification = require('./models/Notification');
+const Announcement = require('./models/Announcement');
 const { sendWeeklyDigest, sendAutoClosedNotification, sendSLAEscalated, sendDueDateReminder } = require('./utils/email');
 
 const app = express();
@@ -85,6 +87,7 @@ app.use('/api/canned-responses', cannedResponseRoutes);
 app.use('/api/config',         configRoutes);
 app.use('/api/script-vault',   scriptVaultRoutes);
 app.use('/api/codeshare',      scriptVaultRoutes); // backward-compat alias
+app.use('/api/maintenance',    maintenanceRoutes);
 
 // ── Health check ─────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date() }));
@@ -215,8 +218,37 @@ mongoose
       }
     }, { timezone: 'UTC' });
 
+    // ── Ticket Storm Detector — checks every 5 minutes ────────────────────
+    cron.schedule('*/5 * * * *', async () => {
+      try {
+        const windowStart = new Date(Date.now() - 15 * 60 * 1000);
+        const recentTickets = await Ticket.find({ createdAt: { $gte: windowStart } }).select('title').lean();
+        if (recentTickets.length < 5) return;
+        // Keyword frequency analysis
+        const wordMap = {};
+        recentTickets.forEach(t => {
+          const words = (t.title || '').toLowerCase().split(/\W+/).filter(w => w.length > 3);
+          words.forEach(w => { wordMap[w] = (wordMap[w] || 0) + 1; });
+        });
+        const hotWord = Object.entries(wordMap).sort((a, b) => b[1] - a[1])[0];
+        if (hotWord && hotWord[1] >= 3) {
+          const existing = await Announcement.findOne({ title: { $regex: 'Ticket Storm', $options: 'i' }, createdAt: { $gte: new Date(Date.now() - 30 * 60 * 1000) } });
+          if (!existing) {
+            await Announcement.create({
+              title: `⚠️ Ticket Storm Detected`,
+              message: `${recentTickets.length} tickets submitted in the last 15 minutes. Common keyword: "${hotWord[0]}". Investigating…`,
+              type: 'warning',
+              isActive: true,
+            });
+            console.log(`[STORM] Ticket storm detected: ${recentTickets.length} tickets, keyword "${hotWord[0]}"`);
+          }
+        }
+      } catch (err) {
+        console.error('[STORM] Ticket storm check error:', err.message);
+      }
+    }, { timezone: 'UTC' });
+
   })
-  .catch((err) => {
     console.error('❌ MongoDB connection failed:', err.message);
     process.exit(1);
   });

@@ -49,6 +49,10 @@ import TicketPrint from './pages/TicketPrint';
 import SLAConfig from './pages/SLAConfig';
 import CalendarView from './pages/CalendarView';
 import ScriptVault from './pages/ScriptVault';
+import Kiosk from './pages/Kiosk';
+import SharedTicket from './pages/SharedTicket';
+import AnonymousFeedback from './pages/AnonymousFeedback';
+import TicketImport from './pages/TicketImport';
 import { logActivity } from './utils/activityLog';
 import OnboardingTour from './components/OnboardingTour';
 import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
@@ -160,6 +164,10 @@ function App() {
             <Route path="/notifications" element={<ProtectedRoute><NotificationCenter /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+            <Route path="/kiosk" element={<Kiosk />} />
+            <Route path="/share/:token" element={<SharedTicket />} />
+            <Route path="/feedback" element={<AnonymousFeedback />} />
+            <Route path="/admin/ticket-import" element={<AdminRoute><TicketImport /></AdminRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </div>

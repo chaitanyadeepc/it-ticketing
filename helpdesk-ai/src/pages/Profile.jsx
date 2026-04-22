@@ -325,6 +325,42 @@ const Profile = () => {
           </form>
         </div>
 
+        {/* Achievement Badges */}
+        {(() => {
+          const resolvedCount = stats.resolved;
+          const totalCount = stats.total;
+          const accountDays = userSince ? Math.floor((Date.now() - new Date(userSince + ' 1').getTime()) / 86400000) : 0;
+          const BADGES = [
+            { key: 'first_ticket', icon: '🎫', label: 'First Ticket', desc: 'Submit your first ticket', earned: totalCount >= 1 },
+            { key: 'resolved_1',   icon: '✅', label: 'Problem Solver', desc: 'First ticket resolved', earned: resolvedCount >= 1 },
+            { key: 'resolved_10',  icon: '🔟', label: 'Experienced', desc: '10 tickets resolved', earned: resolvedCount >= 10 },
+            { key: 'century',      icon: '💯', label: 'Century', desc: '100 tickets resolved', earned: resolvedCount >= 100 },
+            { key: 'veteran',      icon: '🏅', label: 'Veteran', desc: 'Account active 90+ days', earned: accountDays >= 90 },
+            { key: 'all_resolved', icon: '⭐', label: 'Clean Slate', desc: 'All tickets resolved', earned: totalCount > 0 && stats.active === 0 },
+          ];
+          const earnedCount = BADGES.filter(b => b.earned).length;
+          return (
+            <div className="mt-5 bg-[#18181b] border border-[#27272a] border-l-[3px] rounded-xl p-5" style={{ borderLeftColor: '#f59e0b' }}>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-[16px]">🏆</span>
+                  <h2 className="text-[14px] font-semibold text-[#fafafa]">Achievement Badges</h2>
+                </div>
+                <span className="text-[11px] text-[#a1a1aa] bg-[#27272a] px-2 py-0.5 rounded-full">{earnedCount}/{BADGES.length} earned</span>
+              </div>
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+                {BADGES.map(b => (
+                  <div key={b.key} title={b.desc}
+                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border text-center transition-all ${b.earned ? 'border-[#f59e0b]/30 bg-[#f59e0b]/5' : 'border-[#27272a] opacity-40 grayscale'}`}>
+                    <span className="text-2xl">{b.icon}</span>
+                    <span className="text-[10px] font-medium text-[#e4e4e7] leading-tight">{b.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Quick Actions */}
         <div className="mt-5 bg-[#18181b] border border-[#27272a] border-l-[3px] rounded-xl p-5" style={{ borderLeftColor: '#3b82f6' }}>
           <div className="flex items-center gap-2 mb-4">

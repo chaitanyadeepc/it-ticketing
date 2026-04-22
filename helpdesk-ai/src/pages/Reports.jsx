@@ -68,6 +68,58 @@ export default function Reports() {
     ? (withCSAT.reduce((s, t) => s + t.satisfaction.rating, 0) / withCSAT.length).toFixed(2)
     : null;
 
+  // FCR (First Contact Resolution) — resolved without reassignment (single assignedTo) and never reopened
+  const fcrCount = useMemo(() => {
+    return inRange.filter(t => {
+      if (!['Resolved', 'Closed'].includes(t.status)) return false;
+      const reassigns = (t.history || []).filter(h => h.field === 'assignedTo').length;
+      const reopens   = (t.history || []).filter(h => h.to === 'Open' && h.from !== null && h.from !== undefined).length;
+      return reassigns <= 1 && reopens === 0;
+    }).length;
+  }, [inRange]);
+  const fcrRate = resolved > 0 ? Math.round((fcrCount / resolved) * 100) : null;
+
+  // Cost-per-ticket — reads hourly rate from localStorage
+  const hourlyRate  = parseFloat(localStorage.getItem('hd_hourly_rate') || '0');
+  const estimatedCostPerTicket = avgResHr && hourlyRate > 0
+    ? (parseFloat(avgResHr) * hourlyRate).toFixed(2)
+    : null;
+  const totalMonthlyCost = estimatedCostPerTicket && withRes.length > 0
+    ? (parseFloat(estimatedCostPerTicket) * resolved).toFixed(2)
+    : null;
+
+  // Category trend — 30-day daily buckets for each category
+  const categoryTrend = useMemo(() => {
+    const allCategories = [...new Set(inRange.map(t => t.category))].slice(0, 6);
+    const days = 30;
+    return allCategories.map(cat => {
+      const data = Array.from({ length: days }, (_, i) => {
+        const dayStart = new Date(Date.now() - (days - 1 - i) * 86400000);
+        dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(dayStart); dayEnd.setHours(23, 59, 59, 999);
+        const count = inRange.filter(t => t.category === cat && new Date(t.createdAt) >= dayStart && new Date(t.createdAt) <= dayEnd).length;
+        return { day: i, count };
+      });
+      return { category: cat, data };
+    });
+  }, [inRange]);
+
+  // Ticket flow — simplified Sankey-style
+  const ticketFlow = useMemo(() => {
+    const assigned   = inRange.filter(t => t.assignedTo && t.assignedTo !== 'Unassigned').length;
+    const unassigned = inRange.filter(t => !t.assignedTo || t.assignedTo === 'Unassigned').length;
+    const resolvedFlow  = inRange.filter(t => ['Resolved', 'Closed'].includes(t.status)).length;
+    const reopened   = inRange.filter(t => (t.history || []).some(h => h.to === 'Open' && h.from !== 'created')).length;
+    const escalated  = inRange.filter(t => (t.history || []).some(h => h.field === 'assignedTo' && (h.history || []).length > 1)).length;
+    return [
+      { stage: 'Created', value: inRange.length, color: '#3b82f6' },
+      { stage: 'Assigned', value: assigned, color: '#06b6d4' },
+      { stage: 'Unassigned', value: unassigned, color: '#f59e0b' },
+      { stage: 'Resolved', value: resolvedFlow, color: '#22c55e' },
+      { stage: 'Reopened', value: reopened, color: '#f97316' },
+    ];
+  }, [inRange]);
+
   // Resolution time trend — weekly
   const resTimeTrend = useMemo(() => {
     const weeks = {};
@@ -382,34 +434,121 @@ export default function Reports() {
           </div>
         </div>
 
-        {/* Agent performance table */}
+        {/* Agent Leaderboard */}
         {agentPerf.length > 0 && (
           <div className="bg-[#18181b] border border-[#27272a] rounded-xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-[#27272a]">
-              <h2 className="text-[13px] font-semibold text-[#a1a1aa] uppercase tracking-wider">Agent Performance Table</h2>
+            <div className="px-5 py-4 border-b border-[#27272a] flex items-center justify-between">
+              <h2 className="text-[13px] font-semibold text-[#a1a1aa] uppercase tracking-wider">🏆 Agent Leaderboard</h2>
+              <span className="text-[11px] text-[#52525b]">Ranked by tickets resolved</span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-[13px]">
                 <thead>
                   <tr className="bg-[#111113]">
-                    {['Agent', 'Total', 'Resolved', 'Rate', 'Avg CSAT', 'CSAT Responses'].map(h => (
+                    {['Rank', 'Agent', 'Resolved', 'Rate', 'Avg CSAT', 'Complexity Pts'].map(h => (
                       <th key={h} className="px-5 py-3 text-left text-[11px] font-semibold text-[#52525b] uppercase tracking-wider">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {agentPerf.map((a, idx) => (
-                    <tr key={a.agent} className={`border-t border-[#27272a] hover:bg-[#27272a]/50 transition-colors ${idx % 2 === 0 ? '' : 'bg-[#111113]/40'}`}>
-                      <td className="px-5 py-3 font-medium text-[#e4e4e7]">{a.agent}</td>
-                      <td className="px-5 py-3 text-[#a1a1aa]">{a.total}</td>
-                      <td className="px-5 py-3 text-[#22c55e]">{a.resolved}</td>
-                      <td className="px-5 py-3 text-[#a1a1aa]">{a.total ? Math.round(a.resolved / a.total * 100) : 0}%</td>
-                      <td className="px-5 py-3">{a.avgCSAT ? <span className="text-[#8b5cf6] font-medium">{a.avgCSAT}/5</span> : <span className="text-[#3f3f46]">—</span>}</td>
-                      <td className="px-5 py-3 text-[#52525b]">{a.csatCount}</td>
-                    </tr>
-                  ))}
+                  {agentPerf.map((a, idx) => {
+                    const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`;
+                    // Complexity points: sum of auto-calculated complexity for resolved tickets
+                    const complexityPts = inRange
+                      .filter(t => t.assignedTo === a.agent && ['Resolved','Closed'].includes(t.status))
+                      .reduce((s, t) => {
+                        let score = 1;
+                        const entries = (t.comments?.length || 0) + (t.internalNotes?.length || 0);
+                        if (entries > 10) score += 2; else if (entries > 5) score += 1;
+                        if ((Date.now() - new Date(t.createdAt)) / 3600000 > 72) score += 1;
+                        return s + Math.min(5, score);
+                      }, 0);
+                    return (
+                      <tr key={a.agent} className={`border-t border-[#27272a] hover:bg-[#27272a]/50 transition-colors ${idx < 3 ? 'bg-[#f59e0b]/3' : ''}`}>
+                        <td className="px-5 py-3 text-[14px]">{medal}</td>
+                        <td className="px-5 py-3 font-medium text-[#e4e4e7]">{a.agent}</td>
+                        <td className="px-5 py-3 text-[#22c55e] font-semibold">{a.resolved}</td>
+                        <td className="px-5 py-3 text-[#a1a1aa]">{a.total ? Math.round(a.resolved / a.total * 100) : 0}%</td>
+                        <td className="px-5 py-3">{a.avgCSAT ? <span className="text-[#8b5cf6] font-medium">{a.avgCSAT}/5</span> : <span className="text-[#3f3f46]">—</span>}</td>
+                        <td className="px-5 py-3 text-[#f59e0b] font-semibold">{complexityPts} ⭐</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* ── NEW: FCR + Cost-Per-Ticket KPI row ──────────────────────────── */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* First Contact Resolution Rate */}
+          <div className="rounded-xl border p-5 relative overflow-hidden" style={{ borderColor: '#22c55e30', background: 'linear-gradient(135deg,#22c55e0d 0%,transparent 70%)' }}>
+            <div className="w-9 h-9 rounded-xl bg-[#22c55e18] flex items-center justify-center mb-3">
+              <svg className="w-5 h-5 text-[#22c55e]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+            </div>
+            <p className="text-[26px] font-bold leading-none mb-1 text-[#22c55e]">{fcrRate !== null ? `${fcrRate}%` : '—'}</p>
+            <p className="text-[12px] text-[#a1a1aa]">First Contact Resolution Rate</p>
+            <p className="text-[11px] text-[#52525b] mt-1">{fcrCount} of {resolved} resolved tickets — no reassignment or reopen</p>
+          </div>
+
+          {/* Cost Per Ticket */}
+          <div className="rounded-xl border p-5 relative overflow-hidden" style={{ borderColor: '#06b6d430', background: 'linear-gradient(135deg,#06b6d40d 0%,transparent 70%)' }}>
+            <div className="w-9 h-9 rounded-xl bg-[#06b6d418] flex items-center justify-center mb-3">
+              <svg className="w-5 h-5 text-[#06b6d4]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <p className="text-[26px] font-bold leading-none mb-1 text-[#06b6d4]">
+              {estimatedCostPerTicket ? `$${estimatedCostPerTicket}` : '—'}
+            </p>
+            <p className="text-[12px] text-[#a1a1aa]">Estimated Cost Per Ticket</p>
+            <p className="text-[11px] text-[#52525b] mt-1">
+              {totalMonthlyCost
+                ? `~$${Number(totalMonthlyCost).toLocaleString()} total for ${resolved} resolved tickets`
+                : hourlyRate > 0 ? 'No resolved tickets with timing data' : 'Set hourly rate in Settings to enable'}
+            </p>
+          </div>
+
+          {/* Ticket Flow Summary */}
+          <div className="rounded-xl border p-5" style={{ borderColor: '#3b82f630', background: 'linear-gradient(135deg,#3b82f60d 0%,transparent 70%)' }}>
+            <p className="text-[12px] font-semibold text-[#a1a1aa] uppercase tracking-wider mb-3">Ticket Flow</p>
+            <div className="space-y-2">
+              {ticketFlow.map(({ stage, value, color }) => (
+                <div key={stage} className="flex items-center gap-2">
+                  <span className="text-[11px] text-[#71717a] w-20 flex-shrink-0">{stage}</span>
+                  <div className="flex-1 h-2 bg-[#27272a] rounded-full overflow-hidden">
+                    <div className="h-full rounded-full" style={{ width: inRange.length ? `${Math.min(100, (value / inRange.length) * 100)}%` : '0%', backgroundColor: color }} />
+                  </div>
+                  <span className="text-[11px] font-medium w-8 text-right" style={{ color }}>{value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ── NEW: Category Trend Sparklines ─────────────────────────────── */}
+        {categoryTrend.length > 0 && (
+          <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5">
+            <h2 className="text-[13px] font-semibold text-[#a1a1aa] uppercase tracking-wider mb-4">30-Day Category Trends</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              {categoryTrend.map(({ category, data }, idx) => {
+                const max = Math.max(...data.map(d => d.count), 1);
+                const total30 = data.reduce((s, d) => s + d.count, 0);
+                const color = CHART_COLORS[idx % CHART_COLORS.length];
+                return (
+                  <div key={category} className="rounded-lg border border-[#27272a] bg-[#111113] p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[11px] font-medium text-[#fafafa] truncate">{category}</span>
+                      <span className="text-[11px] font-bold ml-2 flex-shrink-0" style={{ color }}>{total30}</span>
+                    </div>
+                    <ResponsiveContainer width="100%" height={42}>
+                      <LineChart data={data} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
+                        <Line type="monotone" dataKey="count" stroke={color} strokeWidth={1.5} dot={false} />
+                        <YAxis domain={[0, max]} hide />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

@@ -68,6 +68,8 @@ const Settings = () => {
   const [sessionAlerts, setSessionAlerts] = useState(true);
   const [loggingEnabled, setLoggingEnabled] = useState(() => localStorage.getItem('hd_log_enabled') !== 'false');
   const [logLevel, setLogLevel] = useState(() => localStorage.getItem('hd_log_level') || 'detailed');
+  const [ambientSound, setAmbientSound] = useState(() => localStorage.getItem('hd_ambient_sound') === 'true');
+  const [agentHourlyRate, setAgentHourlyRate] = useState(() => localStorage.getItem('hd_hourly_rate') || '');
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
   const [settingsLoading, setSettingsLoading] = useState(true);
@@ -111,6 +113,8 @@ const Settings = () => {
 
   const handleLoggingToggle = (v) => { setLoggingEnabled(v); localStorage.setItem('hd_log_enabled', String(v)); };
   const handleLogLevel = (level) => { setLogLevel(level); localStorage.setItem('hd_log_level', level); };
+  const handleAmbientSound = (v) => { setAmbientSound(v); localStorage.setItem('hd_ambient_sound', String(v)); };
+  const handleHourlyRate = (v) => { setAgentHourlyRate(v); localStorage.setItem('hd_hourly_rate', v); };
 
   // ── 2FA setup handlers ────────────────────────────────────────────────────
   const open2FASetup = () => { setModalStep('choose'); setModalError(''); setShow2FAModal(true); };
@@ -350,6 +354,13 @@ const Settings = () => {
             >
               <Toggle enabled={weeklyDigest} onChange={handleWeeklyDigest} />
             </SettingRow>
+            <SettingRow
+              icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>}
+              title="Ambient Sound Alerts"
+              desc="Play a gentle ping when new tickets arrive or actions complete"
+            >
+              <Toggle enabled={ambientSound} onChange={handleAmbientSound} />
+            </SettingRow>
           </SectionCard>
         </div>
 
@@ -406,6 +417,35 @@ const Settings = () => {
               <p className="text-[11.5px] text-[#71717a]">Logging is disabled — no new activity events will be recorded until re-enabled.</p>
             </div>
           )}
+        </SectionCard>
+        </div>
+
+        {/* Cost-Per-Ticket Estimator */}
+        <div className="mb-5">
+        <SectionCard
+          accentColor="#06b6d4"
+          title="Cost-Per-Ticket Estimator"
+          icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>}
+        >
+          <SettingRow
+            icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>}
+            title="Agent Hourly Rate"
+            desc="Used in Reports to estimate cost-per-ticket. Stored locally only."
+          >
+            <div className="flex items-center gap-1.5">
+              <span className="text-[12px] text-[#71717a]">$</span>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={agentHourlyRate}
+                onChange={e => handleHourlyRate(e.target.value)}
+                placeholder="e.g. 50"
+                className="w-24 bg-[#27272a] border border-[#3f3f46] text-[#fafafa] text-[12px] rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#06b6d4] placeholder-[#52525b]"
+              />
+              <span className="text-[11px] text-[#52525b]">/hr</span>
+            </div>
+          </SettingRow>
         </SectionCard>
         </div>
 

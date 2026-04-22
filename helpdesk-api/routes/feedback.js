@@ -120,4 +120,33 @@ router.delete('/:id', protect, adminOnly, async (req, res) => {
   }
 });
 
+// ── POST /api/feedback/anonymous — public, anonymous portal submission ───
+router.post('/anonymous', submitLimiter, async (req, res) => {
+  try {
+    const { category, description, severity } = req.body;
+    if (!description || description.trim().length < 10) {
+      return res.status(400).json({ error: 'Description must be at least 10 characters' });
+    }
+    const allowed = ['Bug Report', 'Feature Request', 'Complaint', 'Suggestion', 'Other'];
+    const allowed2 = ['Low', 'Medium', 'High', 'Critical'];
+    const feedback = await Feedback.create({
+      name: 'Anonymous',
+      role: 'anonymous',
+      currentProcess: 'anonymous',
+      satisfaction: 3,
+      priorities: [],
+      wouldUseChatbot: 'Maybe',
+      issueFrequency: 'Sometimes',
+      statusImportance: 'Important',
+      responseTime: 'Same Day',
+      notifPreference: 'Email',
+      suggestions: `[${allowed.includes(category) ? category : 'Other'}][${allowed2.includes(severity) ? severity : 'Medium'}] ${description.trim().slice(0, 1000)}`,
+      userAgent: (req.headers['user-agent'] || '').slice(0, 500),
+    });
+    res.status(201).json({ message: 'Feedback submitted anonymously. Thank you!', id: feedback._id });
+  } catch {
+    res.status(500).json({ error: 'Failed to submit feedback' });
+  }
+});
+
 module.exports = router;

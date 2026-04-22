@@ -1396,21 +1396,52 @@ const Chatbot = () => {
   };
 
   const _presentConfirm = (priority, td) => {
-    const descPreview = (td || ticketData).description.length > 90
-      ? (td || ticketData).description.substring(0, 90) + '…'
-      : (td || ticketData).description;
-    const cat = (td || ticketData).category;
-    const sub = (td || ticketData).subType || 'General';
+    const data = td || ticketData;
+    const descPreview = data.description.length > 90
+      ? data.description.substring(0, 90) + '…'
+      : data.description;
+    const cat = data.category;
+    const sub = data.subType || 'General';
 
-    botReply(
-      `Thanks for the details! Here's your ticket summary:\n\nCategory: ${cat}\nSub-type: ${sub}\nPriority: **${priority}**\nIssue: ${descPreview}\n\nShall I go ahead and submit this ticket?\n\n_Say "change priority to Critical/High/Low" to adjust before submitting._`,
-      400,
-      () => {
-        setKbSuggestions([]);
-        setChipType('confirm');
-        setQuickReplies(['Confirm & Submit', 'Change Priority to Critical', 'Change Priority to High', 'Edit Details', 'Cancel']);
-      }
-    );
+    // Duplicate detection — fuzzy match against recent open tickets
+    const titleWords = data.description.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+    const checkDuplicates = async () => {
+      try {
+        const r = await api.get('/tickets', { params: { limit: 20 } });
+        const openTickets = (r.data.tickets || []).filter(t => ['Open', 'In Progress'].includes(t.status));
+        let bestMatch = null;
+        let bestScore = 0;
+        for (const t of openTickets) {
+          const tWords = t.title.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+          const overlap = titleWords.filter(w => tWords.includes(w)).length;
+          const score = overlap / Math.max(titleWords.length, tWords.length, 1);
+          if (score > bestScore) { bestScore = score; bestMatch = t; }
+        }
+        if (bestScore > 0.5 && bestMatch) {
+          botReply(
+            `⚠️ **Possible duplicate detected!**\n\nThis looks similar to an existing ticket:\n• **${bestMatch.ticketId}**: ${bestMatch.title} (${bestMatch.status})\n\nYou can track that ticket instead, or confirm to submit a new one anyway.`,
+            300,
+            () => {
+              setChipType('confirm');
+              setQuickReplies([`Track ${bestMatch.ticketId}`, 'Submit New Ticket', 'Cancel']);
+            }
+          );
+          return;
+        }
+      } catch {}
+
+      botReply(
+        `Thanks for the details! Here's your ticket summary:\n\nCategory: ${cat}\nSub-type: ${sub}\nPriority: **${priority}**\nIssue: ${descPreview}\n\nShall I go ahead and submit this ticket?\n\n_Say "change priority to Critical/High/Low" to adjust before submitting._`,
+        400,
+        () => {
+          setKbSuggestions([]);
+          setChipType('confirm');
+          setQuickReplies(['Confirm & Submit', 'Change Priority to Critical', 'Change Priority to High', 'Edit Details', 'Cancel']);
+        }
+      );
+    };
+
+    checkDuplicates();
   };
 
   // STEP 4: confirm / edit / cancel

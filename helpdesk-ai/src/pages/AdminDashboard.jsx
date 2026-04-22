@@ -56,7 +56,10 @@ const AdminDashboard = () => {
   const [agents, setAgents] = useState([]);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [chartRange, setChartRange] = useState(30); // days — 7 | 30 | 90 | 0=all
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'sla' | 'aging'
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'sla' | 'aging' | 'maintenance'
+  const [maintenanceWindows, setMaintenanceWindows] = useState([]);
+  const [maintForm, setMaintForm] = useState({ title: '', message: '', startAt: '', endAt: '' });
+  const [maintSaving, setMaintSaving] = useState(false);
   const [savedFilters, setSavedFilters] = useState(() => {
     try { return JSON.parse(localStorage.getItem('hd_savedFilters') || '[]'); } catch { return []; }
   });
@@ -101,6 +104,9 @@ const AdminDashboard = () => {
 
   useEffect(() => { fetchData(); }, []);
   useEffect(() => { const timer = setInterval(() => fetchData(true), 30000); return () => clearInterval(timer); }, []);
+  useEffect(() => {
+    api.get('/maintenance').then(r => setMaintenanceWindows(r.data.windows || [])).catch(() => {});
+  }, []);
   useEffect(() => { setTablePage(1); }, [search, filterStatus, filterPriority, filterCategory]);
 
   useEffect(() => {
@@ -265,6 +271,12 @@ const AdminDashboard = () => {
   const thisWeekResolved = tickets.filter(t => t.status === 'Resolved' && now - new Date(t.createdAt) <  7 * 86400000).length;
   const lastWeekResolved = tickets.filter(t => t.status === 'Resolved' && (() => { const age = now - new Date(t.createdAt); return age >= 7 * 86400000 && age < 14 * 86400000; })()).length;
 
+  // Zero-Ticket Days — days since the most recent ticket was created
+  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+  const createdToday = tickets.filter(t => new Date(t.createdAt) >= todayStart).length;
+  const lastTicketMs = tickets.reduce((best, t) => Math.max(best, new Date(t.createdAt).getTime()), 0);
+  const daysSinceLastTicket = lastTicketMs > 0 ? Math.floor((Date.now() - lastTicketMs) / 86400000) : null;
+
   const getTrend = (curr, prev) => {
     if (prev === 0) return null;
     const pct = Math.round(((curr - prev) / prev) * 100);
@@ -392,6 +404,7 @@ const AdminDashboard = () => {
             { key: 'overview', label: 'Overview' },
             { key: 'sla', label: `SLA Breaches${slaBreaches.length > 0 ? ` (${slaBreaches.length})` : ''}`, warn: slaBreaches.length > 0 },
             { key: 'aging', label: 'Ticket Aging' },
+            { key: 'maintenance', label: '🔧 Maintenance' },
           ].map(({ key, label, warn }) => (
             <button key={key} onClick={() => setActiveTab(key)}
               className={`px-4 py-1.5 rounded-lg text-[12px] font-medium transition-all ${
@@ -523,6 +536,84 @@ const AdminDashboard = () => {
           </div>
         )}
 
+        {/* Maintenance Windows Tab */}
+        {activeTab === 'maintenance' && (
+          <div className="space-y-5">
+            {/* Schedule new window */}
+            <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5">
+              <h2 className="text-[14px] font-semibold text-[#fafafa] mb-4">Schedule Maintenance Window</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] text-[#71717a] mb-1">Title</label>
+                  <input value={maintForm.title} onChange={e => setMaintForm(f => ({ ...f, title: e.target.value }))}
+                    placeholder="e.g. Database upgrade v2.5"
+                    className="w-full bg-[#09090b] border border-[#27272a] focus:border-[#3b82f6]/60 rounded-lg px-3 py-2 text-[13px] text-[#e4e4e7] outline-none" />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-[#71717a] mb-1">Start</label>
+                  <input type="datetime-local" value={maintForm.startAt} onChange={e => setMaintForm(f => ({ ...f, startAt: e.target.value }))}
+                    className="w-full bg-[#09090b] border border-[#27272a] focus:border-[#3b82f6]/60 rounded-lg px-3 py-2 text-[13px] text-[#e4e4e7] outline-none" />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-[#71717a] mb-1">End</label>
+                  <input type="datetime-local" value={maintForm.endAt} onChange={e => setMaintForm(f => ({ ...f, endAt: e.target.value }))}
+                    className="w-full bg-[#09090b] border border-[#27272a] focus:border-[#3b82f6]/60 rounded-lg px-3 py-2 text-[13px] text-[#e4e4e7] outline-none" />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] text-[#71717a] mb-1">Message (optional)</label>
+                  <input value={maintForm.message} onChange={e => setMaintForm(f => ({ ...f, message: e.target.value }))}
+                    placeholder="The system is undergoing scheduled maintenance…"
+                    className="w-full bg-[#09090b] border border-[#27272a] focus:border-[#3b82f6]/60 rounded-lg px-3 py-2 text-[13px] text-[#e4e4e7] outline-none" />
+                </div>
+              </div>
+              <button disabled={maintSaving || !maintForm.title || !maintForm.startAt || !maintForm.endAt}
+                onClick={async () => {
+                  setMaintSaving(true);
+                  try {
+                    const r = await api.post('/maintenance', maintForm);
+                    setMaintenanceWindows(w => [r.data.window, ...w]);
+                    setMaintForm({ title: '', message: '', startAt: '', endAt: '' });
+                  } catch { /* ignore */ } finally { setMaintSaving(false); }
+                }}
+                className="px-4 py-2 rounded-lg bg-[#3b82f6] hover:bg-[#2563eb] disabled:opacity-50 text-white text-[12px] font-semibold transition-colors">
+                {maintSaving ? 'Scheduling…' : 'Schedule Window'}
+              </button>
+            </div>
+            {/* List */}
+            <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5">
+              <h2 className="text-[14px] font-semibold text-[#fafafa] mb-4">Scheduled Windows ({maintenanceWindows.length})</h2>
+              {maintenanceWindows.length === 0 ? (
+                <p className="text-[13px] text-[#52525b]">No maintenance windows scheduled.</p>
+              ) : (
+                <div className="space-y-2">
+                  {maintenanceWindows.map(w => {
+                    const now = Date.now();
+                    const start = new Date(w.startAt).getTime();
+                    const end = new Date(w.endAt).getTime();
+                    const isNow = now >= start && now <= end;
+                    const isPast = now > end;
+                    return (
+                      <div key={w._id} className={`flex items-start justify-between gap-3 p-3 rounded-xl border ${isNow ? 'border-[#f97316]/40 bg-[#f97316]/5' : isPast ? 'border-[#27272a] opacity-60' : 'border-[#3b82f6]/20 bg-[#3b82f6]/3'}`}>
+                        <div>
+                          <p className="text-[13px] font-medium text-[#fafafa]">{w.title}</p>
+                          <p className="text-[11px] text-[#71717a] mt-0.5">
+                            {new Date(w.startAt).toLocaleString()} → {new Date(w.endAt).toLocaleString()}
+                          </p>
+                          {isNow && <span className="text-[10px] text-[#f97316] font-semibold">⚡ ACTIVE NOW</span>}
+                        </div>
+                        <button onClick={async () => {
+                          await api.delete(`/maintenance/${w._id}`).catch(() => {});
+                          setMaintenanceWindows(ws => ws.filter(x => x._id !== w._id));
+                        }} className="text-[11px] text-[#71717a] hover:text-[#ef4444] transition-colors shrink-0">Delete</button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Stat cards */}
         {activeTab === 'overview' && <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-5">
           {[
@@ -575,6 +666,36 @@ const AdminDashboard = () => {
             );
           })}
         </div>}
+
+        {/* Zero-Ticket Days streak widget */}
+        {activeTab === 'overview' && daysSinceLastTicket !== null && (
+          <div className="mb-5 rounded-xl border p-4 flex items-center gap-4"
+            style={{
+              borderColor: daysSinceLastTicket === 0 ? '#ef4444' : daysSinceLastTicket >= 3 ? '#22c55e30' : '#f59e0b30',
+              background:  daysSinceLastTicket === 0 ? '#ef444408' : daysSinceLastTicket >= 3 ? '#22c55e08' : '#f59e0b08',
+            }}>
+            <div className="text-3xl select-none">
+              {daysSinceLastTicket === 0 ? '🔥' : daysSinceLastTicket >= 7 ? '🏆' : daysSinceLastTicket >= 3 ? '✅' : '⚡'}
+            </div>
+            <div className="flex-1">
+              {daysSinceLastTicket === 0 ? (
+                <>
+                  <p className="text-[13px] font-semibold text-[#ef4444]">{createdToday} ticket{createdToday !== 1 ? 's' : ''} created today</p>
+                  <p className="text-[11px] text-[#71717a] mt-0.5">The quiet streak has been broken — check your queue.</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-[13px] font-semibold" style={{ color: daysSinceLastTicket >= 3 ? '#22c55e' : '#f59e0b' }}>
+                    {daysSinceLastTicket} day{daysSinceLastTicket !== 1 ? 's' : ''} since the last ticket
+                  </p>
+                  <p className="text-[11px] text-[#71717a] mt-0.5">
+                    {daysSinceLastTicket >= 7 ? 'Outstanding! A whole week without a new ticket.' : daysSinceLastTicket >= 3 ? 'Nice stretch! Keep the queue clear.' : 'Things are quiet so far today.'}
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Charts row */}
         {activeTab === 'overview' && tickets.length > 0 && (
